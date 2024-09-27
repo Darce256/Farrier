@@ -25,15 +25,15 @@ export default function LoginPage() {
     e.preventDefault();
     try {
       await login(email, password); // Use the login function from AuthProvider
-      navigate("/horses");
+      navigate("/dashboard"); // Redirect to Dashboard
     } catch (error: any) {
       setError(error.message);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[url('/placeholder.svg?height=1080&width=1920')] bg-cover bg-center">
-      <Card className="w-full max-w-md bg-white/90 backdrop-blur-sm">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[url('/placeholder.svg?height=1080&width=1920')] bg-cover bg-center">
+      <Card className="w-full max-w-md bg-white/90 backdrop-blur-sm border">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
             <FaHorseHead className="h-12 w-12 text-primary" />

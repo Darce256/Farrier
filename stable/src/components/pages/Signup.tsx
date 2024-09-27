@@ -40,26 +40,30 @@ export default function SignUpPage() {
     setIsLoading(true); // Start loading
     setError(null);
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            name: name,
-          },
-        },
       });
       if (error) throw error;
 
+      // Insert profile data into the profiles table
+      const { error: profileError } = await supabase
+        .from("profiles")
+        .insert([{ id: user?.id, name, email }]);
+      if (profileError) throw profileError;
+
       // Show success toast
-      toast.success("Signup successful! Redirecting to login page...", {
-        duration: 5000,
+      toast.success("Signup successful! Redirecting to dashboard...", {
+        duration: 2000,
       });
 
-      // Navigate to login page after a short delay
+      // Navigate to dashboard after a short delay
       setTimeout(() => {
-        navigate("/login");
-      }, 3000);
+        navigate("/dashboard");
+      }, 2000);
     } catch (error: any) {
       setError(error.message);
       toast.error("Signup failed. Please try again.");
@@ -68,9 +72,9 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[url('/placeholder.svg?height=1080&width=1920')] bg-cover bg-center">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[url('/placeholder.svg?height=1080&width=1920')] bg-cover bg-center">
       <Toaster position="top-center" reverseOrder={false} />
-      <Card className="w-full max-w-md bg-white/90 backdrop-blur-sm">
+      <Card className="w-full max-w-md bg-white/90 backdrop-blur-sm border">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
             <FaHorseHead className="h-12 w-12 text-primary" />

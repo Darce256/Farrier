@@ -11,6 +11,7 @@ import { Footer } from "./components/ui/nav/Footer";
 import LoginPage from "./components/pages/Login";
 import SignUpPage from "./components/pages/Signup";
 import HorseDashboard from "./components/pages/HorseDashboard";
+import Dashboard from "./components/pages/Dashboard"; // Import Dashboard component
 import { AuthProvider, useAuth } from "./components/Contexts/AuthProvider";
 import { ReactNode } from "react";
 
@@ -37,6 +38,14 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignUpPage />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/horses"
                 element={

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-
+import { supabase } from "../../lib/supabaseClient"; // Ensure you have a Supabase client setup
 // Define the shape of the user object
 interface User {
   name: string;
@@ -30,40 +30,61 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const checkUserSession = async () => {
-    // Here you would typically check if the user is already logged in
-    // For example, by checking a token in localStorage or making an API call
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      // Validate the token with your backend
-      // If valid, set the user
-      // This is a placeholder implementation
-      setUser({ name: "John Doe", email: "john@example.com" });
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+      const { user } = session;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("name, email")
+        .eq("id", user.id)
+        .single();
+
+      if (data) {
+        setUser({ name: data.name, email: data.email });
+      }
     }
   };
 
   const login = async (email: string, password: string) => {
-    // Implement your login logic here
-    // This could involve making an API call to your backend
-    // On success, update the user state
-    // This is a placeholder implementation
-    setUser({ name: "John Doe", email });
-    localStorage.setItem("authToken", "sample-token");
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+
+    const { data } = await supabase
+      .from("profiles")
+      .select("name, email")
+      .eq("id", user?.id)
+      .single();
+
+    if (data) {
+      setUser({ name: data.name, email: data.email });
+    }
   };
 
   const logout = async () => {
-    // Implement your logout logic here
-    // This could involve clearing tokens from localStorage and/or making an API call
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
     setUser(null);
-    localStorage.removeItem("authToken");
   };
 
   const signup = async (name: string, email: string, password: string) => {
-    // Implement your signup logic here
-    // This could involve making an API call to your backend
-    // On success, you might want to automatically log the user in
-    // This is a placeholder implementation
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+
+    const { data, error: profileError } = await supabase
+      .from("profiles")
+      .insert([{ id: user?.id, name, email }]);
+
+    if (profileError) throw profileError;
+
     setUser({ name, email });
-    localStorage.setItem("authToken", "sample-token");
   };
 
   const value = {
