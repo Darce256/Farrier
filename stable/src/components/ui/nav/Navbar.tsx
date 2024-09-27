@@ -13,7 +13,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/components/Contexts/AuthProvider";
 
 export default function NavBar() {
@@ -35,7 +35,6 @@ export default function NavBar() {
     navigate("/");
   };
 
-  // Function to get initials from name
   const getInitials = (name: string) => {
     const names = name.split(" ");
     if (names.length >= 2) {
@@ -48,32 +47,35 @@ export default function NavBar() {
     <nav className="bg-primary">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex-shrink-0">
-            <FaHorseHead className="h-8 w-8 text-white" />
-          </Link>
-          <h1 className="text-white text-2xl ml-4 font-bold">Farrier</h1>
-
-          {/* Center-aligned navigation links */}
-          <div className="hidden md:flex flex-grow justify-center">
-            <div className="flex items-baseline space-x-4">
-              {navItems.map((item) => (
-                <Link
-                  key={item.name}
-                  to={item.href}
-                  className="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  {item.name}
-                </Link>
-              ))}
-            </div>
+          <div className="flex items-center">
+            <Link to="/" className="flex-shrink-0">
+              <FaHorseHead className="h-8 w-8 text-white" />
+            </Link>
+            <h1 className="text-white text-2xl ml-4 font-bold">Farrier</h1>
           </div>
+
+          {/* Center-aligned navigation links - only shown when not authenticated */}
+          {!user && (
+            <div className="hidden md:flex flex-grow justify-center">
+              <div className="flex items-baseline space-x-4">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.name}
+                    to={item.href}
+                    className="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium"
+                  >
+                    {item.name}
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="hidden md:block">
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Avatar className="cursor-pointer">
-                    <AvatarImage src={user.image} alt={user.name} />
                     <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
                   </Avatar>
                 </DropdownMenuTrigger>
@@ -135,16 +137,17 @@ export default function NavBar() {
                 className="w-[250px] sm:w-[300px] bg-red-600"
               >
                 <nav className="flex flex-col space-y-4 mt-4">
-                  {navItems.map((item) => (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      className="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      {item.name}
-                    </Link>
-                  ))}
+                  {!user &&
+                    navItems.map((item) => (
+                      <Link
+                        key={item.name}
+                        to={item.href}
+                        className="text-white hover:text-gray-200 px-3 py-2 rounded-md text-sm font-medium"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        {item.name}
+                      </Link>
+                    ))}
                   <div className="flex flex-col space-y-4 mt-4">
                     {user ? (
                       <Button
