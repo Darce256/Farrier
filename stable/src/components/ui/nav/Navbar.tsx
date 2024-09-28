@@ -4,7 +4,7 @@ import { Menu, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { FaHorseHead } from "react-icons/fa6";
+import { LiaHorseHeadSolid } from "react-icons/lia";
 
 import { useAuth } from "@/components/Contexts/AuthProvider";
 
@@ -32,7 +32,7 @@ export default function NavBar() {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0">
-              <FaHorseHead className="h-8 w-8 text-white " />
+              <LiaHorseHeadSolid className="h-8 w-8 text-white " />
             </Link>
             <h1 className="text-white text-2xl ml-4 font-bold">Farrier</h1>
           </div>

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { FaHorseHead } from "react-icons/fa6";
+import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
 import { FaRegCalendarAlt } from "react-icons/fa";
 import heroImage from "@/assets/hero.jpg";
@@ -48,7 +48,7 @@ export default function Home() {
             </h2>
             <div className="grid gap-8 sm:grid-cols-2 md:grid-cols-3">
               <div className="flex flex-col items-center text-center p-4">
-                <FaHorseHead className="h-12 w-12 mb-4 text-primary" />
+                <LiaHorseHeadSolid className="h-12 w-12 mb-4 text-primary" />
                 <h3 className="text-lg font-bold mb-2">Horse Profiles</h3>
                 <p className="text-gray-500 dark:text-gray-400">
                   Maintain detailed profiles for each of your horses, including

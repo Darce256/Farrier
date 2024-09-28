@@ -13,7 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { FaHorseHead } from "react-icons/fa6";
+import { LiaHorseHeadSolid } from "react-icons/lia";
 import { Loader2 } from "lucide-react"; // Import the spinner icon
 import toast, { Toaster } from "react-hot-toast";
 
@@ -77,7 +77,7 @@ export default function SignUpPage() {
       <Card className="w-full max-w-md bg-white/90 backdrop-blur-sm border">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <FaHorseHead className="h-12 w-12 text-primary" />
+            <LiaHorseHeadSolid className="h-12 w-12 text-primary" />
             <span className="ml-2 text-3xl font-bold text-primary">
               Farrier
             </span>

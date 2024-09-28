@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { FaHorseHead } from "react-icons/fa6";
+import { LiaHorseHeadSolid } from "react-icons/lia";
 import { useAuth } from "@/components/Contexts/AuthProvider"; // Import useAuth
 
 export default function LoginPage() {
@@ -36,7 +36,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-md bg-white/90 backdrop-blur-sm border">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <FaHorseHead className="h-12 w-12 text-primary" />
+            <LiaHorseHeadSolid className="h-12 w-12 text-primary" />
             <span className="ml-2 text-3xl font-bold text-primary">
               Farrier
             </span>

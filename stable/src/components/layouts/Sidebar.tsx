@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { FaHorseHead } from "react-icons/fa6";
+import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
 import {
   MenuIcon,
@@ -17,7 +17,7 @@ export default function Sidebar() {
 
   const navItems = [
     { name: "Dashboard", icon: StoreIcon, href: "/dashboard" },
-    { name: "Horses", icon: FaHorseHead, href: "/horses" },
+    { name: "Horses", icon: LiaHorseHeadSolid, href: "/horses" },
     { name: "New Shoeings", icon: TbHorseshoe, href: "/new-shoeings" },
     { name: "Customers", icon: UsersIcon, href: "/customers" },
     { name: "Analytics", icon: InfoIcon, href: "/analytics" },

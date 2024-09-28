@@ -9,7 +9,6 @@ import {
   BreadcrumbSeparator,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -27,7 +26,7 @@ import {
   InfoIcon,
   SettingsIcon,
 } from "lucide-react";
-import { FaHorseHead } from "react-icons/fa6";
+import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
 
 export default function AuthenticatedHeader() {
@@ -43,7 +42,7 @@ export default function AuthenticatedHeader() {
 
   const navItems = [
     { name: "Dashboard", icon: StoreIcon, href: "/dashboard" },
-    { name: "Horses", icon: FaHorseHead, href: "/horses" },
+    { name: "Horses", icon: LiaHorseHeadSolid, href: "/horses" },
     { name: "New Shoeings", icon: TbHorseshoe, href: "/new-shoeings" },
     { name: "Customers", icon: UsersIcon, href: "/customers" },
     { name: "Analytics", icon: InfoIcon, href: "/analytics" },
