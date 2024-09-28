@@ -12,6 +12,11 @@ export default function NavBar() {
   const [isOpen, setIsOpen] = React.useState(false);
   const { user } = useAuth();
 
+  // If the user is authenticated, don't render the navbar
+  if (user) {
+    return null;
+  }
+
   const toggleMenu = () => setIsOpen(!isOpen);
 
   const navItems = [
@@ -20,10 +25,6 @@ export default function NavBar() {
     { name: "Services", href: "/services" },
     { name: "Contact", href: "/contact" },
   ];
-
-  if (user) {
-    return null; // Do not render the navbar if the user is logged in
-  }
 
   return (
     <nav className="bg-primary">
@@ -36,7 +37,7 @@ export default function NavBar() {
             <h1 className="text-white text-2xl ml-4 font-bold">Farrier</h1>
           </div>
 
-          {/* Center-aligned navigation links - only shown when not authenticated */}
+          {/* Center-aligned navigation links */}
           <div className="hidden md:flex flex-grow justify-center">
             <div className="flex items-baseline space-x-4">
               {navItems.map((item) => (
@@ -51,6 +52,7 @@ export default function NavBar() {
             </div>
           </div>
 
+          {/* Login/Signup buttons */}
           <div className="hidden md:block">
             <div className="ml-4 flex items-center space-x-4">
               <Link to="/login">
@@ -68,6 +70,8 @@ export default function NavBar() {
               </Link>
             </div>
           </div>
+
+          {/* Mobile menu */}
           <div className="md:hidden">
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
