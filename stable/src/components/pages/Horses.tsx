@@ -217,7 +217,7 @@ function HorseCard({
   return (
     <Card className="border-primary/20 shadow-lg">
       <CardHeader>
-        <CardTitle className="text-black text-2xl">{horse.name}</CardTitle>
+        <CardTitle className="text-black text-3xl">{horse.name}</CardTitle>
       </CardHeader>
       <CardContent>
         <p>Barn: {horse.barn}</p>
