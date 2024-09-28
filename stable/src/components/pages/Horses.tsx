@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { FaHorseHead } from "react-icons/fa6";
 
 // Mock data for horses
 const horses = [
@@ -81,7 +82,7 @@ const horses = [
     ],
   },
 ];
-export default function HorseDashboard() {
+export default function Horses() {
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
   const [selectedHorse, setSelectedHorse] = useState<(typeof horses)[0] | null>(
     null
@@ -111,7 +112,10 @@ export default function HorseDashboard() {
   }, [filterTrainer, filterBarn, searchQuery]);
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-3xl font-bold mb-6 text-primary">Horses</h1>
+      <div className="flex items-center gap-2 align-middle mb-6">
+        <FaHorseHead className="text-4xl " />
+        <h1 className="text-4xl font-bold  text-black">Horses</h1>
+      </div>
       <div className="flex flex-col space-y-4 mb-4">
         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
           <div className="relative flex-grow">
@@ -211,9 +215,9 @@ function HorseCard({
   onSelect: () => void;
 }) {
   return (
-    <Card className="border-primary/20">
+    <Card className="border-primary/20 shadow-lg">
       <CardHeader>
-        <CardTitle className="text-primary text-2xl">{horse.name}</CardTitle>
+        <CardTitle className="text-black text-2xl">{horse.name}</CardTitle>
       </CardHeader>
       <CardContent>
         <p>Barn: {horse.barn}</p>
