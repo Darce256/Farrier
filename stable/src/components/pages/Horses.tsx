@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Search, X } from "lucide-react";
+import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { getHorses, Horse } from "@/lib/horseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -37,6 +37,8 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { Badge } from "@/components/ui/badge";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
+import { Skeleton } from "@/components/ui/skeleton"; // Make sure to import this
+import { createPortal } from "react-dom";
 
 interface Shoeing {
   id: string;
@@ -47,6 +49,11 @@ interface Shoeing {
   "Location of Service": string;
   "Total Cost": number | string | null;
   "Shoe Notes": string;
+}
+
+// Add this interface to define the structure of the database response
+interface XRayImagesResponse {
+  "x-ray-images": string[];
 }
 
 export default function Horses() {
@@ -61,6 +68,17 @@ export default function Horses() {
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const [modalState, setModalState] = useState<{
+    isOpen: boolean;
+    horse: Horse | null;
+    lightboxImages: string[];
+    lightboxIndex: number | null;
+  }>({
+    isOpen: false,
+    horse: null,
+    lightboxImages: [],
+    lightboxIndex: null,
+  });
 
   useEffect(() => {
     async function fetchHorses() {
@@ -140,6 +158,145 @@ export default function Horses() {
     setSearchQuery("");
   };
 
+  const openModal = (horse: Horse) => {
+    setModalState((prev) => ({
+      ...prev,
+      isOpen: true,
+      horse,
+    }));
+  };
+
+  const closeModal = () => {
+    setModalState((prev) => ({
+      ...prev,
+      isOpen: false,
+      horse: null,
+      lightboxImages: [],
+      lightboxIndex: null,
+    }));
+  };
+
+  const openLightbox = (images: string[], index: number) => {
+    setModalState((prev) => ({
+      ...prev,
+      lightboxImages: images,
+      lightboxIndex: index,
+    }));
+  };
+
+  const closeLightbox = () => {
+    setModalState((prev) => ({
+      ...prev,
+      lightboxIndex: null,
+    }));
+  };
+
+  const handlePrevImage = () => {
+    setModalState((prev) => ({
+      ...prev,
+      lightboxIndex:
+        prev.lightboxIndex !== null
+          ? (prev.lightboxIndex - 1 + prev.lightboxImages.length) %
+            prev.lightboxImages.length
+          : null,
+    }));
+  };
+
+  const handleNextImage = () => {
+    setModalState((prev) => ({
+      ...prev,
+      lightboxIndex:
+        prev.lightboxIndex !== null
+          ? (prev.lightboxIndex + 1) % prev.lightboxImages.length
+          : null,
+    }));
+  };
+
+  const handleLightboxClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (e.target === e.currentTarget) {
+      closeLightbox();
+    }
+  }, []);
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (modalState.lightboxIndex !== null) {
+        if (e.key === "ArrowLeft") {
+          handlePrevImage();
+        } else if (e.key === "ArrowRight") {
+          handleNextImage();
+        } else if (e.key === "Escape") {
+          closeLightbox();
+        }
+      }
+    },
+    [modalState.lightboxIndex]
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [handleKeyDown]);
+
+  const renderLightbox = () => {
+    if (modalState.lightboxIndex === null) return null;
+
+    return createPortal(
+      <div
+        className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999]"
+        onClick={handleLightboxClick}
+        style={{ touchAction: "none" }}
+      >
+        <div
+          className="relative max-w-4xl max-h-full"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img
+            src={modalState.lightboxImages[modalState.lightboxIndex]}
+            alt={`X-Ray ${modalState.lightboxIndex + 1}`}
+            className="max-w-full max-h-[90vh] object-contain"
+          />
+          <button
+            className="absolute top-4 right-4 text-white hover:text-gray-300"
+            onClick={(e) => {
+              e.stopPropagation();
+              closeLightbox();
+            }}
+          >
+            <X size={24} />
+          </button>
+          <button
+            className="absolute top-1/2 left-4 transform -translate-y-1/2 text-white hover:text-gray-300"
+            onClick={(e) => {
+              e.stopPropagation();
+              handlePrevImage();
+            }}
+          >
+            <ChevronLeft size={40} />
+          </button>
+          <button
+            className="absolute top-1/2 right-4 transform -translate-y-1/2 text-white hover:text-gray-300"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleNextImage();
+            }}
+          >
+            <ChevronRight size={40} />
+          </button>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
+  // Update this function in your HorseCard or HorseTable component
+  const handleViewDetails = (horse: Horse) => {
+    openModal(horse);
+  };
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center gap-2 align-middle mb-6">
@@ -215,10 +372,7 @@ export default function Horses() {
             <HorseCard
               key={horse.id}
               horse={horse}
-              onSelect={() => {
-                setSelectedHorse(horse);
-                setIsModalOpen(true);
-              }}
+              onSelect={() => handleViewDetails(horse)}
             />
           ))}
         </div>
@@ -226,21 +380,20 @@ export default function Horses() {
         <div className="overflow-x-auto">
           <HorseTable
             horses={filteredHorses}
-            onSelect={(horse) => {
-              setSelectedHorse(horse);
-              setIsModalOpen(true);
-            }}
+            onSelect={(horse) => handleViewDetails(horse)}
           />
         </div>
       )}
 
-      {selectedHorse && (
+      {modalState.isOpen && modalState.horse && (
         <HorseDetailsModal
-          horse={selectedHorse}
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
+          horse={modalState.horse}
+          isOpen={modalState.isOpen}
+          onClose={closeModal}
         />
       )}
+
+      {renderLightbox()}
     </div>
   );
 }
@@ -425,12 +578,15 @@ function HorseDetailsModal({
   const [xRayImages, setXRayImages] = useState<string[]>([]);
   const [shoeings, setShoeings] = useState<Shoeing[]>([]);
   const [notes, setNotes] = useState<string[]>([]);
+  const [isLoadingXRays, setIsLoadingXRays] = useState(true);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
+    null
+  );
 
   useEffect(() => {
     if (isOpen && horse) {
-      setXRayImages(
-        horse["X-Ray Images (from History)"]?.split(",").filter(Boolean) || []
-      );
+      setIsLoadingXRays(true);
+      fetchXRayImages();
       setNotes(
         horse["Note w/ Time Stamps (from History)"]
           ?.split(",")
@@ -440,12 +596,35 @@ function HorseDetailsModal({
     }
   }, [isOpen, horse]);
 
+  async function fetchXRayImages() {
+    try {
+      const { data, error } = await supabase
+        .from("horses")
+        .select("x-ray-images")
+        .eq("id", horse.id)
+        .single<XRayImagesResponse>();
+
+      if (error) throw error;
+
+      if (data && Array.isArray(data["x-ray-images"])) {
+        setXRayImages(data["x-ray-images"]);
+      } else {
+        setXRayImages([]);
+      }
+    } catch (error) {
+      console.error("Error fetching X-ray images:", error);
+      setXRayImages([]);
+    } finally {
+      setIsLoadingXRays(false);
+    }
+  }
+
   async function fetchShoeings() {
     const horseIdentifier = `${horse.Name} - [${horse["Barn / Trainer"]}]`;
     const { data, error } = await supabase
       .from("shoeings")
       .select("*")
-      .eq("Horses", horseIdentifier) // Note the capital 'H' in 'Horses'
+      .eq("Horses", horseIdentifier)
       .order("Date of Service", { ascending: false });
 
     if (error) {
@@ -455,33 +634,115 @@ function HorseDetailsModal({
     }
   }
 
+  const handleImageClick = (index: number) => {
+    setSelectedImageIndex(index);
+  };
+
+  const handlePrevImage = () => {
+    setSelectedImageIndex((prev) =>
+      prev !== null ? (prev - 1 + xRayImages.length) % xRayImages.length : null
+    );
+  };
+
+  const handleNextImage = () => {
+    setSelectedImageIndex((prev) =>
+      prev !== null ? (prev + 1) % xRayImages.length : null
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+      <DialogContent
+        className={`sm:max-w-[${
+          selectedImageIndex !== null ? "800px" : "600px"
+        }]`}
+      >
         <DialogHeader>
-          <DialogTitle>{horse.Name}</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">{horse.Name}</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="xrays" className="w-full">
-          <TabsList>
-            <TabsTrigger value="xrays">X-Rays</TabsTrigger>
-            <TabsTrigger value="history">Shoeing History</TabsTrigger>
-            <TabsTrigger value="notes">Notes</TabsTrigger>
+        <Tabs defaultValue="xrays" className="w-full flex flex-col">
+          <TabsList className="bg-primary text-primary-foreground w-full grid grid-cols-3">
+            <TabsTrigger value="xrays" className="w-full">
+              X-Rays
+            </TabsTrigger>
+            <TabsTrigger value="history" className="w-full">
+              Shoeing History
+            </TabsTrigger>
+            <TabsTrigger value="notes" className="w-full">
+              Notes
+            </TabsTrigger>
           </TabsList>
-          <TabsContent value="xrays">
-            <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-              {xRayImages.length > 0 ? (
-                xRayImages.map((image, index) => (
+          <TabsContent value="xrays" className="flex-grow overflow-hidden px-6">
+            {selectedImageIndex !== null ? (
+              <div className="flex flex-col h-full">
+                <div className="relative flex-grow flex justify-center items-center border rounded-md p-2 mb-2">
                   <img
-                    key={index}
-                    src={image}
-                    alt={`X-Ray ${index + 1}`}
-                    className="mb-4"
+                    src={xRayImages[selectedImageIndex]}
+                    alt={`X-Ray ${selectedImageIndex + 1}`}
+                    className="max-w-full max-h-full object-contain"
                   />
-                ))
-              ) : (
-                <p>No X-Ray images available.</p>
-              )}
-            </ScrollArea>
+                  <button
+                    className="absolute top-1/2 left-2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-2"
+                    onClick={handlePrevImage}
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                  <button
+                    className="absolute top-1/2 right-2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-2"
+                    onClick={handleNextImage}
+                  >
+                    <ChevronRight size={24} />
+                  </button>
+                  <button
+                    className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2"
+                    onClick={() => setSelectedImageIndex(null)}
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                <div className="h-[100px] overflow-x-auto">
+                  <div className="flex space-x-2 pb-2">
+                    {xRayImages.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt={`X-Ray ${index + 1}`}
+                        className={`h-[80px] w-auto object-cover cursor-pointer border rounded-md ${
+                          index === selectedImageIndex
+                            ? "border-2 border-primary"
+                            : "border-gray-200"
+                        }`}
+                        onClick={() => handleImageClick(index)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+                {isLoadingXRays ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {[...Array(6)].map((_, i) => (
+                      <Skeleton key={i} className="w-full h-[100px]" />
+                    ))}
+                  </div>
+                ) : xRayImages.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {xRayImages.map((image, index) => (
+                      <img
+                        key={index}
+                        src={image}
+                        alt={`X-Ray ${index + 1}`}
+                        className="w-full h-[100px] object-cover cursor-pointer"
+                        onClick={() => handleImageClick(index)}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p>No X-Ray images available.</p>
+                )}
+              </ScrollArea>
+            )}
           </TabsContent>
           <TabsContent value="history">
             <ScrollArea className="h-[300px] w-full rounded-md border p-4">
@@ -489,7 +750,7 @@ function HorseDetailsModal({
                 <Accordion type="single" collapsible className="w-full">
                   {shoeings.map((shoeing, index) => (
                     <AccordionItem key={shoeing.id} value={`item-${index}`}>
-                      <AccordionTrigger>
+                      <AccordionTrigger className="font-semibold">
                         {new Date(
                           shoeing["Date of Service"]
                         ).toLocaleDateString()}{" "}
