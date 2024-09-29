@@ -14,7 +14,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -25,10 +24,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { getHorses, Horse } from "@/lib/horseService";
-import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { supabase } from "@/lib/supabaseClient";
+
+interface Shoeing {
+  id: string;
+  "Date of Service": string;
+  "Base Service": string;
+  "Front Add-On's": string;
+  "Other Custom Services": string;
+  "Location of Service": string;
+  "Total Cost": number | string | null;
+  "Shoe Notes": string;
+}
 
 export default function Horses() {
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
@@ -39,8 +56,8 @@ export default function Horses() {
   const [searchQuery, setSearchQuery] = useState("");
   const [horses, setHorses] = useState<Horse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFiltering] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     async function fetchHorses() {
@@ -48,12 +65,15 @@ export default function Horses() {
       setError(null);
       try {
         const fetchedHorses = await getHorses();
+        console.log("Fetched horses in component:", fetchedHorses.length);
+        console.log("Sample horse:", fetchedHorses[0]); // Log a sample horse
         const sortedHorses = fetchedHorses.sort((a, b) =>
           (a.Name || "").localeCompare(b.Name || "")
         );
         setHorses(sortedHorses);
         setIsLoading(false);
       } catch (err) {
+        console.error("Error in fetchHorses:", err);
         setError("Failed to fetch horses. Please try again later.");
         setIsLoading(false);
       }
@@ -67,15 +87,50 @@ export default function Horses() {
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b));
 
-  const filteredHorses = horses.filter(
-    (horse) =>
-      (!filterBarnTrainer || horse["Barn / Trainer"] === filterBarnTrainer) &&
-      (horse.Name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        horse["Barn / Trainer"]
-          ?.toLowerCase()
-          .includes(searchQuery.toLowerCase()) ||
-        horse.Customers?.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredHorses = horses
+    .filter((horse) => {
+      // Filter out horses with no name and empty barn/trainer
+      if (!horse.Name && !horse["Barn / Trainer"]) {
+        return false;
+      }
+
+      const matchesBarnTrainer =
+        !filterBarnTrainer || horse["Barn / Trainer"] === filterBarnTrainer;
+
+      if (searchQuery) {
+        const lowerSearchQuery = searchQuery.toLowerCase();
+
+        // First, check if the horse's name matches
+        if (horse.Name?.toLowerCase().includes(lowerSearchQuery)) {
+          return matchesBarnTrainer;
+        }
+
+        // If no match in name, then check other fields
+        return (
+          matchesBarnTrainer &&
+          (horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery) ||
+            horse.Customers?.toLowerCase().includes(lowerSearchQuery))
+        );
+      }
+
+      return matchesBarnTrainer;
+    })
+    .sort((a, b) => {
+      if (searchQuery) {
+        const aNameMatch = a.Name?.toLowerCase().includes(
+          searchQuery.toLowerCase()
+        )
+          ? 1
+          : 0;
+        const bNameMatch = b.Name?.toLowerCase().includes(
+          searchQuery.toLowerCase()
+        )
+          ? 1
+          : 0;
+        return bNameMatch - aNameMatch;
+      }
+      return 0;
+    });
 
   const clearFilters = () => {
     setFilterBarnTrainer(null);
@@ -93,7 +148,7 @@ export default function Horses() {
       <div className="flex flex-col sm:flex-row gap-4 mb-4">
         <Select
           value={filterBarnTrainer || ""}
-          onValueChange={(value) => setFilterBarnTrainer(value)}
+          onValueChange={(value) => setFilterBarnTrainer(value || null)}
         >
           <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Filter by Barn/Trainer" />
@@ -141,39 +196,40 @@ export default function Horses() {
         <HorsesSkeleton viewMode={viewMode} />
       ) : error ? (
         <div className="text-red-500 text-center">{error}</div>
-      ) : isFiltering ? (
-        <div className="flex justify-center items-center h-64">
-          <Spinner />
-        </div>
       ) : filteredHorses.length === 0 ? (
         <div className="text-center">No horses found.</div>
       ) : viewMode === "card" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
           {filteredHorses.map((horse) => (
             <HorseCard
               key={horse.id}
               horse={horse}
-              onSelect={() => setSelectedHorse(horse)}
+              onSelect={() => {
+                setSelectedHorse(horse);
+                setIsModalOpen(true);
+              }}
             />
           ))}
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <HorseTable horses={filteredHorses} onSelect={setSelectedHorse} />
+          <HorseTable
+            horses={filteredHorses}
+            onSelect={(horse) => {
+              setSelectedHorse(horse);
+              setIsModalOpen(true);
+            }}
+          />
         </div>
       )}
 
-      <Dialog>
-        <DialogTrigger asChild>
-          <div style={{ display: "none" }}></div>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{selectedHorse?.Name}</DialogTitle>
-          </DialogHeader>
-          {selectedHorse && <HorseDetails horse={selectedHorse} />}
-        </DialogContent>
-      </Dialog>
+      {selectedHorse && (
+        <HorseDetailsModal
+          horse={selectedHorse}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
+      )}
     </div>
   );
 }
@@ -239,19 +295,22 @@ function HorseCard({
   onSelect: () => void;
 }) {
   return (
-    <Card className="border-primary/20 shadow-lg">
+    <Card className="border-primary/20 shadow-lg flex flex-col h-full">
       <CardHeader>
-        <CardTitle className="text-black text-3xl">{horse.Name}</CardTitle>
+        <CardTitle className="text-black text-3xl">
+          {horse.Name || horse["Barn / Trainer"] || "Unnamed Horse"}
+        </CardTitle>
       </CardHeader>
-      <CardContent>
-        <p>Barn / Trainer: {horse["Barn / Trainer"]}</p>
-        <p>Customers: {horse.Customers}</p>
-        <p>
-          X-rays: {horse["X-Ray Images (from History)"]?.split(",").length || 0}
-        </p>
+      <CardContent className="flex flex-col flex-grow">
+        <div className="flex-grow">
+          {horse["Barn / Trainer"] && (
+            <p>Barn / Trainer: {horse["Barn / Trainer"]}</p>
+          )}
+          {horse.Customers && <p>Customers: {horse.Customers}</p>}
+        </div>
         <Button
           onClick={onSelect}
-          className="mt-2 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+          className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90"
         >
           View Details
         </Button>
@@ -302,59 +361,143 @@ function HorseTable({
   );
 }
 
-function HorseDetails({ horse }: { horse: Horse }) {
-  const [showHistory, setShowHistory] = useState(false);
+function HorseDetailsModal({
+  horse,
+  isOpen,
+  onClose,
+}: {
+  horse: Horse;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [xRayImages, setXRayImages] = useState<string[]>([]);
+  const [shoeings, setShoeings] = useState<Shoeing[]>([]);
+  const [notes, setNotes] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (isOpen && horse) {
+      setXRayImages(
+        horse["X-Ray Images (from History)"]?.split(",").filter(Boolean) || []
+      );
+      setNotes(
+        horse["Note w/ Time Stamps (from History)"]
+          ?.split(",")
+          .filter(Boolean) || []
+      );
+      fetchShoeings();
+    }
+  }, [isOpen, horse]);
+
+  async function fetchShoeings() {
+    const horseIdentifier = `${horse.Name} - [${horse["Barn / Trainer"]}]`;
+    const { data, error } = await supabase
+      .from("shoeings")
+      .select("*")
+      .eq("Horses", horseIdentifier) // Note the capital 'H' in 'Horses'
+      .order("Date of Service", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching shoeings:", error);
+    } else {
+      setShoeings(data || []);
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      <p>
-        <strong className="text-primary">Barn / Trainer:</strong>{" "}
-        {horse["Barn / Trainer"]}
-      </p>
-      <p>
-        <strong className="text-primary">Customers:</strong> {horse.Customers}
-      </p>
-      <div>
-        <h3 className="text-lg font-semibold mb-2 text-primary">
-          X-ray Images
-        </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {horse["X-Ray Images (from History)"]
-            ?.split(",")
-            .map((xray, index) => (
-              <img
-                key={index}
-                src={xray.trim()}
-                alt={`X-ray ${index + 1}`}
-                className="rounded-md w-full"
-              />
-            ))}
-        </div>
-      </div>
-      <div>
-        <Button
-          onClick={() => setShowHistory(!showHistory)}
-          className="flex items-center w-full justify-center bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          {showHistory ? (
-            <ChevronUp className="mr-2" />
-          ) : (
-            <ChevronDown className="mr-2" />
-          )}
-          Horse History
-        </Button>
-        {showHistory && (
-          <ScrollArea className="h-[200px] mt-2">
-            {horse["Note w/ Time Stamps (from History)"]
-              ?.split("\n")
-              .map((event, index) => (
-                <div key={index} className="mb-2">
-                  <p>{event}</p>
-                </div>
-              ))}
-          </ScrollArea>
-        )}
-      </div>
-    </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[600px]">
+        <DialogHeader>
+          <DialogTitle>{horse.Name}</DialogTitle>
+        </DialogHeader>
+        <Tabs defaultValue="xrays" className="w-full">
+          <TabsList>
+            <TabsTrigger value="xrays">X-Rays</TabsTrigger>
+            <TabsTrigger value="history">Shoeing History</TabsTrigger>
+            <TabsTrigger value="notes">Notes</TabsTrigger>
+          </TabsList>
+          <TabsContent value="xrays">
+            <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+              {xRayImages.length > 0 ? (
+                xRayImages.map((image, index) => (
+                  <img
+                    key={index}
+                    src={image}
+                    alt={`X-Ray ${index + 1}`}
+                    className="mb-4"
+                  />
+                ))
+              ) : (
+                <p>No X-Ray images available.</p>
+              )}
+            </ScrollArea>
+          </TabsContent>
+          <TabsContent value="history">
+            <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+              {shoeings.length > 0 ? (
+                <Accordion type="single" collapsible className="w-full">
+                  {shoeings.map((shoeing, index) => (
+                    <AccordionItem key={shoeing.id} value={`item-${index}`}>
+                      <AccordionTrigger>
+                        {new Date(
+                          shoeing["Date of Service"]
+                        ).toLocaleDateString()}{" "}
+                        - {shoeing["Location of Service"]}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <p>
+                          <strong>Base Service:</strong>{" "}
+                          {shoeing["Base Service"]}
+                        </p>
+                        {shoeing["Front Add-On's"] && (
+                          <p>
+                            <strong>Front Add-On's:</strong>{" "}
+                            {shoeing["Front Add-On's"]}
+                          </p>
+                        )}
+                        {shoeing["Other Custom Services"] && (
+                          <p>
+                            <strong>Other Custom Services:</strong>{" "}
+                            {shoeing["Other Custom Services"]}
+                          </p>
+                        )}
+                        <p>
+                          <strong>Total Cost: </strong>
+                          {typeof shoeing["Total Cost"] === "number"
+                            ? `$${shoeing["Total Cost"].toFixed(2)}`
+                            : shoeing["Total Cost"] || "N/A"}
+                        </p>
+                        {shoeing["Shoe Notes"] && (
+                          <div>
+                            <strong>Shoe Notes:</strong>
+                            <p className="whitespace-pre-wrap">
+                              {shoeing["Shoe Notes"]}
+                            </p>
+                          </div>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+                </Accordion>
+              ) : (
+                <p>No shoeing history available.</p>
+              )}
+            </ScrollArea>
+          </TabsContent>
+          <TabsContent value="notes">
+            <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+              {notes.length > 0 ? (
+                notes.map((note, index) => (
+                  <p key={index} className="mb-2">
+                    {note}
+                  </p>
+                ))
+              ) : (
+                <p>No notes available.</p>
+              )}
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 }
