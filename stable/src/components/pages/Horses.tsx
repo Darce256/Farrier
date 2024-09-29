@@ -35,6 +35,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { supabase } from "@/lib/supabaseClient";
+import { Badge } from "@/components/ui/badge";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 
 interface Shoeing {
   id: string;
@@ -58,6 +60,7 @@ export default function Horses() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const isDesktop = useMediaQuery("(min-width: 768px)");
 
   useEffect(() => {
     async function fetchHorses() {
@@ -144,61 +147,69 @@ export default function Horses() {
         <h1 className="text-4xl font-bold  text-black">Horses</h1>
       </div>
 
-      {/* Filters and search */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-4">
-        <Select
-          value={filterBarnTrainer || ""}
-          onValueChange={(value) => setFilterBarnTrainer(value || null)}
-        >
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Filter by Barn/Trainer" />
-          </SelectTrigger>
-          <SelectContent>
-            {uniqueBarnTrainers.map((barnTrainer) => (
-              <SelectItem key={barnTrainer} value={barnTrainer}>
-                {barnTrainer}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="relative flex-grow">
-          <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search horses..."
-            className="pl-8 pr-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          {searchQuery && (
+      {/* Filters, search, and view controls */}
+      <div className="flex flex-col md:flex-row gap-4 mb-4">
+        <div className="flex-grow flex flex-col md:flex-row gap-2 md:gap-4">
+          <Select
+            value={filterBarnTrainer || ""}
+            onValueChange={(value) => setFilterBarnTrainer(value || null)}
+          >
+            <SelectTrigger className="w-full md:w-[200px]">
+              <SelectValue placeholder="Filter by Barn/Trainer" />
+            </SelectTrigger>
+            <SelectContent>
+              {uniqueBarnTrainers.map((barnTrainer) => (
+                <SelectItem key={barnTrainer} value={barnTrainer}>
+                  {barnTrainer}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="relative flex-grow">
+            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search horses..."
+              className="pl-8 pr-8 w-full"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2"
+                onClick={() => setSearchQuery("")}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          {isDesktop && (
             <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-2 top-1/2 transform -translate-y-1/2"
-              onClick={() => setSearchQuery("")}
+              onClick={() =>
+                setViewMode(viewMode === "card" ? "table" : "card")
+              }
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              <X className="h-4 w-4" />
+              {viewMode === "card" ? "Table View" : "Card View"}
             </Button>
           )}
+          <Button onClick={clearFilters} variant="outline">
+            Clear Filters
+          </Button>
         </div>
-        <Button
-          onClick={() => setViewMode(viewMode === "card" ? "table" : "card")}
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          {viewMode === "card" ? "Table View" : "Card View"}
-        </Button>
-        <Button onClick={clearFilters} variant="outline">
-          Clear Filters
-        </Button>
       </div>
 
       {isLoading ? (
-        <HorsesSkeleton viewMode={viewMode} />
+        <HorsesSkeleton viewMode={isDesktop ? viewMode : "card"} />
       ) : error ? (
         <div className="text-red-500 text-center">{error}</div>
       ) : filteredHorses.length === 0 ? (
         <div className="text-center">No horses found.</div>
-      ) : viewMode === "card" ? (
+      ) : !isDesktop || viewMode === "card" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
           {filteredHorses.map((horse) => (
             <HorseCard
@@ -255,11 +266,10 @@ function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
     <Table>
       <TableHeader>
         <TableRow className="bg-primary text-primary-foreground">
-          <TableHead>Name</TableHead>
-          <TableHead>Barn / Trainer</TableHead>
-          <TableHead>Customers</TableHead>
-          <TableHead>X-rays</TableHead>
-          <TableHead>Actions</TableHead>
+          <TableHead className="">Name</TableHead>
+          <TableHead className="">Barn / Trainer</TableHead>
+          <TableHead className="">Customers</TableHead>
+          <TableHead className="">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -273,9 +283,6 @@ function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
             </TableCell>
             <TableCell>
               <div className="h-4 bg-gray-200 rounded w-full"></div>
-            </TableCell>
-            <TableCell>
-              <div className="h-4 bg-gray-200 rounded w-1/4"></div>
             </TableCell>
             <TableCell>
               <div className="h-8 bg-gray-200 rounded w-24"></div>
@@ -294,23 +301,44 @@ function HorseCard({
   horse: Horse;
   onSelect: () => void;
 }) {
+  const customerNames = horse.Customers
+    ? horse.Customers.split(",")
+        .map((name) => name.trim())
+        .map((name) => name.replace(/^"|"$/g, "").trim())
+        .filter((name) => name.length > 0) // Filter out empty names
+    : [];
+
   return (
     <Card className="border-primary/20 shadow-lg flex flex-col h-full">
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle className="text-black text-3xl">
           {horse.Name || horse["Barn / Trainer"] || "Unnamed Horse"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col flex-grow">
-        <div className="flex-grow">
+      <CardContent className="flex flex-col flex-grow pt-0">
+        <div className="space-y-2 mb-4 flex-grow">
           {horse["Barn / Trainer"] && (
-            <p>Barn / Trainer: {horse["Barn / Trainer"]}</p>
+            <p className="text-sm">
+              <strong className="font-semibold">Barn / Trainer:</strong>{" "}
+              {horse["Barn / Trainer"]}
+            </p>
           )}
-          {horse.Customers && <p>Customers: {horse.Customers}</p>}
+          {customerNames.length > 0 && (
+            <div className="text-sm">
+              <strong className="font-semibold">Customers:</strong>
+              <div className="mt-1 flex flex-wrap gap-1">
+                {customerNames.map((name, index) => (
+                  <Badge key={index} variant="default" className="text-xs">
+                    {name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <Button
           onClick={onSelect}
-          className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+          className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
         >
           View Details
         </Button>
@@ -327,37 +355,43 @@ function HorseTable({
   onSelect: (horse: Horse) => void;
 }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-primary text-primary-foreground">
-          <TableHead>Name</TableHead>
-          <TableHead>Barn / Trainer</TableHead>
-          <TableHead>Customers</TableHead>
-          <TableHead>X-rays</TableHead>
-          <TableHead>Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {horses.map((horse) => (
-          <TableRow key={horse.id}>
-            <TableCell>{horse.Name}</TableCell>
-            <TableCell>{horse["Barn / Trainer"]}</TableCell>
-            <TableCell>{horse.Customers}</TableCell>
-            <TableCell>
-              {horse["X-Ray Images (from History)"]?.split(",").length || 0}
-            </TableCell>
-            <TableCell>
-              <Button
-                onClick={() => onSelect(horse)}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                View Details
-              </Button>
-            </TableCell>
+    <div className="overflow-x-auto">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-primary text-primary-foreground">
+            <TableHead className="hover:text-primary-foreground">
+              Name
+            </TableHead>
+            <TableHead className="hover:text-primary-foreground">
+              Barn / Trainer
+            </TableHead>
+            <TableHead className="hover:text-primary-foreground">
+              Customers
+            </TableHead>
+            <TableHead className="hover:text-primary-foreground">
+              Actions
+            </TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {horses.map((horse) => (
+            <TableRow key={horse.id}>
+              <TableCell className="font-medium">{horse.Name}</TableCell>
+              <TableCell>{horse["Barn / Trainer"]}</TableCell>
+              <TableCell>{horse.Customers}</TableCell>
+              <TableCell>
+                <Button
+                  onClick={() => onSelect(horse)}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  View Details
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -466,14 +500,6 @@ function HorseDetailsModal({
                             ? `$${shoeing["Total Cost"].toFixed(2)}`
                             : shoeing["Total Cost"] || "N/A"}
                         </p>
-                        {shoeing["Shoe Notes"] && (
-                          <div>
-                            <strong>Shoe Notes:</strong>
-                            <p className="whitespace-pre-wrap">
-                              {shoeing["Shoe Notes"]}
-                            </p>
-                          </div>
-                        )}
                       </AccordionContent>
                     </AccordionItem>
                   ))}
