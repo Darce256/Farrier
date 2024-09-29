@@ -249,7 +249,7 @@ function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
   return viewMode === "card" ? (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {[...Array(6)].map((_, index) => (
-        <Card key={index} className="border-primary/20 shadow-lg animate-pulse">
+        <Card key={index} className="border-black/20 shadow-lg animate-pulse">
           <CardHeader>
             <div className="h-8 bg-gray-200 rounded w-3/4"></div>
           </CardHeader>
@@ -309,7 +309,7 @@ function HorseCard({
     : [];
 
   return (
-    <Card className="border-primary/20 shadow-lg flex flex-col h-full">
+    <Card className="border-black/20 shadow-lg flex flex-col h-full">
       <CardHeader className="pb-2">
         <CardTitle className="text-black text-3xl">
           {horse.Name || horse["Barn / Trainer"] || "Unnamed Horse"}
@@ -378,7 +378,25 @@ function HorseTable({
             <TableRow key={horse.id}>
               <TableCell className="font-medium">{horse.Name}</TableCell>
               <TableCell>{horse["Barn / Trainer"]}</TableCell>
-              <TableCell>{horse.Customers}</TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  {horse.Customers
+                    ? horse.Customers.split(",")
+                        .map((name) => name.trim())
+                        .map((name) => name.replace(/^"|"$/g, "").trim())
+                        .filter((name) => name.length > 0)
+                        .map((name, index) => (
+                          <Badge
+                            key={index}
+                            variant="default"
+                            className="text-xs"
+                          >
+                            {name}
+                          </Badge>
+                        ))
+                    : null}
+                </div>
+              </TableCell>
               <TableCell>
                 <Button
                   onClick={() => onSelect(horse)}
