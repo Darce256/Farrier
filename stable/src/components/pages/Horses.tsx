@@ -39,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { Skeleton } from "@/components/ui/skeleton"; // Make sure to import this
 import { createPortal } from "react-dom";
+import { useDebounce } from "use-debounce";
 
 interface Shoeing {
   id: string;
@@ -58,15 +59,15 @@ interface XRayImagesResponse {
 
 export default function Horses() {
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
-  const [selectedHorse, setSelectedHorse] = useState<Horse | null>(null);
   const [filterBarnTrainer, setFilterBarnTrainer] = useState<string | null>(
     null
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
   const [horses, setHorses] = useState<Horse[]>([]);
+  const [filteredHorses, setFilteredHorses] = useState<Horse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
@@ -102,15 +103,8 @@ export default function Horses() {
     fetchHorses();
   }, []);
 
-  const uniqueBarnTrainers = [
-    ...new Set(horses.map((horse) => horse["Barn / Trainer"] || "Unknown")),
-  ]
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b));
-
-  const filteredHorses = horses
-    .filter((horse) => {
-      // Filter out horses with no name and empty barn/trainer
+  useEffect(() => {
+    const filtered = horses.filter((horse) => {
       if (!horse.Name && !horse["Barn / Trainer"]) {
         return false;
       }
@@ -118,40 +112,27 @@ export default function Horses() {
       const matchesBarnTrainer =
         !filterBarnTrainer || horse["Barn / Trainer"] === filterBarnTrainer;
 
-      if (searchQuery) {
-        const lowerSearchQuery = searchQuery.toLowerCase();
-
-        // First, check if the horse's name matches
-        if (horse.Name?.toLowerCase().includes(lowerSearchQuery)) {
-          return matchesBarnTrainer;
-        }
-
-        // If no match in name, then check other fields
+      if (debouncedSearchQuery) {
+        const lowerSearchQuery = debouncedSearchQuery.toLowerCase();
         return (
           matchesBarnTrainer &&
-          (horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery) ||
+          (horse.Name?.toLowerCase().includes(lowerSearchQuery) ||
+            horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery) ||
             horse.Customers?.toLowerCase().includes(lowerSearchQuery))
         );
       }
 
       return matchesBarnTrainer;
-    })
-    .sort((a, b) => {
-      if (searchQuery) {
-        const aNameMatch = a.Name?.toLowerCase().includes(
-          searchQuery.toLowerCase()
-        )
-          ? 1
-          : 0;
-        const bNameMatch = b.Name?.toLowerCase().includes(
-          searchQuery.toLowerCase()
-        )
-          ? 1
-          : 0;
-        return bNameMatch - aNameMatch;
-      }
-      return 0;
     });
+
+    setFilteredHorses(filtered);
+  }, [horses, debouncedSearchQuery, filterBarnTrainer]);
+
+  const uniqueBarnTrainers = [
+    ...new Set(horses.map((horse) => horse["Barn / Trainer"] || "Unknown")),
+  ]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 
   const clearFilters = () => {
     setFilterBarnTrainer(null);
@@ -173,14 +154,6 @@ export default function Horses() {
       horse: null,
       lightboxImages: [],
       lightboxIndex: null,
-    }));
-  };
-
-  const openLightbox = (images: string[], index: number) => {
-    setModalState((prev) => ({
-      ...prev,
-      lightboxImages: images,
-      lightboxIndex: index,
     }));
   };
 
@@ -297,6 +270,10 @@ export default function Horses() {
     openModal(horse);
   };
 
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center gap-2 align-middle mb-6">
@@ -329,7 +306,7 @@ export default function Horses() {
               placeholder="Search horses..."
               className="pl-8 pr-8 w-full"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
             />
             {searchQuery && (
               <Button
