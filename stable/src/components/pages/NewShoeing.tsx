@@ -62,53 +62,109 @@ export default function ShoeingForm() {
   const [horses, setHorses] = useState<Horse[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [locations, setLocations] = useState<string[]>([]);
+  const [baseServices, setBaseServices] = useState<string[]>([]);
+  const [addOns, setAddOns] = useState<string[]>([]);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   });
 
   useEffect(() => {
-    async function fetchHorses() {
-      let allHorses: any[] = [];
-      let from = 0;
-      const chunkSize = 1000;
-      let to = chunkSize - 1;
-      let fetchMore = true;
-
-      while (fetchMore) {
-        const { data, error } = await supabase
-          .from("horses")
-          .select('id, "Name", "Barn / Trainer"')
-          .range(from, to);
-
-        if (error) {
-          console.error("Error fetching horses:", error);
-          fetchMore = false;
-        } else {
-          allHorses = [...allHorses, ...data];
-          if (data.length < chunkSize) {
-            fetchMore = false;
-          } else {
-            from += chunkSize;
-            to += chunkSize;
-          }
-        }
-      }
-
-      // Filter out horses with null names, map the data to include the barn property, and sort alphabetically
-      const formattedData = allHorses
-        .filter((horse) => horse.Name !== null)
-        .map((horse) => ({
-          id: horse.id,
-          name: horse.Name,
-          barn: horse["Barn / Trainer"],
-        }))
-        .sort((a, b) => a.name!.localeCompare(b.name!));
-      setHorses(formattedData);
+    async function fetchData() {
+      await Promise.all([
+        fetchHorses(),
+        fetchLocations(),
+        fetchServicesAndAddOns(),
+      ]);
       setLoading(false);
     }
 
-    fetchHorses();
+    fetchData();
   }, []);
+
+  async function fetchLocations() {
+    const { data, error } = await supabase
+      .from("shoeings")
+      .select('"Location of Service"')
+      .not("Location of Service", "is", null);
+
+    if (error) {
+      console.error("Error fetching locations:", error);
+    } else {
+      const uniqueLocations = [
+        ...new Set(data.map((item: any) => item["Location of Service"])),
+      ];
+      setLocations(uniqueLocations.sort());
+    }
+  }
+
+  async function fetchHorses() {
+    let allHorses: any[] = [];
+    let from = 0;
+    const chunkSize = 1000;
+    let to = chunkSize - 1;
+    let fetchMore = true;
+
+    while (fetchMore) {
+      const { data, error } = await supabase
+        .from("horses")
+        .select('id, "Name", "Barn / Trainer"')
+        .range(from, to);
+
+      if (error) {
+        console.error("Error fetching horses:", error);
+        fetchMore = false;
+      } else {
+        allHorses = [...allHorses, ...data];
+        if (data.length < chunkSize) {
+          fetchMore = false;
+        } else {
+          from += chunkSize;
+          to += chunkSize;
+        }
+      }
+    }
+
+    // Filter out horses with null names, map the data to include the barn property, and sort alphabetically
+    const formattedData = allHorses
+      .filter((horse) => horse.Name !== null)
+      .map((horse) => ({
+        id: horse.id,
+        name: horse.Name,
+        barn: horse["Barn / Trainer"],
+      }))
+      .sort((a, b) => a.name!.localeCompare(b.name!));
+    setHorses(formattedData);
+  }
+
+  async function fetchServicesAndAddOns() {
+    const { data, error } = await supabase.from("prices").select("Name, Type");
+
+    if (error) {
+      console.error("Error fetching services and add-ons:", error);
+    } else {
+      console.log(data);
+      const services = data
+        .filter(
+          (item) =>
+            item.Type === "Service" && item.Name && item.Name.trim() !== ""
+        )
+        .map((item) => item.Name.trim())
+        .sort();
+      console.log(services);
+      const addOnsData = data
+        .filter(
+          (item) =>
+            item.Type === "Add-on" && item.Name && item.Name.trim() !== ""
+        )
+        .map((item) => item.Name.trim())
+        .sort();
+
+      setBaseServices([...new Set(services)]);
+      setAddOns([...new Set(addOnsData)]);
+      console.log(addOns);
+    }
+  }
 
   const filteredHorses = horses.filter((horse) =>
     horse.name!.toLowerCase().includes(searchQuery.toLowerCase())
@@ -270,21 +326,33 @@ export default function ShoeingForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Location of Service*</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a location" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="stable1">Main Stable</SelectItem>
-                          <SelectItem value="stable2">North Paddock</SelectItem>
-                          <SelectItem value="stable3">South Barn</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {loading ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : (
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a location">
+                                {field.value && (
+                                  <span className="font-bold">
+                                    {field.value}
+                                  </span>
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {locations.map((location) => (
+                              <SelectItem key={location} value={location}>
+                                <span className="font-bold">{location}</span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -295,22 +363,37 @@ export default function ShoeingForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Base Service</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select base service" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="trim">Trim</SelectItem>
-                          <SelectItem value="fullSet">Full Set</SelectItem>
-                          <SelectItem value="frontSet">Front Set</SelectItem>
-                          <SelectItem value="hindSet">Hind Set</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {loading ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : (
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select base service">
+                                {field.value && (
+                                  <span className="font-bold">
+                                    {field.value}
+                                  </span>
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {baseServices.map(
+                              (service) =>
+                                service && (
+                                  <SelectItem key={service} value={service}>
+                                    <span className="font-bold">{service}</span>
+                                  </SelectItem>
+                                )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -322,23 +405,37 @@ export default function ShoeingForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Front Add-On's</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select front add-on's" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="pads">Pads</SelectItem>
-                          <SelectItem value="studs">Studs</SelectItem>
-                          <SelectItem value="specialShoes">
-                            Special Shoes
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {loading ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : (
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select front add-on's">
+                                {field.value && (
+                                  <span className="font-bold">
+                                    {field.value}
+                                  </span>
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {addOns.map(
+                              (addOn) =>
+                                addOn && (
+                                  <SelectItem key={addOn} value={addOn}>
+                                    <span className="font-bold">{addOn}</span>
+                                  </SelectItem>
+                                )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -348,23 +445,37 @@ export default function ShoeingForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Hind Add-On's</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select hind add-on's" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="pads">Pads</SelectItem>
-                          <SelectItem value="studs">Studs</SelectItem>
-                          <SelectItem value="specialShoes">
-                            Special Shoes
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {loading ? (
+                        <Skeleton className="h-10 w-full" />
+                      ) : (
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select hind add-on's">
+                                {field.value && (
+                                  <span className="font-bold">
+                                    {field.value}
+                                  </span>
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {addOns.map(
+                              (addOn) =>
+                                addOn && (
+                                  <SelectItem key={addOn} value={addOn}>
+                                    <span className="font-bold">{addOn}</span>
+                                  </SelectItem>
+                                )
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      <FormMessage />
                     </FormItem>
                   )}
                 />
@@ -379,6 +490,7 @@ export default function ShoeingForm() {
                       <Input
                         placeholder="Enter any custom services"
                         {...field}
+                        value={field.value || ""} // Ensure the value is never undefined
                       />
                     </FormControl>
                   </FormItem>
