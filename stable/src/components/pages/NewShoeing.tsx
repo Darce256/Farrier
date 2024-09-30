@@ -141,11 +141,10 @@ export default function ShoeingForm() {
                         <Select
                           value={field.value}
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue>
+                              <SelectValue placeholder="Select a Horse">
                                 {field.value ? (
                                   <>
                                     <span className="font-bold">
@@ -162,7 +161,7 @@ export default function ShoeingForm() {
                                     </span>
                                   </>
                                 ) : (
-                                  "Select a horse"
+                                  "Select a Horse"
                                 )}
                               </SelectValue>
                             </SelectTrigger>
