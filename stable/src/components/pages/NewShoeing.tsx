@@ -33,6 +33,7 @@ import { useEffect, useState } from "react";
 import { FixedSizeList as List } from "react-window";
 import { supabase } from "../../lib/supabaseClient";
 import { PlusCircle, Search } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const formSchema = z.object({
   horseName: z.string({
@@ -136,7 +137,7 @@ export default function ShoeingForm() {
                     <FormItem>
                       <FormLabel>Horse Name*</FormLabel>
                       {loading ? (
-                        <p>Loading...</p>
+                        <Skeleton className="h-10 w-full" />
                       ) : (
                         <Select
                           value={field.value}
@@ -154,7 +155,7 @@ export default function ShoeingForm() {
                                         )?.name
                                       }
                                     </span>
-                                    <span className="ml-2 bg-gray-200 text-gray-700 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                    <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
                                       {horses.find(
                                         (horse) => horse.id === field.value
                                       )?.barn || "No Barn Available"}
@@ -208,7 +209,7 @@ export default function ShoeingForm() {
                                   <span className="font-bold">
                                     {filteredHorses[index].name}
                                   </span>
-                                  <span className="ml-2 bg-gray-200 text-gray-700 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                  <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
                                     {filteredHorses[index].barn ||
                                       "No Barn Available"}
                                   </span>
@@ -252,9 +253,7 @@ export default function ShoeingForm() {
                             mode="single"
                             selected={field.value}
                             onSelect={field.onChange}
-                            disabled={(date) =>
-                              date > new Date() || date < new Date("1900-01-01")
-                            }
+                            disabled={(date) => date < new Date("1900-01-01")}
                             initialFocus
                           />
                         </PopoverContent>
