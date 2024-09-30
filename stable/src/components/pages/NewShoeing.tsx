@@ -32,6 +32,8 @@ import { TbHorseshoe } from "react-icons/tb";
 import { useEffect, useState } from "react";
 import { FixedSizeList as List } from "react-window";
 import { supabase } from "../../lib/supabaseClient";
+import { PlusCircle, Search } from "lucide-react";
+
 const formSchema = z.object({
   horseName: z.string({
     required_error: "Please select a horse.",
@@ -166,22 +168,32 @@ export default function ShoeingForm() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <div className="p-2">
-                              <input
-                                type="text"
-                                placeholder="Search..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded"
-                              />
+                            <div className="p-2 flex items-center space-x-2">
+                              <div className="relative flex-grow">
+                                <Input
+                                  type="text"
+                                  placeholder="Search horses..."
+                                  value={searchQuery}
+                                  onChange={(e) =>
+                                    setSearchQuery(e.target.value)
+                                  }
+                                  className="pr-8"
+                                />
+                                <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="whitespace-nowrap bg-primary text-white hover:bg-primary hover:text-white"
+                                onClick={() => {
+                                  // Handle adding new horse
+                                  // You might want to close the dropdown and open a modal or navigate to a new page
+                                }}
+                              >
+                                <PlusCircle className="h-4 w-4 mr-2" />
+                                Add New Horse
+                              </Button>
                             </div>
-                            <SelectItem
-                              key="new-horse"
-                              value="new-horse"
-                              className="flex items-center"
-                            >
-                              <span className="mr-2">+</span> New Horse
-                            </SelectItem>
                             <List
                               height={200}
                               itemCount={filteredHorses.length}
