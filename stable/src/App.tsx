@@ -16,6 +16,7 @@ import AuthenticatedLayout from "./components/layouts/AuthenticatedLayout";
 import { AuthProvider, useAuth } from "./components/Contexts/AuthProvider";
 import { ReactNode } from "react";
 import Horses from "./components/pages/Horses";
+import NewShoeing from "./components/pages/NewShoeing";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
@@ -77,7 +78,7 @@ function App() {
             >
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/horses" element={<Horses />} />
-              {/* Add more protected routes as needed */}
+              <Route path="/new-shoeings" element={<NewShoeing />} />
             </Route>
           </Routes>
         </div>
