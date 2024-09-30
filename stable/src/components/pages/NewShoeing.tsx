@@ -29,7 +29,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { TbHorseshoe } from "react-icons/tb";
-
+import { useEffect, useState } from "react";
+import { FixedSizeList as List } from "react-window";
+import { supabase } from "../../lib/supabaseClient";
 const formSchema = z.object({
   horseName: z.string({
     required_error: "Please select a horse.",
@@ -47,10 +49,62 @@ const formSchema = z.object({
   shoeingNotes: z.string().optional(),
 });
 
+type Horse = {
+  id: string;
+  name: string | null; // Allow name to be null for filtering
+  barn: string | null; // Allow barn to be null for conditional display
+};
+
 export default function ShoeingForm() {
+  const [horses, setHorses] = useState<Horse[]>([]);
+  const [loading, setLoading] = useState(true);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   });
+
+  useEffect(() => {
+    async function fetchHorses() {
+      let allHorses: any[] = [];
+      let from = 0;
+      const chunkSize = 1000;
+      let to = chunkSize - 1;
+      let fetchMore = true;
+
+      while (fetchMore) {
+        const { data, error } = await supabase
+          .from("horses")
+          .select('id, "Name", "Barn / Trainer"')
+          .range(from, to);
+
+        if (error) {
+          console.error("Error fetching horses:", error);
+          fetchMore = false;
+        } else {
+          allHorses = [...allHorses, ...data];
+          if (data.length < chunkSize) {
+            fetchMore = false;
+          } else {
+            from += chunkSize;
+            to += chunkSize;
+          }
+        }
+      }
+
+      // Filter out horses with null names, map the data to include the barn property, and sort alphabetically
+      const formattedData = allHorses
+        .filter((horse) => horse.Name !== null)
+        .map((horse) => ({
+          id: horse.id,
+          name: horse.Name,
+          barn: horse["Barn / Trainer"],
+        }))
+        .sort((a, b) => a.name!.localeCompare(b.name!));
+      setHorses(formattedData);
+      setLoading(false);
+    }
+
+    fetchHorses();
+  }, []);
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values);
@@ -74,21 +128,63 @@ export default function ShoeingForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Horse Name*</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a horse" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="horse1">Thunder</SelectItem>
-                          <SelectItem value="horse2">Storm</SelectItem>
-                          <SelectItem value="horse3">Lightning</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      {loading ? (
+                        <p>Loading...</p>
+                      ) : (
+                        <Select
+                          value={field.value}
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue>
+                                {field.value ? (
+                                  <>
+                                    <span className="font-bold">
+                                      {
+                                        horses.find(
+                                          (horse) => horse.id === field.value
+                                        )?.name
+                                      }
+                                    </span>
+                                    <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                      {horses.find(
+                                        (horse) => horse.id === field.value
+                                      )?.barn || "No Barn Available"}
+                                    </span>
+                                  </>
+                                ) : (
+                                  "Select a horse"
+                                )}
+                              </SelectValue>
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <List
+                              height={200}
+                              itemCount={horses.length}
+                              itemSize={35}
+                              width="100%"
+                            >
+                              {({ index, style }) => (
+                                <SelectItem
+                                  key={horses[index].id}
+                                  value={horses[index].id}
+                                  style={style}
+                                >
+                                  <span className="font-bold">
+                                    {horses[index].name}
+                                  </span>
+                                  <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                    {horses[index].barn || "No Barn Available"}
+                                  </span>
+                                </SelectItem>
+                              )}
+                            </List>
+                          </SelectContent>
+                        </Select>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
