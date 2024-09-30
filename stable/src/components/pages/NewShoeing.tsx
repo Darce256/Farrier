@@ -58,6 +58,7 @@ type Horse = {
 export default function ShoeingForm() {
   const [horses, setHorses] = useState<Horse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   });
@@ -106,6 +107,10 @@ export default function ShoeingForm() {
     fetchHorses();
   }, []);
 
+  const filteredHorses = horses.filter((horse) =>
+    horse.name!.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values);
     // Here you would typically send this data to your backend
@@ -148,7 +153,7 @@ export default function ShoeingForm() {
                                         )?.name
                                       }
                                     </span>
-                                    <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                    <span className="ml-2 bg-gray-200 text-gray-700 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
                                       {horses.find(
                                         (horse) => horse.id === field.value
                                       )?.barn || "No Barn Available"}
@@ -161,23 +166,40 @@ export default function ShoeingForm() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
+                            <div className="p-2">
+                              <input
+                                type="text"
+                                placeholder="Search..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full p-2 border border-gray-300 rounded"
+                              />
+                            </div>
+                            <SelectItem
+                              key="new-horse"
+                              value="new-horse"
+                              className="flex items-center"
+                            >
+                              <span className="mr-2">+</span> New Horse
+                            </SelectItem>
                             <List
                               height={200}
-                              itemCount={horses.length}
+                              itemCount={filteredHorses.length}
                               itemSize={35}
                               width="100%"
                             >
                               {({ index, style }) => (
                                 <SelectItem
-                                  key={horses[index].id}
-                                  value={horses[index].id}
+                                  key={filteredHorses[index].id}
+                                  value={filteredHorses[index].id}
                                   style={style}
                                 >
                                   <span className="font-bold">
-                                    {horses[index].name}
+                                    {filteredHorses[index].name}
                                   </span>
-                                  <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-                                    {horses[index].barn || "No Barn Available"}
+                                  <span className="ml-2 bg-gray-200 text-gray-700 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                    {filteredHorses[index].barn ||
+                                      "No Barn Available"}
                                   </span>
                                 </SelectItem>
                               )}
@@ -193,7 +215,7 @@ export default function ShoeingForm() {
                   control={form.control}
                   name="dateOfService"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem className="flex flex-col mt-2">
                       <FormLabel>Date of Service*</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
