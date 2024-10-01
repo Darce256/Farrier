@@ -4,8 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FaRegStickyNote } from "react-icons/fa";
 import { MentionsInput, Mention, OnChangeHandlerFunc } from "react-mentions";
 import { createClient } from "@supabase/supabase-js";
-import style from "../../styles.module.css";
+import MentionInputStyles from "../../MentionInputStyles.ts";
+import MentionStyles from "../../MentionStyles.ts";
+
 import { supabase } from "@/lib/supabaseClient";
+
 type Note = {
   id: number;
   content: string;
@@ -18,10 +21,9 @@ type UserProfile = {
 };
 
 export default function Notes() {
-  const [newNote, setNewNote] = useState<string>("");
+  const [newNote, setNewNote] = useState("");
 
   const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
-
   useEffect(() => {
     const fetchUserProfiles = async () => {
       const { data, error } = await supabase
@@ -44,14 +46,19 @@ export default function Notes() {
     newPlainTextValue: string,
     mentions: any
   ) => {
-    setNewNote(newPlainTextValue);
+    setNewNote(event.target.value);
   };
   const [isSelected, setIsSelected] = useState(false);
 
   const handleClick = () => {
     setIsSelected(!isSelected);
   };
-
+  const renderSuggestion = (suggestion: any) => {
+    console.log(suggestion);
+    return (
+      <div className=" text-white font-semibold"> {suggestion.display}</div>
+    );
+  };
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center gap-2 align-middle mb-6">
@@ -67,19 +74,18 @@ export default function Notes() {
             <CardContent>
               <div className="space-y-4 relative">
                 <MentionsInput
+                  style={MentionInputStyles}
                   value={newNote}
-                  classNames={style}
-                  onChange={handleTextareaChange}
-                  onClick={handleClick}
-                  placeholder="Enter your note here..."
+                  onChange={(e) => setNewNote(e.target.value)}
                 >
                   <Mention
-                    trigger="@"
+                    style={MentionStyles}
                     data={userProfiles.map((user) => ({
                       id: user.id,
                       display: user.name,
                     }))}
-                    style={{ backgroundColor: "#daf4fa" }}
+                    markup={"@[__display__](__id__)"}
+                    trigger={"@"}
                   />
                 </MentionsInput>
                 <Button onClick={handleAddNote}>Add Note</Button>
