@@ -1,5 +1,6 @@
 export default {
   control: {
+    position: "relative",
     backgroundColor: "#fff",
     fontSize: 16,
     height: "200px",
