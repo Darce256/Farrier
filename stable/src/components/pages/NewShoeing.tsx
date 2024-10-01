@@ -143,7 +143,6 @@ export default function ShoeingForm() {
     if (error) {
       console.error("Error fetching services and add-ons:", error);
     } else {
-      console.log(data);
       const services = data
         .filter(
           (item) =>
@@ -151,7 +150,6 @@ export default function ShoeingForm() {
         )
         .map((item) => item.Name.trim())
         .sort();
-      console.log(services);
       const addOnsData = data
         .filter(
           (item) =>
@@ -162,7 +160,6 @@ export default function ShoeingForm() {
 
       setBaseServices([...new Set(services)]);
       setAddOns([...new Set(addOnsData)]);
-      console.log(addOns);
     }
   }
 

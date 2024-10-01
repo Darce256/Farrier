@@ -56,7 +56,7 @@ export default function AuthenticatedHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 sm:h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 pt-0 sm:pt-0">
+    <header className="sticky top-0 z-10 flex h-16 sm:h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 pt-0 sm:pt-0">
       {/* Mobile Menu */}
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
         <SheetTrigger asChild>

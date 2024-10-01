@@ -17,6 +17,7 @@ import { AuthProvider, useAuth } from "./components/Contexts/AuthProvider";
 import { ReactNode } from "react";
 import Horses from "./components/pages/Horses";
 import NewShoeing from "./components/pages/NewShoeing";
+import Notes from "./components/pages/Notes";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
@@ -79,6 +80,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/horses" element={<Horses />} />
               <Route path="/new-shoeings" element={<NewShoeing />} />
+              <Route path="/notes" element={<Notes />} />
             </Route>
           </Routes>
         </div>

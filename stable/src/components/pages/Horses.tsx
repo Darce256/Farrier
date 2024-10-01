@@ -81,6 +81,9 @@ export default function Horses() {
     lightboxIndex: null,
   });
 
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [showNoHorsesFound, setShowNoHorsesFound] = useState(false);
+
   useEffect(() => {
     async function fetchHorses() {
       setIsLoading(true);
@@ -88,20 +91,32 @@ export default function Horses() {
       try {
         const fetchedHorses = await getHorses();
         console.log("Fetched horses in component:", fetchedHorses.length);
-        console.log("Sample horse:", fetchedHorses[0]); // Log a sample horse
+        console.log("Sample horse:", fetchedHorses[0]);
         const sortedHorses = fetchedHorses.sort((a, b) =>
           (a.Name || "").localeCompare(b.Name || "")
         );
         setHorses(sortedHorses);
-        setIsLoading(false);
       } catch (err) {
         console.error("Error in fetchHorses:", err);
         setError("Failed to fetch horses. Please try again later.");
+      } finally {
         setIsLoading(false);
       }
     }
     fetchHorses();
   }, []);
+
+  useEffect(() => {
+    if (!isLoading && filteredHorses.length === 0) {
+      const timer = setTimeout(() => {
+        setShowNoHorsesFound(true);
+      }, 500); // 500ms delay
+
+      return () => clearTimeout(timer);
+    } else {
+      setShowNoHorsesFound(false);
+    }
+  }, [isLoading, filteredHorses]);
 
   useEffect(() => {
     const filtered = horses.filter((horse) => {
@@ -341,7 +356,7 @@ export default function Horses() {
         <HorsesSkeleton viewMode={isDesktop ? viewMode : "card"} />
       ) : error ? (
         <div className="text-red-500 text-center">{error}</div>
-      ) : filteredHorses.length === 0 ? (
+      ) : showNoHorsesFound ? (
         <div className="text-center">No horses found.</div>
       ) : !isDesktop || viewMode === "card" ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
