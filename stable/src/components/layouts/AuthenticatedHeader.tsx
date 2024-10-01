@@ -1,14 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -25,14 +17,88 @@ import {
   UsersIcon,
   InfoIcon,
   SettingsIcon,
+  BellIcon,
+  EyeIcon,
+  EyeOffIcon,
 } from "lucide-react";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
+import { supabase } from "@/lib/supabaseClient";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "../ui/breadcrumb";
 
 export default function AuthenticatedHeader() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const location = useLocation();
+
+  const fetchNotifications = async () => {
+    if (user) {
+      const { data } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+      if (data) {
+        setNotifications(data as any);
+      }
+    }
+  };
+
+  const toggleReadStatus = async (
+    notificationId: string,
+    currentStatus: boolean
+  ) => {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read: !currentStatus })
+      .eq("id", notificationId);
+
+    if (!error) {
+      setNotifications((prevNotifications: any) =>
+        prevNotifications.map((notification: any) =>
+          notification.id === notificationId
+            ? { ...notification, read: !currentStatus }
+            : notification
+        )
+      );
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+
+    const intervalId = setInterval(() => {
+      fetchNotifications();
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(intervalId); // Cleanup interval on component unmount
+  }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !(dropdownRef.current as Node).contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
 
   const getInitials = (name: string) => {
     const names = name.split(" ");
@@ -105,34 +171,86 @@ export default function AuthenticatedHeader() {
         </BreadcrumbList>
       </Breadcrumb>
       <div className="relative ml-auto flex-1 md:grow-0"></div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+      <div className="container mx-auto flex items-center justify-end gap-4 max-w-7xl">
+        <div className="relative" ref={dropdownRef}>
           <Button
             variant="outline"
             size="icon"
-            className="overflow-hidden rounded-full"
+            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
-            <div className="flex items-center justify-center h-9 w-9 rounded-full bg-primary text-lg font-semibold text-primary-foreground">
-              {getInitials(user?.name || "JD")}
-            </div>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuLabel>
-            <div className="flex flex-col">
-              <span>{user?.name || "John Doe"}</span>
-              <span className="text-sm text-muted-foreground">
-                {user?.email || "john.doe@example.com"}
+            <BellIcon className="h-5 w-5" />
+            {notifications.filter((n: any) => !n.read).length > 0 && (
+              <span className="absolute top-0 right-0 inline-flex items-center justify-center h-4 w-4 rounded-full bg-red-500 text-white text-xs">
+                {notifications.filter((n: any) => !n.read).length}
               </span>
+            )}
+          </Button>
+          {isDropdownOpen && notifications.length > 0 && (
+            <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg">
+              <div className="p-4">
+                <h3 className="text-lg font-semibold">Notifications</h3>
+                <ul className="mt-2">
+                  {notifications.map((notification: any) => (
+                    <li
+                      key={notification.id}
+                      className="py-2 border-b flex justify-between items-center"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: notification.message,
+                        }}
+                      ></span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleReadStatus(notification.id, notification.read);
+                        }}
+                      >
+                        {notification.read ? (
+                          <EyeOffIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                        ) : (
+                          <EyeIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                        )}
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>Settings</DropdownMenuItem>
-          <DropdownMenuItem>Support</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          )}
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="overflow-hidden rounded-full"
+            >
+              <div className="flex items-center justify-center h-9 w-9 rounded-full bg-primary text-lg font-semibold text-primary-foreground">
+                {getInitials(user?.name || "JD")}
+              </div>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>
+              <div className="flex flex-col">
+                <span>{user?.name || "John Doe"}</span>
+                <span className="text-sm text-muted-foreground">
+                  {user?.email || "john.doe@example.com"}
+                </span>
+              </div>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem>Support</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </header>
   );
 }

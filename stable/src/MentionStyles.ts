@@ -7,6 +7,6 @@ export default {
   paddingLeft: "2px",
   paddingRight: "3px",
   borderRadius: "5px",
-  fontWeight: "500",
+  fontWeight: "400",
   fontSize: "15px",
 };

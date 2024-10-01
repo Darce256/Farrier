@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "../../lib/supabaseClient"; // Ensure you have a Supabase client setup
 // Define the shape of the user object
 interface User {
+  id: string;
   name: string;
   email: string;
   image?: string;
@@ -35,14 +36,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } = await supabase.auth.getSession();
     if (session) {
       const { user } = session;
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("profiles")
         .select("name, email")
         .eq("id", user.id)
         .single();
 
       if (data) {
-        setUser({ name: data.name, email: data.email });
+        setUser({ id: user.id, name: data.name, email: data.email });
       }
     }
   };
@@ -59,9 +60,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       .select("name, email")
       .eq("id", user?.id)
       .single();
-
-    if (data) {
-      setUser({ name: data.name, email: data.email });
+    if (data && user) {
+      setUser({ id: user.id, name: data.name, email: data.email });
     }
   };
 
@@ -78,13 +78,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } = await supabase.auth.signUp({ email, password });
     if (error) throw error;
 
-    const { data, error: profileError } = await supabase
+    const { error: profileError } = await supabase
       .from("profiles")
       .insert([{ id: user?.id, name, email }]);
 
     if (profileError) throw profileError;
 
-    setUser({ name, email });
+    if (user) {
+      setUser({ id: user.id, name, email });
+    }
   };
 
   const value = {

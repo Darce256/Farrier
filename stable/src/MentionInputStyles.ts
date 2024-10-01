@@ -37,15 +37,18 @@ export default {
 
   suggestions: {
     list: {
-      backgroundColor: "lightgray",
+      backgroundColor: "#e11d48",
       border: "1px solid rgba(0,0,0,0.15)",
+      borderRadius: "5px",
+
       fontSize: 16,
     },
     item: {
       padding: "5px 15px",
       borderBottom: "1px solid rgba(0,0,0,0.15)",
+      borderRadius: "5px",
       "&focused": {
-        backgroundColor: "gray",
+        backgroundColor: "#e11d48",
         color: "white",
       },
     },

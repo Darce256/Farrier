@@ -1,19 +1,13 @@
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FaRegStickyNote } from "react-icons/fa";
 import { MentionsInput, Mention, OnChangeHandlerFunc } from "react-mentions";
-import { createClient } from "@supabase/supabase-js";
 import MentionInputStyles from "../../MentionInputStyles.ts";
 import MentionStyles from "../../MentionStyles.ts";
 
 import { supabase } from "@/lib/supabaseClient";
-
-type Note = {
-  id: number;
-  content: string;
-  createdAt: Date;
-};
+import { useAuth } from "@/components/Contexts/AuthProvider"; // Assuming you have an AuthProvider
 
 type UserProfile = {
   id: string;
@@ -21,6 +15,7 @@ type UserProfile = {
 };
 
 export default function Notes() {
+  const { user } = useAuth(); // Get the authenticated user
   const [newNote, setNewNote] = useState("");
 
   const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
@@ -29,69 +24,98 @@ export default function Notes() {
       const { data, error } = await supabase
         .from("profiles")
         .select("id, name");
-      if (data) {
+      if (error) {
+        console.error("Error fetching profiles:", error);
+      } else {
+        console.log("Fetched profiles:", data);
         setUserProfiles(data);
       }
     };
     fetchUserProfiles();
   }, []);
 
-  const handleAddNote = () => {
+  const handleAddNote = async () => {
+    if (!user) {
+      console.error("User is not authenticated");
+      return;
+    }
+
     console.log(newNote);
+
+    // Add the note to the notes table
+    const { data: noteData, error: noteError } = await supabase
+      .from("notes")
+      .insert([{ content: newNote, user_id: user.id }])
+      .select();
+
+    if (noteError) {
+      console.error("Error adding note:", noteError);
+      return;
+    }
+
+    const noteId = noteData[0].id;
+
+    // Extract mentions from the note
+    const mentionRegex = /@\[(.*?)\]\((.*?)\)/g;
+    let match;
+    const mentions = [];
+    while ((match = mentionRegex.exec(newNote)) !== null) {
+      mentions.push({ name: match[1], id: match[2] });
+    }
+
+    // Clean up the note content to replace mentions with just the user's name
+    let cleanedNote = newNote.replace(mentionRegex, "@$1");
+
+    // Add notifications for mentioned users
+    for (const mention of mentions) {
+      const notificationMessage = cleanedNote.replace(
+        new RegExp(`@${mention.name}`, "g"),
+        `<strong>@${mention.name}</strong>`
+      );
+
+      await supabase.from("notifications").insert([
+        {
+          user_id: mention.id,
+          message: `You were mentioned in a note: "${notificationMessage}"`,
+          type: "mention",
+          related_id: noteId,
+        },
+      ]);
+    }
+
+    // Clear the note input
+    setNewNote("");
   };
 
-  const handleTextareaChange: OnChangeHandlerFunc = (
-    event: any,
-    newValue: string,
-    newPlainTextValue: string,
-    mentions: any
-  ) => {
+  const handleTextareaChange: OnChangeHandlerFunc = (event: any) => {
     setNewNote(event.target.value);
   };
-  const [isSelected, setIsSelected] = useState(false);
 
-  const handleClick = () => {
-    setIsSelected(!isSelected);
-  };
-  const renderSuggestion = (suggestion: any) => {
-    console.log(suggestion);
-    return (
-      <div className=" text-white font-semibold"> {suggestion.display}</div>
-    );
-  };
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center gap-2 align-middle mb-6">
         <FaRegStickyNote className="text-4xl " />
         <h1 className="text-4xl font-bold  text-black">Notes</h1>
       </div>
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
-        <div className="p-6 sm:p-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Add New Note</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4 relative">
-                <MentionsInput
-                  style={MentionInputStyles}
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                >
-                  <Mention
-                    style={MentionStyles}
-                    data={userProfiles.map((user) => ({
-                      id: user.id,
-                      display: user.name,
-                    }))}
-                    markup={"@[__display__](__id__)"}
-                    trigger={"@"}
-                  />
-                </MentionsInput>
-                <Button onClick={handleAddNote}>Add Note</Button>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 sm:p-8">
+        <div className="space-y-4 relative">
+          <h2 className="text-2xl font-semibold">Add New Note</h2>
+          <MentionsInput
+            style={MentionInputStyles}
+            value={newNote}
+            onChange={handleTextareaChange}
+          >
+            <Mention
+              style={MentionStyles}
+              data={userProfiles.map((user) => ({
+                id: user.id,
+                display: user.name,
+              }))}
+              markup={"@[__display__](__id__)"}
+              trigger={"@"}
+            />
+          </MentionsInput>
+          <Button onClick={handleAddNote}>Add Note</Button>
         </div>
       </div>
     </div>
