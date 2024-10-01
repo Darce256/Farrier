@@ -10,7 +10,6 @@ import Home from "./components/pages/Home";
 import { Footer } from "./components/ui/nav/Footer";
 import LoginPage from "./components/pages/Login";
 import SignUpPage from "./components/pages/Signup";
-import HorseDashboard from "./components/pages/Horses";
 import Dashboard from "./components/pages/Dashboard";
 import AuthenticatedLayout from "./components/layouts/AuthenticatedLayout";
 import { AuthProvider, useAuth } from "./components/Contexts/AuthProvider";
