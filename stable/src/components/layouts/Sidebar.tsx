@@ -6,8 +6,15 @@ import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
 import { FaRegStickyNote } from "react-icons/fa";
 import { IoCalendarNumberOutline } from "react-icons/io5";
+import { MdMailOutline } from "react-icons/md"; // Add this import
 
-import { MenuIcon, StoreIcon, InfoIcon, SettingsIcon } from "lucide-react";
+import {
+  MenuIcon,
+  StoreIcon,
+  InfoIcon,
+  SettingsIcon,
+  Bell,
+} from "lucide-react";
 
 import {
   Tooltip,
@@ -25,6 +32,7 @@ export default function Sidebar() {
     { name: "New Shoeings", icon: TbHorseshoe, href: "/new-shoeings" },
     { name: "Notes", icon: FaRegStickyNote, href: "/notes" },
     { name: "Calendar", icon: IoCalendarNumberOutline, href: "/calendar" },
+    { name: "Inbox", icon: MdMailOutline, href: "/inbox" }, // Updated icon
   ];
 
   const settingsItem = {

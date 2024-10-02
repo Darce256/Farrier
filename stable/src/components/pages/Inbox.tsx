@@ -39,7 +39,7 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
   };
 
   return (
-    <div className="flex-shrink-0 flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground text-sm font-semibold">
+    <div className="bg-primary rounded-full p-2 text-primary-foreground text-sm font-semibold">
       {getInitials(creator?.name)}
     </div>
   );
@@ -114,103 +114,94 @@ export default function Inbox() {
   };
 
   return (
-    <div className="container mx-auto p-4 ">
-      <div className="flex items-center gap-2 align-middle mb-6">
-        <Bell className="text-4xl" />
-        <h1 className="text-4xl font-bold text-black">Inbox</h1>
-      </div>
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
-        <div className="p-6 sm:p-8">
-          <div className="flex flex-col md:flex-row h-[600px]">
-            <div
-              className={`w-full md:w-2/5 ${
-                showDetail ? "hidden md:block" : ""
-              }`}
-            >
-              <Card className="h-full rounded-none border-0 shadow-none">
-                <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2 ">
-                    Notifications
-                  </CardTitle>
-                  <CardDescription>
-                    {notifications.filter((n) => !n.read).length} unread
-                    messages
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-0 border-r-2 border-r-gray-300">
-                  <ScrollArea className="h-[500px] md:h-[520px] px-4">
-                    {notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`flex items-center space-x-4 p-4 cursor-pointer hover:bg-accent rounded-md ${
-                          selectedNotification?.id === notification.id
-                            ? "bg-accent"
-                            : ""
-                        } ${!notification.read ? "font-bold" : ""}`}
-                        onClick={() => handleNotificationClick(notification)}
-                      >
-                        <Avatar creator={notification.creator} />
-                        <div className="flex-grow min-w-0">
-                          <span
-                            className="block truncate"
-                            dangerouslySetInnerHTML={{
-                              __html: notification.message,
-                            }}
-                          ></span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(notification.created_at).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
-            <div
-              className={`w-full md:w-3/5 ${
-                showDetail ? "" : "hidden md:block"
-              }`}
-            >
-              <Card className="h-full rounded-none border-0 shadow-none">
-                <CardHeader>
-                  <div className="flex items-center">
-                    <Button
-                      variant="ghost"
-                      className="p-0 md:hidden mr-2"
-                      onClick={() => setShowDetail(false)}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <div>
-                      <CardTitle>{selectedNotification?.title}</CardTitle>
-                      <CardDescription>
-                        {selectedNotification &&
-                          new Date(
-                            selectedNotification.created_at
-                          ).toLocaleString()}
-                      </CardDescription>
+    <div className="max-w-4xl mx-auto border rounded-lg overflow-hidden">
+      <div className="flex flex-col md:flex-row h-[600px]">
+        <div
+          className={`w-full md:w-1/3 ${showDetail ? "hidden md:block" : ""}`}
+        >
+          <Card className="h-full rounded-none">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <Bell className="h-5 w-5" />
+                Notifications
+              </CardTitle>
+              <CardDescription>
+                {notifications.filter((n) => !n.read).length} unread messages
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[500px] md:h-[520px] px-4">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`flex items-start space-x-4 p-4 cursor-pointer hover:bg-accent rounded-md ${
+                      selectedNotification?.id === notification.id
+                        ? "bg-accent"
+                        : ""
+                    } ${!notification.read ? "font-bold" : ""}`}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <Avatar creator={notification.creator} />
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {notification.title}
+                      </p>
+                      <p
+                        className="text-sm text-muted-foreground"
+                        dangerouslySetInnerHTML={{
+                          __html: notification.message,
+                        }}
+                      ></p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(notification.created_at).toLocaleString()}
+                      </p>
                     </div>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {selectedNotification && (
-                    <div className="flex items-start space-x-4">
-                      <Avatar creator={selectedNotification.creator} />
-                      <div>
-                        <span
-                          className="text-sm"
-                          dangerouslySetInnerHTML={{
-                            __html: selectedNotification.message,
-                          }}
-                        ></span>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+                ))}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </div>
+        <div
+          className={`w-full md:w-2/3 ${showDetail ? "" : "hidden md:block"}`}
+        >
+          <Card className="h-full rounded-none">
+            <CardHeader>
+              <div className="flex items-center">
+                <Button
+                  variant="ghost"
+                  className="p-0 md:hidden mr-2"
+                  onClick={() => setShowDetail(false)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <div>
+                  <CardTitle>{selectedNotification?.title}</CardTitle>
+                  <CardDescription>
+                    {selectedNotification &&
+                      new Date(
+                        selectedNotification.created_at
+                      ).toLocaleString()}
+                  </CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {selectedNotification && (
+                <div className="flex items-start space-x-4">
+                  <Avatar creator={selectedNotification.creator} />
+                  <div>
+                    <span
+                      className="text-sm"
+                      dangerouslySetInnerHTML={{
+                        __html: selectedNotification.message,
+                      }}
+                    ></span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
