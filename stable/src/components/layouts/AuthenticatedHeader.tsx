@@ -10,6 +10,7 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Add this import
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import {
   MenuIcon,
@@ -30,6 +31,7 @@ import {
   BreadcrumbSeparator,
 } from "../ui/breadcrumb";
 import { useNotifications } from "@/components/Contexts/NotificationProvider";
+import { getRelativeTimeString } from "@/lib/dateUtils"; // Add this import
 
 interface Notification {
   id: string;
@@ -167,34 +169,38 @@ export default function AuthenticatedHeader() {
           </Button>
           {isDropdownOpen && notifications.length > 0 && (
             <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-              <div className="p-4 h-64 flex flex-col">
+              <div className="p-4 flex flex-col h-64">
                 <h3 className="text-lg font-semibold mb-2">Notifications</h3>
-                <ul className="overflow-y-auto flex-grow">
-                  {notifications.map((notification: Notification) => (
-                    <li
-                      key={notification.id}
-                      className={`py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150 ${
-                        !notification.read ? "font-bold" : ""
-                      }`}
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Avatar creator={notification.creator} />
-                        <div className="flex-grow min-w-0">
-                          <span
-                            className="block truncate"
-                            dangerouslySetInnerHTML={{
-                              __html: notification.message,
-                            }}
-                          ></span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(notification.created_at).toLocaleString()}
-                          </span>
+                <ScrollArea className="flex-grow">
+                  <ul>
+                    {notifications.map((notification: Notification) => (
+                      <li
+                        key={notification.id}
+                        className={`py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150 ${
+                          !notification.read ? "font-bold" : ""
+                        }`}
+                        onClick={() => handleNotificationClick(notification)}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <Avatar creator={notification.creator} />
+                          <div className="flex-grow min-w-0">
+                            <span
+                              className="block text-sm line-clamp-1"
+                              dangerouslySetInnerHTML={{
+                                __html: notification.message,
+                              }}
+                            ></span>
+                            <span className="text-xs text-gray-500 mt-1 block">
+                              {getRelativeTimeString(
+                                new Date(notification.created_at)
+                              )}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                </ScrollArea>
               </div>
             </div>
           )}

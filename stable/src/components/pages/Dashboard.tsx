@@ -81,49 +81,53 @@ export default function Dashboard() {
         <Card x-chunk="dashboard-01-chunk-4">
           <CardHeader className="pb-2">
             <CardDescription>Top Products</CardDescription>
-            <CardTitle className="text-4xl">Laser Lemonade Machine</CardTitle>
+            <CardTitle className="text-4xl ">Full Shoeing</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
-                <TableRow>
-                  <TableHead>Product</TableHead>
-                  <TableHead>Sales</TableHead>
-                  <TableHead>Revenue</TableHead>
+                <TableRow className="">
+                  <TableHead className="text-md text-gray-400">
+                    Product
+                  </TableHead>
+                  <TableHead className="text-md text-gray-400">Sales</TableHead>
+                  <TableHead className="text-md text-gray-400">
+                    Revenue
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
                   <TableCell>
-                    <div className="font-medium">Laser Lemonade Machine</div>
+                    <div className="font-medium">Full Shoeing</div>
                   </TableCell>
                   <TableCell>25</TableCell>
                   <TableCell>$499.99</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>
-                    <div className="font-medium">Hypernova Headphones</div>
+                    <div className="font-medium">Horse Spaghetti</div>
                   </TableCell>
                   <TableCell>100</TableCell>
                   <TableCell>$129.99</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>
-                    <div className="font-medium">AeroGlow Desk Lamp</div>
+                    <div className="font-medium">Glue Sticks</div>
                   </TableCell>
                   <TableCell>50</TableCell>
                   <TableCell>$39.99</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>
-                    <div className="font-medium">Gamer Gear Pro Controller</div>
+                    <div className="font-medium">Cowboy Hats</div>
                   </TableCell>
                   <TableCell>75</TableCell>
                   <TableCell>$59.99</TableCell>
                 </TableRow>
                 <TableRow>
                   <TableCell>
-                    <div className="font-medium">Luminous VR Headset</div>
+                    <div className="font-medium">Ponytail Extensions</div>
                   </TableCell>
                   <TableCell>30</TableCell>
                   <TableCell>$199.99</TableCell>
@@ -141,9 +145,15 @@ export default function Dashboard() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Orders</TableHead>
-                  <TableHead>Total Spend</TableHead>
+                  <TableHead className="text-md text-gray-400">
+                    Customer
+                  </TableHead>
+                  <TableHead className="text-md text-gray-400">
+                    Orders
+                  </TableHead>
+                  <TableHead className="text-md text-gray-400">
+                    Total Spend
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
