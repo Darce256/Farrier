@@ -20,6 +20,8 @@ import Notes from "./components/pages/Notes";
 import { Toaster } from "react-hot-toast";
 import Inbox from "./components/pages/Inbox";
 import { NotificationProvider } from "@/components/Contexts/NotificationProvider";
+import Calendar from "./components/pages/Calendar";
+import HorseProfile from "./components/pages/HorseProfile";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
@@ -86,6 +88,8 @@ function App() {
                   <Route path="/new-shoeings" element={<NewShoeing />} />
                   <Route path="/notes" element={<Notes />} />
                   <Route path="/inbox" element={<Inbox />} />
+                  <Route path="/calendar" element={<Calendar />} />
+                  <Route path="/horses/:id" element={<HorseProfile />} />
                 </Route>
               </Routes>
             </div>

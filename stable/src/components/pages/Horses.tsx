@@ -37,9 +37,10 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { Badge } from "@/components/ui/badge";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
-import { Skeleton } from "@/components/ui/skeleton"; // Make sure to import this
+import { Skeleton } from "@/components/ui/skeleton";
 import { createPortal } from "react-dom";
 import { useDebounce } from "use-debounce";
+import { useNavigate } from "react-router-dom";
 
 interface Shoeing {
   id: string;
@@ -52,12 +53,12 @@ interface Shoeing {
   "Shoe Notes": string;
 }
 
-// Add this interface to define the structure of the database response
 interface XRayImagesResponse {
   "x-ray-images": string[];
 }
 
 export default function Horses() {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<"card" | "table">("card");
   const [filterBarnTrainer, setFilterBarnTrainer] = useState<string | null>(
     null
@@ -81,7 +82,6 @@ export default function Horses() {
     lightboxIndex: null,
   });
 
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [showNoHorsesFound, setShowNoHorsesFound] = useState(false);
 
   useEffect(() => {
@@ -90,8 +90,6 @@ export default function Horses() {
       setError(null);
       try {
         const fetchedHorses = await getHorses();
-        console.log("Fetched horses in component:", fetchedHorses.length);
-        console.log("Sample horse:", fetchedHorses[0]);
         const sortedHorses = fetchedHorses.sort((a, b) =>
           (a.Name || "").localeCompare(b.Name || "")
         );
@@ -110,7 +108,7 @@ export default function Horses() {
     if (!isLoading && filteredHorses.length === 0) {
       const timer = setTimeout(() => {
         setShowNoHorsesFound(true);
-      }, 500); // 500ms delay
+      }, 500);
 
       return () => clearTimeout(timer);
     } else {
@@ -132,8 +130,7 @@ export default function Horses() {
         return (
           matchesBarnTrainer &&
           (horse.Name?.toLowerCase().includes(lowerSearchQuery) ||
-            horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery) ||
-            horse.Customers?.toLowerCase().includes(lowerSearchQuery))
+            horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery))
         );
       }
 
@@ -280,13 +277,16 @@ export default function Horses() {
     );
   };
 
-  // Update this function in your HorseCard or HorseTable component
   const handleViewDetails = (horse: Horse) => {
     openModal(horse);
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+  };
+
+  const handleViewHorse = (horse: Horse) => {
+    navigate(`/horses/${horse.id}`);
   };
 
   return (
@@ -296,7 +296,6 @@ export default function Horses() {
         <h1 className="text-4xl font-bold  text-black">Horses</h1>
       </div>
 
-      {/* Filters, search, and view controls */}
       <div className="flex flex-col md:flex-row gap-4 mb-4">
         <div className="flex-grow flex flex-col md:flex-row gap-2 md:gap-4">
           <Select
@@ -359,12 +358,13 @@ export default function Horses() {
       ) : showNoHorsesFound ? (
         <div className="text-center">No horses found.</div>
       ) : !isDesktop || viewMode === "card" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
           {filteredHorses.map((horse) => (
             <HorseCard
               key={horse.id}
               horse={horse}
               onSelect={() => handleViewDetails(horse)}
+              onViewHorse={() => handleViewHorse(horse)}
             />
           ))}
         </div>
@@ -373,6 +373,7 @@ export default function Horses() {
           <HorseTable
             horses={filteredHorses}
             onSelect={(horse) => handleViewDetails(horse)}
+            onViewHorse={(horse) => handleViewHorse(horse)}
           />
         </div>
       )}
@@ -392,14 +393,13 @@ export default function Horses() {
 
 function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
   return viewMode === "card" ? (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {[...Array(6)].map((_, index) => (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+      {[...Array(8)].map((_, index) => (
         <Card key={index} className="border-black/20 shadow-lg animate-pulse">
           <CardHeader>
             <div className="h-8 bg-gray-200 rounded w-3/4"></div>
           </CardHeader>
           <CardContent>
-            <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
             <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
             <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
             <div className="h-8 bg-gray-200 rounded w-full mt-4"></div>
@@ -413,7 +413,6 @@ function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
         <TableRow className="bg-primary text-primary-foreground">
           <TableHead className="">Name</TableHead>
           <TableHead className="">Barn / Trainer</TableHead>
-          <TableHead className="">Customers</TableHead>
           <TableHead className="">Actions</TableHead>
         </TableRow>
       </TableHeader>
@@ -422,9 +421,6 @@ function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
           <TableRow key={index}>
             <TableCell>
               <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            </TableCell>
-            <TableCell>
-              <div className="h-4 bg-gray-200 rounded w-full"></div>
             </TableCell>
             <TableCell>
               <div className="h-4 bg-gray-200 rounded w-full"></div>
@@ -442,51 +438,41 @@ function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
 function HorseCard({
   horse,
   onSelect,
+  onViewHorse,
 }: {
   horse: Horse;
   onSelect: () => void;
+  onViewHorse: () => void;
 }) {
-  const customerNames = horse.Customers
-    ? horse.Customers.split(",")
-        .map((name) => name.trim())
-        .map((name) => name.replace(/^"|"$/g, "").trim())
-        .filter((name) => name.length > 0) // Filter out empty names
-    : [];
-
   return (
     <Card className="border-black/20 shadow-lg flex flex-col h-full">
       <CardHeader className="pb-2">
-        <CardTitle className="text-black text-3xl">
-          {horse.Name || horse["Barn / Trainer"] || "Unnamed Horse"}
+        <CardTitle className="text-black text-2xl">
+          {horse.Name || "Unnamed Horse"}
         </CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col flex-grow pt-0">
-        <div className="space-y-2 mb-4 flex-grow">
+      <CardContent className="flex flex-col justify-between flex-grow pt-0">
+        <div className="mb-4">
           {horse["Barn / Trainer"] && (
-            <p className="text-sm">
-              <strong className="font-semibold">Barn / Trainer:</strong>{" "}
-              {horse["Barn / Trainer"]}
-            </p>
-          )}
-          {customerNames.length > 0 && (
-            <div className="text-sm">
-              <strong className="font-semibold">Customers:</strong>
-              <div className="mt-1 flex flex-wrap gap-1">
-                {customerNames.map((name, index) => (
-                  <Badge key={index} variant="default" className="text-xs">
-                    {name}
-                  </Badge>
-                ))}
-              </div>
+            <div className="text-sm flex items-center">
+              <strong className="font-semibold mr-2">Barn / Trainer:</strong>
+              <Badge variant="default" className="text-xs">
+                {horse["Barn / Trainer"]}
+              </Badge>
             </div>
           )}
         </div>
-        <Button
-          onClick={onSelect}
-          className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          View Details
-        </Button>
+        <div className="mt-auto space-y-2">
+          <Button
+            onClick={onSelect}
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            View Details
+          </Button>
+          <Button onClick={onViewHorse} variant="outline" className="w-full">
+            View Horse
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
@@ -495,9 +481,11 @@ function HorseCard({
 function HorseTable({
   horses,
   onSelect,
+  onViewHorse,
 }: {
   horses: Horse[];
   onSelect: (horse: Horse) => void;
+  onViewHorse: (horse: Horse) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -511,9 +499,6 @@ function HorseTable({
               Barn / Trainer
             </TableHead>
             <TableHead className="hover:text-primary-foreground">
-              Customers
-            </TableHead>
-            <TableHead className="hover:text-primary-foreground">
               Actions
             </TableHead>
           </TableRow>
@@ -522,33 +507,23 @@ function HorseTable({
           {horses.map((horse) => (
             <TableRow key={horse.id}>
               <TableCell className="font-medium">{horse.Name}</TableCell>
-              <TableCell>{horse["Barn / Trainer"]}</TableCell>
               <TableCell>
-                <div className="flex flex-wrap gap-1">
-                  {horse.Customers
-                    ? horse.Customers.split(",")
-                        .map((name) => name.trim())
-                        .map((name) => name.replace(/^"|"$/g, "").trim())
-                        .filter((name) => name.length > 0)
-                        .map((name, index) => (
-                          <Badge
-                            key={index}
-                            variant="default"
-                            className="text-xs"
-                          >
-                            {name}
-                          </Badge>
-                        ))
-                    : null}
-                </div>
+                <Badge variant="default" className="text-xs">
+                  {horse["Barn / Trainer"]}
+                </Badge>
               </TableCell>
               <TableCell>
-                <Button
-                  onClick={() => onSelect(horse)}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90"
-                >
-                  View Details
-                </Button>
+                <div className="space-x-2">
+                  <Button
+                    onClick={() => onSelect(horse)}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    View Details
+                  </Button>
+                  <Button onClick={() => onViewHorse(horse)} variant="outline">
+                    View Horse
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
           ))}
@@ -652,90 +627,18 @@ function HorseDetailsModal({
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">{horse.Name}</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="xrays" className="w-full flex flex-col">
+        <Tabs defaultValue="history" className="w-full flex flex-col">
           <TabsList className="bg-primary text-primary-foreground w-full grid grid-cols-3">
-            <TabsTrigger value="xrays" className="w-full">
-              X-Rays
-            </TabsTrigger>
             <TabsTrigger value="history" className="w-full">
               Shoeing History
+            </TabsTrigger>
+            <TabsTrigger value="xrays" className="w-full">
+              X-Rays
             </TabsTrigger>
             <TabsTrigger value="notes" className="w-full">
               Notes
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="xrays" className="flex-grow overflow-hidden px-6">
-            {selectedImageIndex !== null ? (
-              <div className="flex flex-col h-full">
-                <div className="relative flex-grow flex justify-center items-center border rounded-md p-2 mb-2">
-                  <img
-                    src={xRayImages[selectedImageIndex]}
-                    alt={`X-Ray ${selectedImageIndex + 1}`}
-                    className="max-w-full max-h-full object-contain"
-                  />
-                  <button
-                    className="absolute top-1/2 left-2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-2"
-                    onClick={handlePrevImage}
-                  >
-                    <ChevronLeft size={24} />
-                  </button>
-                  <button
-                    className="absolute top-1/2 right-2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-2"
-                    onClick={handleNextImage}
-                  >
-                    <ChevronRight size={24} />
-                  </button>
-                  <button
-                    className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2"
-                    onClick={() => setSelectedImageIndex(null)}
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
-                <div className="h-[100px] overflow-x-auto">
-                  <div className="flex space-x-2 pb-2">
-                    {xRayImages.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`X-Ray ${index + 1}`}
-                        className={`h-[80px] w-auto object-cover cursor-pointer border rounded-md ${
-                          index === selectedImageIndex
-                            ? "border-2 border-primary"
-                            : "border-gray-200"
-                        }`}
-                        onClick={() => handleImageClick(index)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-                {isLoadingXRays ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {[...Array(6)].map((_, i) => (
-                      <Skeleton key={i} className="w-full h-[100px]" />
-                    ))}
-                  </div>
-                ) : xRayImages.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {xRayImages.map((image, index) => (
-                      <img
-                        key={index}
-                        src={image}
-                        alt={`X-Ray ${index + 1}`}
-                        className="w-full h-[100px] object-cover cursor-pointer"
-                        onClick={() => handleImageClick(index)}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <p>No X-Ray images available.</p>
-                )}
-              </ScrollArea>
-            )}
-          </TabsContent>
           <TabsContent value="history">
             <ScrollArea className="h-[300px] w-full rounded-md border p-4">
               {shoeings.length > 0 ? (
@@ -765,18 +668,86 @@ function HorseDetailsModal({
                             {shoeing["Other Custom Services"]}
                           </p>
                         )}
-                        <p>
-                          <strong>Total Cost: </strong>
-                          {typeof shoeing["Total Cost"] === "number"
-                            ? `$${shoeing["Total Cost"].toFixed(2)}`
-                            : shoeing["Total Cost"] || "N/A"}
-                        </p>
                       </AccordionContent>
                     </AccordionItem>
                   ))}
                 </Accordion>
               ) : (
                 <p>No shoeing history available.</p>
+              )}
+            </ScrollArea>
+          </TabsContent>
+          <TabsContent value="xrays">
+            <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+              {selectedImageIndex !== null ? (
+                <div className="flex flex-col h-full">
+                  <div className="relative flex-grow flex justify-center items-center border rounded-md p-2 mb-2">
+                    <img
+                      src={xRayImages[selectedImageIndex]}
+                      alt={`X-Ray ${selectedImageIndex + 1}`}
+                      className="max-w-full max-h-full object-contain"
+                    />
+                    <button
+                      className="absolute top-1/2 left-2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-2"
+                      onClick={handlePrevImage}
+                    >
+                      <ChevronLeft size={24} />
+                    </button>
+                    <button
+                      className="absolute top-1/2 right-2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-2"
+                      onClick={handleNextImage}
+                    >
+                      <ChevronRight size={24} />
+                    </button>
+                    <button
+                      className="absolute top-2 right-2 text-white bg-black bg-opacity-50 rounded-full p-2"
+                      onClick={() => setSelectedImageIndex(null)}
+                    >
+                      <X size={24} />
+                    </button>
+                  </div>
+                  <div className="h-[100px] overflow-x-auto">
+                    <div className="flex space-x-2 pb-2">
+                      {xRayImages.map((image, index) => (
+                        <img
+                          key={index}
+                          src={image}
+                          alt={`X-Ray ${index + 1}`}
+                          className={`h-[80px] w-auto object-cover cursor-pointer border rounded-md ${
+                            index === selectedImageIndex
+                              ? "border-2 border-primary"
+                              : "border-gray-200"
+                          }`}
+                          onClick={() => handleImageClick(index)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {isLoadingXRays ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {[...Array(6)].map((_, i) => (
+                        <Skeleton key={i} className="w-full h-[100px]" />
+                      ))}
+                    </div>
+                  ) : xRayImages.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {xRayImages.map((image, index) => (
+                        <img
+                          key={index}
+                          src={image}
+                          alt={`X-Ray ${index + 1}`}
+                          className="w-full h-[100px] object-cover cursor-pointer"
+                          onClick={() => handleImageClick(index)}
+                        />
+                      ))}
+                    </div>
+                  ) : (
+                    <p>No X-Ray images available.</p>
+                  )}
+                </>
               )}
             </ScrollArea>
           </TabsContent>
