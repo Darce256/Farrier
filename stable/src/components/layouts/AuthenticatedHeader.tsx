@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
+import { MdMailOutline } from "react-icons/md"; // Add this import
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -83,6 +84,7 @@ export default function AuthenticatedHeader() {
     { name: "Customers", icon: UsersIcon, href: "/customers" },
     { name: "Analytics", icon: InfoIcon, href: "/analytics" },
     { name: "Settings", icon: SettingsIcon, href: "/settings" },
+    { name: "Inbox", icon: MdMailOutline, href: "/inbox" }, // Add this line
   ];
 
   const getCurrentPageName = () => {
