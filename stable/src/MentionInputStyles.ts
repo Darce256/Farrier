@@ -6,7 +6,10 @@ export default {
     height: "200px",
     fontFamily: "inherit",
     zIndex: 0,
-    // fontWeight: 'normal',
+    "&focused": {
+      borderColor: "#e11d48", // This sets the border color when focused
+      outline: "none", // This removes the default focus outline
+    },
   },
   "&multiLine": {
     control: {
@@ -20,6 +23,12 @@ export default {
     input: {
       padding: 9,
       border: "1px solid silver",
+      borderRadius: "5px", // Add this for consistent rounding
+      transition: "border-color 0.3s ease", // Smooth transition for the border color change
+      "&focused": {
+        borderColor: "#e11d48", // This sets the border color when focused
+        outline: "none", // This removes the default focus outline
+      },
     },
   },
   "&singleLine": {
@@ -32,15 +41,17 @@ export default {
     input: {
       padding: 1,
       border: "2px inset",
+      "&focused": {
+        borderColor: "#e11d48", // This sets the border color when focused
+        outline: "none", // This removes the default focus outline
+      },
     },
   },
-
   suggestions: {
     list: {
-      backgroundColor: "#e11d48",
+      backgroundColor: "white", // Changed from #e11d48 for better contrast
       border: "1px solid rgba(0,0,0,0.15)",
       borderRadius: "5px",
-
       fontSize: 16,
     },
     item: {

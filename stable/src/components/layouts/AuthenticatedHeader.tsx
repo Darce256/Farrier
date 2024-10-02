@@ -186,35 +186,42 @@ export default function AuthenticatedHeader() {
             )}
           </Button>
           {isDropdownOpen && notifications.length > 0 && (
-            <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg">
-              <div className="p-4">
-                <h3 className="text-lg font-semibold">Notifications</h3>
-                <ul className="mt-2">
+            <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+              <div className="p-4 h-64 flex flex-col">
+                <h3 className="text-lg font-semibold mb-2">Notifications</h3>
+                <ul className="overflow-y-auto flex-grow">
                   {notifications.map((notification: any) => (
                     <li
                       key={notification.id}
-                      className="py-2 border-b flex justify-between items-center"
+                      className="py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150"
                       onClick={() => setIsDropdownOpen(false)}
                     >
-                      <span
-                        dangerouslySetInnerHTML={{
-                          __html: notification.message,
-                        }}
-                      ></span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          toggleReadStatus(notification.id, notification.read);
-                        }}
-                      >
-                        {notification.read ? (
-                          <EyeOffIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-                        ) : (
-                          <EyeIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-                        )}
-                      </Button>
+                      <div className="flex justify-between items-center">
+                        <span
+                          className="flex-grow pr-2"
+                          dangerouslySetInnerHTML={{
+                            __html: notification.message,
+                          }}
+                        ></span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleReadStatus(
+                              notification.id,
+                              notification.read
+                            );
+                          }}
+                        >
+                          {notification.read ? (
+                            <EyeOffIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                          )}
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>

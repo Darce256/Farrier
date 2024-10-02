@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FaRegStickyNote } from "react-icons/fa";
 import { MentionsInput, Mention, OnChangeHandlerFunc } from "react-mentions";
 import MentionInputStyles from "../../MentionInputStyles.ts";
 import MentionStyles from "../../MentionStyles.ts";
+import { Loader2 } from "lucide-react"; // Import the spinner icon
+import toast from "react-hot-toast"; // Import react-hot-toast
 
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/Contexts/AuthProvider"; // Assuming you have an AuthProvider
@@ -17,8 +18,9 @@ type UserProfile = {
 export default function Notes() {
   const { user } = useAuth(); // Get the authenticated user
   const [newNote, setNewNote] = useState("");
-
   const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
   useEffect(() => {
     const fetchUserProfiles = async () => {
       const { data, error } = await supabase
@@ -40,51 +42,60 @@ export default function Notes() {
       return;
     }
 
-    console.log(newNote);
+    setIsLoading(true);
 
-    // Add the note to the notes table
-    const { data: noteData, error: noteError } = await supabase
-      .from("notes")
-      .insert([{ content: newNote, user_id: user.id }])
-      .select();
+    try {
+      console.log(newNote);
 
-    if (noteError) {
-      console.error("Error adding note:", noteError);
-      return;
+      // Add the note to the notes table
+      const { data: noteData, error: noteError } = await supabase
+        .from("notes")
+        .insert([{ content: newNote, user_id: user.id }])
+        .select();
+
+      if (noteError) throw noteError;
+
+      const noteId = noteData[0].id;
+
+      // Extract mentions from the note
+      const mentionRegex = /@\[(.*?)\]\((.*?)\)/g;
+      let match;
+      const mentions = [];
+      while ((match = mentionRegex.exec(newNote)) !== null) {
+        mentions.push({ name: match[1], id: match[2] });
+      }
+
+      // Clean up the note content to replace mentions with just the user's name
+      let cleanedNote = newNote.replace(mentionRegex, "@$1");
+
+      // Add notifications for mentioned users
+      for (const mention of mentions) {
+        const notificationMessage = cleanedNote.replace(
+          new RegExp(`@${mention.name}`, "g"),
+          `<strong>@${mention.name}</strong>`
+        );
+
+        await supabase.from("notifications").insert([
+          {
+            user_id: mention.id,
+            message: `You were mentioned in a note: "${notificationMessage}"`,
+            type: "mention",
+            related_id: noteId,
+          },
+        ]);
+      }
+
+      // Clear the note input
+      setNewNote("");
+
+      // Show success toast
+      toast.success("Note added successfully!");
+    } catch (error) {
+      console.error("Error adding note:", error);
+      toast.error("Failed to add note. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
-
-    const noteId = noteData[0].id;
-
-    // Extract mentions from the note
-    const mentionRegex = /@\[(.*?)\]\((.*?)\)/g;
-    let match;
-    const mentions = [];
-    while ((match = mentionRegex.exec(newNote)) !== null) {
-      mentions.push({ name: match[1], id: match[2] });
-    }
-
-    // Clean up the note content to replace mentions with just the user's name
-    let cleanedNote = newNote.replace(mentionRegex, "@$1");
-
-    // Add notifications for mentioned users
-    for (const mention of mentions) {
-      const notificationMessage = cleanedNote.replace(
-        new RegExp(`@${mention.name}`, "g"),
-        `<strong>@${mention.name}</strong>`
-      );
-
-      await supabase.from("notifications").insert([
-        {
-          user_id: mention.id,
-          message: `You were mentioned in a note: "${notificationMessage}"`,
-          type: "mention",
-          related_id: noteId,
-        },
-      ]);
-    }
-
-    // Clear the note input
-    setNewNote("");
   };
 
   const handleTextareaChange: OnChangeHandlerFunc = (event: any) => {
@@ -115,7 +126,16 @@ export default function Notes() {
               trigger={"@"}
             />
           </MentionsInput>
-          <Button onClick={handleAddNote}>Add Note</Button>
+          <Button onClick={handleAddNote} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Adding Note...
+              </>
+            ) : (
+              "Add Note"
+            )}
+          </Button>
         </div>
       </div>
     </div>

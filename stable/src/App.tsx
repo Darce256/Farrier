@@ -17,6 +17,7 @@ import { ReactNode } from "react";
 import Horses from "./components/pages/Horses";
 import NewShoeing from "./components/pages/NewShoeing";
 import Notes from "./components/pages/Notes";
+import { Toaster } from "react-hot-toast";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
@@ -32,59 +33,62 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="flex flex-col min-h-screen">
-          <Routes>
-            {/* Public routes */}
-            <Route
-              path="/"
-              element={
-                <>
-                  <Navbar />
-                  <Home />
-                  <Footer />
-                </>
-              }
-            />
-            <Route
-              path="/login"
-              element={
-                <>
-                  <Navbar />
-                  <LoginPage />
-                  <Footer />
-                </>
-              }
-            />
-            <Route
-              path="/signup"
-              element={
-                <>
-                  <Navbar />
-                  <SignUpPage />
-                  <Footer />
-                </>
-              }
-            />
+    <>
+      <AuthProvider>
+        <Router>
+          <div className="flex flex-col min-h-screen">
+            <Routes>
+              {/* Public routes */}
+              <Route
+                path="/"
+                element={
+                  <>
+                    <Navbar />
+                    <Home />
+                    <Footer />
+                  </>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <>
+                    <Navbar />
+                    <LoginPage />
+                    <Footer />
+                  </>
+                }
+              />
+              <Route
+                path="/signup"
+                element={
+                  <>
+                    <Navbar />
+                    <SignUpPage />
+                    <Footer />
+                  </>
+                }
+              />
 
-            {/* Protected routes using AuthenticatedLayout */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <AuthenticatedLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/horses" element={<Horses />} />
-              <Route path="/new-shoeings" element={<NewShoeing />} />
-              <Route path="/notes" element={<Notes />} />
-            </Route>
-          </Routes>
-        </div>
-      </Router>
-    </AuthProvider>
+              {/* Protected routes using AuthenticatedLayout */}
+              <Route
+                element={
+                  <ProtectedRoute>
+                    <AuthenticatedLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/horses" element={<Horses />} />
+                <Route path="/new-shoeings" element={<NewShoeing />} />
+                <Route path="/notes" element={<Notes />} />
+              </Route>
+            </Routes>
+          </div>
+        </Router>
+        <Toaster position="top-right" />
+      </AuthProvider>
+    </>
   );
 }
 
