@@ -33,16 +33,30 @@ import {
   BreadcrumbSeparator,
 } from "../ui/breadcrumb";
 
-const Avatar = ({ name }: { name: string }) => {
-  const getInitials = (name: string) => {
-    const names = name.split(" ");
-    const initials = names.map((n) => n[0]).join("");
-    return initials.toUpperCase();
+interface Notification {
+  id: string;
+  message: string;
+  created_at: string;
+  read: boolean;
+  creator: {
+    name: string;
+  };
+}
+
+const Avatar = ({ creator }: { creator: { name: string } | null }) => {
+  const getInitials = (name: string | undefined) => {
+    if (!name) return "U";
+    const names = name.trim().split(" ");
+    if (names.length === 0) return "U";
+    if (names.length === 1) return names[0].charAt(0).toUpperCase();
+    return (
+      names[0].charAt(0) + names[names.length - 1].charAt(0)
+    ).toUpperCase();
   };
 
   return (
-    <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-lg font-semibold text-primary-foreground">
-      {getInitials(name)}
+    <div className="flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground text-sm font-semibold overflow-hidden">
+      {getInitials(creator?.name)}
     </div>
   );
 };
@@ -50,7 +64,7 @@ const Avatar = ({ name }: { name: string }) => {
 export default function AuthenticatedHeader() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const location = useLocation();
@@ -58,13 +72,21 @@ export default function AuthenticatedHeader() {
 
   const fetchNotifications = async () => {
     if (user) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("notifications")
-        .select("*")
+        .select(
+          `
+          *,
+          creator:profiles!notifications_creator_id_fkey(name)
+        `
+        )
         .eq("mentioned_user_id", user.id)
         .order("created_at", { ascending: false });
-      if (data) {
-        setNotifications(data as any);
+
+      if (error) {
+        console.error("Error fetching notifications:", error);
+      } else if (data) {
+        setNotifications(data as Notification[]);
       }
     }
   };
@@ -79,8 +101,8 @@ export default function AuthenticatedHeader() {
       .eq("id", notificationId);
 
     if (!error) {
-      setNotifications((prevNotifications: any) =>
-        prevNotifications.map((notification: any) =>
+      setNotifications((prevNotifications: Notification[]) =>
+        prevNotifications.map((notification: Notification) =>
           notification.id === notificationId
             ? { ...notification, read: !currentStatus }
             : notification
@@ -136,7 +158,7 @@ export default function AuthenticatedHeader() {
     return currentItem ? currentItem.name : "Overview";
   };
 
-  const handleNotificationClick = (notification: any) => {
+  const handleNotificationClick = (notification: Notification) => {
     setIsDropdownOpen(false);
     navigate(`/inbox?notificationId=${notification.id}`);
   };
@@ -201,9 +223,9 @@ export default function AuthenticatedHeader() {
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           >
             <BellIcon className="h-5 w-5" />
-            {notifications.filter((n: any) => !n.read).length > 0 && (
+            {notifications.filter((n: Notification) => !n.read).length > 0 && (
               <span className="absolute top-0 right-0 inline-flex items-center justify-center h-4 w-4 rounded-full bg-red-500 text-white text-xs">
-                {notifications.filter((n: any) => !n.read).length}
+                {notifications.filter((n: Notification) => !n.read).length}
               </span>
             )}
           </Button>
@@ -212,17 +234,17 @@ export default function AuthenticatedHeader() {
               <div className="p-4 h-64 flex flex-col">
                 <h3 className="text-lg font-semibold mb-2">Notifications</h3>
                 <ul className="overflow-y-auto flex-grow">
-                  {notifications.map((notification: any) => (
+                  {notifications.map((notification: Notification) => (
                     <li
                       key={notification.id}
                       className="py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150"
                       onClick={() => handleNotificationClick(notification)}
                     >
-                      <div className="flex items-center">
-                        <Avatar name={notification.creator_name || "Unknown"} />
-                        <div className="ml-3 flex-grow">
+                      <div className="flex items-center space-x-3">
+                        <Avatar creator={notification.creator} />
+                        <div className="flex-grow min-w-0">
                           <span
-                            className="block"
+                            className="block truncate"
                             dangerouslySetInnerHTML={{
                               __html: notification.message,
                             }}

@@ -114,7 +114,7 @@ export default function Inbox() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 ">
       <div className="flex items-center gap-2 align-middle mb-6">
         <Bell className="text-4xl" />
         <h1 className="text-4xl font-bold text-black">Inbox</h1>
@@ -129,7 +129,7 @@ export default function Inbox() {
             >
               <Card className="h-full rounded-none border-0 shadow-none">
                 <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2">
+                  <CardTitle className="text-xl flex items-center gap-2 ">
                     Notifications
                   </CardTitle>
                   <CardDescription>
@@ -137,7 +137,7 @@ export default function Inbox() {
                     messages
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="p-0 border-r-2 border-r-gray-300">
                   <ScrollArea className="h-[500px] md:h-[520px] px-4">
                     {notifications.map((notification) => (
                       <div
