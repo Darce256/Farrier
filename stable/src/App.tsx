@@ -18,6 +18,7 @@ import Horses from "./components/pages/Horses";
 import NewShoeing from "./components/pages/NewShoeing";
 import Notes from "./components/pages/Notes";
 import { Toaster } from "react-hot-toast";
+import Inbox from "./components/pages/Inbox";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
@@ -82,6 +83,7 @@ function App() {
                 <Route path="/horses" element={<Horses />} />
                 <Route path="/new-shoeings" element={<NewShoeing />} />
                 <Route path="/notes" element={<Notes />} />
+                <Route path="/inbox" element={<Inbox />} />
               </Route>
             </Routes>
           </div>

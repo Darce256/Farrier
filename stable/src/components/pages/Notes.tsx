@@ -77,7 +77,8 @@ export default function Notes() {
 
         await supabase.from("notifications").insert([
           {
-            user_id: mention.id,
+            mentioned_user_id: mention.id,
+            creator_id: user.id,
             message: `You were mentioned in a note: "${notificationMessage}"`,
             type: "mention",
             related_id: noteId,

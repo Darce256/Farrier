@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,6 +33,20 @@ import {
   BreadcrumbSeparator,
 } from "../ui/breadcrumb";
 
+const Avatar = ({ name }: { name: string }) => {
+  const getInitials = (name: string) => {
+    const names = name.split(" ");
+    const initials = names.map((n) => n[0]).join("");
+    return initials.toUpperCase();
+  };
+
+  return (
+    <div className="flex items-center justify-center h-10 w-10 rounded-full bg-primary text-lg font-semibold text-primary-foreground">
+      {getInitials(name)}
+    </div>
+  );
+};
+
 export default function AuthenticatedHeader() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
@@ -40,13 +54,14 @@ export default function AuthenticatedHeader() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const fetchNotifications = async () => {
     if (user) {
       const { data } = await supabase
         .from("notifications")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("mentioned_user_id", user.id)
         .order("created_at", { ascending: false });
       if (data) {
         setNotifications(data as any);
@@ -121,57 +136,64 @@ export default function AuthenticatedHeader() {
     return currentItem ? currentItem.name : "Overview";
   };
 
-  return (
-    <header className="sticky top-0 z-10 flex h-16 sm:h-16 items-center gap-4 border-b bg-background px-4 sm:px-6 pt-0 sm:pt-0">
-      {/* Mobile Menu */}
-      <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetTrigger asChild>
-          <Button
-            size="icon"
-            variant="outline"
-            className="mr-2 sm:hidden"
-            onClick={() => setIsOpen(true)}
-          >
-            <MenuIcon className="h-5 w-5" />
-            <span className="sr-only">Toggle Menu</span>
-          </Button>
-        </SheetTrigger>
-        <SheetContent side="left" className="w-[250px] sm:max-w-sm">
-          <nav className="grid gap-6 text-lg font-medium">
-            {navItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
-                onClick={() => setIsOpen(false)}
-              >
-                <item.icon className="h-5 w-5" />
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-        </SheetContent>
-      </Sheet>
+  const handleNotificationClick = (notification: any) => {
+    setIsDropdownOpen(false);
+    navigate(`/inbox?notificationId=${notification.id}`);
+  };
 
-      <Breadcrumb className="hidden md:flex">
-        <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/dashboard">Dashboard</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
-          {location.pathname !== "/dashboard" && (
-            <>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{getCurrentPageName()}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </>
-          )}
-        </BreadcrumbList>
-      </Breadcrumb>
-      <div className="relative ml-auto flex-1 md:grow-0"></div>
-      <div className="container mx-auto flex items-center justify-end gap-4 max-w-7xl">
+  return (
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">
+      <div className="flex items-center gap-4">
+        {/* Mobile Menu */}
+        <Sheet open={isOpen} onOpenChange={setIsOpen}>
+          <SheetTrigger asChild>
+            <Button
+              size="icon"
+              variant="outline"
+              className="mr-2 sm:hidden"
+              onClick={() => setIsOpen(true)}
+            >
+              <MenuIcon className="h-5 w-5" />
+              <span className="sr-only">Toggle Menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[250px] sm:max-w-sm">
+            <nav className="grid gap-6 text-lg font-medium">
+              {navItems.map((item) => (
+                <Link
+                  key={item.name}
+                  to={item.href}
+                  className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                  onClick={() => setIsOpen(false)}
+                >
+                  <item.icon className="h-5 w-5" />
+                  {item.name}
+                </Link>
+              ))}
+            </nav>
+          </SheetContent>
+        </Sheet>
+
+        <Breadcrumb className="hidden md:flex">
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/dashboard">Dashboard</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+            {location.pathname !== "/dashboard" && (
+              <>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage>{getCurrentPageName()}</BreadcrumbPage>
+                </BreadcrumbItem>
+              </>
+            )}
+          </BreadcrumbList>
+        </Breadcrumb>
+      </div>
+
+      <div className="flex items-center gap-4">
         <div className="relative" ref={dropdownRef}>
           <Button
             variant="outline"
@@ -194,15 +216,21 @@ export default function AuthenticatedHeader() {
                     <li
                       key={notification.id}
                       className="py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150"
-                      onClick={() => setIsDropdownOpen(false)}
+                      onClick={() => handleNotificationClick(notification)}
                     >
-                      <div className="flex justify-between items-center">
-                        <span
-                          className="flex-grow pr-2"
-                          dangerouslySetInnerHTML={{
-                            __html: notification.message,
-                          }}
-                        ></span>
+                      <div className="flex items-center">
+                        <Avatar name={notification.creator_name || "Unknown"} />
+                        <div className="ml-3 flex-grow">
+                          <span
+                            className="block"
+                            dangerouslySetInnerHTML={{
+                              __html: notification.message,
+                            }}
+                          ></span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </span>
+                        </div>
                         <Button
                           variant="ghost"
                           size="icon"
