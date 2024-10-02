@@ -8,11 +8,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bell, ChevronLeft } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import { MdMailOutline } from "react-icons/md"; // Add this import
+import { useNotifications } from "@/components/Contexts/NotificationProvider"; // Add this import
 
 interface Notification {
   id: string;
@@ -47,12 +48,13 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
 };
 
 export default function Inbox() {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, setNotifications } = useNotifications(); // Use the NotificationProvider
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     fetchNotifications();
@@ -63,12 +65,17 @@ export default function Inbox() {
     if (notificationId) {
       const notification = notifications.find((n) => n.id === notificationId);
       if (notification) {
-        setSelectedNotification(notification);
+        setSelectedNotification(notification as Notification);
         setShowDetail(true);
         markAsRead(notificationId);
       }
     }
   }, [searchParams, notifications]);
+
+  useEffect(() => {
+    const count = notifications.filter((n) => !n.read).length;
+    setUnreadCount(count);
+  }, [notifications]);
 
   const fetchNotifications = async () => {
     if (user) {
@@ -100,22 +107,46 @@ export default function Inbox() {
     if (error) {
       console.error("Error marking notification as read:", error);
     } else {
-      setNotifications(
-        notifications.map((n) =>
+      setNotifications((prevNotifications) =>
+        prevNotifications.map((n) =>
           n.id === notificationId ? { ...n, read: true } : n
         )
       );
     }
   };
 
+  const toggleReadStatus = useCallback(
+    async (notificationId: string, currentStatus: boolean) => {
+      const { error } = await supabase
+        .from("notifications")
+        .update({ read: !currentStatus })
+        .eq("id", notificationId);
+
+      if (!error) {
+        setNotifications((prevNotifications) =>
+          prevNotifications.map((notification) =>
+            notification.id === notificationId
+              ? { ...notification, read: !currentStatus }
+              : notification
+          )
+        );
+      } else {
+        console.error("Error toggling read status:", error);
+      }
+    },
+    []
+  );
+
   const handleNotificationClick = useCallback(
     (notification: Notification) => {
       setSelectedNotification(notification);
       setShowDetail(true);
-      markAsRead(notification.id);
       setSearchParams({ notificationId: notification.id });
+      if (!notification.read) {
+        markAsRead(notification.id);
+      }
     },
-    [setSearchParams, markAsRead]
+    [setSearchParams]
   );
 
   const handleBackToInbox = useCallback(() => {
@@ -125,35 +156,34 @@ export default function Inbox() {
 
   return (
     <div className="container mx-auto p-4">
-      <div className="flex items-center gap-2 align-middle mb-6">
-        <MdMailOutline className="text-4xl" />
-        <h1 className="text-4xl font-bold text-black">Inbox</h1>
+      <div className="flex items-center gap-2 align-middle mb-4">
+        <MdMailOutline className="text-3xl" />
+        <h1 className="text-3xl font-bold text-black">Inbox</h1>
       </div>
 
       <div className="bg-white rounded-lg shadow-md border border-gray-200">
-        <div className="p-6 sm:p-8">
-          <div className="flex flex-col md:flex-row h-[600px]">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-col md:flex-row h-[calc(100vh-180px)] max-h-[600px]">
             <div
               className={`w-full md:w-1/3 ${
                 showDetail ? "hidden md:block" : ""
-              }`}
+              } md:overflow-hidden md:flex md:flex-col h-full`}
             >
-              <Card className="h-full rounded-none border-0">
-                <CardHeader>
-                  <CardTitle className="text-xl flex items-center gap-2">
+              <Card className="h-full rounded-none border-0 flex flex-col">
+                <CardHeader className="py-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
                     Notifications
                   </CardTitle>
                   <CardDescription>
-                    {notifications.filter((n) => !n.read).length} unread
-                    messages
+                    {unreadCount} unread messages
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-0">
-                  <ScrollArea className="h-[500px] md:h-[520px] px-4">
-                    {notifications.map((notification) => (
+                <CardContent className="p-0 flex-grow overflow-hidden">
+                  <ScrollArea className="h-[calc(100vh-280px)] md:h-[calc(100%-80px)] px-4 pb-4">
+                    {notifications.map((notification: any) => (
                       <div
                         key={notification.id}
-                        className={`flex items-start space-x-4 p-4 cursor-pointer hover:bg-accent rounded-md ${
+                        className={`flex items-start space-x-4 p-3 cursor-pointer hover:bg-accent rounded-md ${
                           selectedNotification?.id === notification.id
                             ? "bg-accent"
                             : ""
@@ -161,7 +191,7 @@ export default function Inbox() {
                         onClick={() => handleNotificationClick(notification)}
                       >
                         <Avatar creator={notification.creator} />
-                        <div className="space-y-1">
+                        <div className="space-y-1 flex-grow">
                           <p className="text-sm font-medium leading-none">
                             {notification.title}
                           </p>
@@ -184,10 +214,10 @@ export default function Inbox() {
             <div
               className={`w-full md:w-2/3 ${
                 showDetail ? "" : "hidden md:block"
-              }`}
+              } md:overflow-hidden md:flex md:flex-col h-full`}
             >
-              <Card className="h-full rounded-none border-0">
-                <CardHeader>
+              <Card className="h-full rounded-none border-0 flex flex-col">
+                <CardHeader className="py-3">
                   <div className="flex items-center">
                     <Button
                       variant="ghost"
@@ -197,7 +227,9 @@ export default function Inbox() {
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <div>
-                      <CardTitle>{selectedNotification?.title}</CardTitle>
+                      <CardTitle className="text-lg">
+                        {selectedNotification?.title}
+                      </CardTitle>
                       <CardDescription>
                         {selectedNotification &&
                           new Date(
@@ -207,7 +239,7 @@ export default function Inbox() {
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-grow overflow-auto p-4">
                   {selectedNotification && (
                     <div className="flex items-start space-x-4">
                       <Avatar creator={selectedNotification.creator} />

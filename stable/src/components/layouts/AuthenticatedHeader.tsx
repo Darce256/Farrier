@@ -32,6 +32,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "../ui/breadcrumb";
+import { useNotifications } from "@/components/Contexts/NotificationProvider";
 
 interface Notification {
   id: string;
@@ -64,78 +65,11 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
 export default function AuthenticatedHeader() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-
-  const fetchNotifications = async () => {
-    if (user) {
-      const { data, error } = await supabase
-        .from("notifications")
-        .select(
-          `
-          *,
-          creator:profiles!notifications_creator_id_fkey(name)
-        `
-        )
-        .eq("mentioned_user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching notifications:", error);
-      } else if (data) {
-        setNotifications(data as Notification[]);
-      }
-    }
-  };
-
-  const toggleReadStatus = async (
-    notificationId: string,
-    currentStatus: boolean
-  ) => {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ read: !currentStatus })
-      .eq("id", notificationId);
-
-    if (!error) {
-      setNotifications((prevNotifications: Notification[]) =>
-        prevNotifications.map((notification: Notification) =>
-          notification.id === notificationId
-            ? { ...notification, read: !currentStatus }
-            : notification
-        )
-      );
-    }
-  };
-
-  useEffect(() => {
-    fetchNotifications();
-
-    const intervalId = setInterval(() => {
-      fetchNotifications();
-    }, 30000); // Poll every 30 seconds
-
-    return () => clearInterval(intervalId); // Cleanup interval on component unmount
-  }, [user]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !(dropdownRef.current as Node).contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [dropdownRef]);
+  const { notifications } = useNotifications(); // Use the NotificationProvider
 
   const getInitials = (name: string) => {
     const names = name.split(" ");
@@ -237,7 +171,9 @@ export default function AuthenticatedHeader() {
                   {notifications.map((notification: Notification) => (
                     <li
                       key={notification.id}
-                      className="py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150"
+                      className={`py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150 ${
+                        !notification.read ? "font-bold" : ""
+                      }`}
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex items-center space-x-3">
@@ -253,24 +189,6 @@ export default function AuthenticatedHeader() {
                             {new Date(notification.created_at).toLocaleString()}
                           </span>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="flex-shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleReadStatus(
-                              notification.id,
-                              notification.read
-                            );
-                          }}
-                        >
-                          {notification.read ? (
-                            <EyeOffIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-                          ) : (
-                            <EyeIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-                          )}
-                        </Button>
                       </div>
                     </li>
                   ))}
