@@ -12,8 +12,9 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/Contexts/AuthProvider";
-import { MdMailOutline } from "react-icons/md"; // Add this import
-import { useNotifications } from "@/components/Contexts/NotificationProvider"; // Add this import
+import { MdMailOutline } from "react-icons/md";
+import { useNotifications } from "@/components/Contexts/NotificationProvider";
+import { getRelativeTimeString } from "@/lib/dateUtils";
 
 interface Notification {
   id: string;
@@ -169,7 +170,7 @@ export default function Inbox() {
                 showDetail ? "hidden md:block" : ""
               } md:overflow-hidden md:flex md:flex-col h-full`}
             >
-              <Card className="h-full rounded-none border-0 flex flex-col">
+              <Card className="h-full rounded-none border-0 flex flex-col border-r border-gray-200">
                 <CardHeader className="py-3">
                   <CardTitle className="text-lg flex items-center gap-2">
                     Notifications
@@ -202,7 +203,9 @@ export default function Inbox() {
                             }}
                           ></p>
                           <p className="text-xs text-muted-foreground">
-                            {new Date(notification.created_at).toLocaleString()}
+                            {getRelativeTimeString(
+                              new Date(notification.created_at)
+                            )}
                           </p>
                         </div>
                       </div>
@@ -226,31 +229,35 @@ export default function Inbox() {
                     >
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <div>
-                      <CardTitle className="text-lg">
-                        {selectedNotification?.title}
-                      </CardTitle>
-                      <CardDescription>
-                        {selectedNotification &&
-                          new Date(
-                            selectedNotification.created_at
-                          ).toLocaleString()}
-                      </CardDescription>
-                    </div>
+                    {selectedNotification && (
+                      <div className="flex items-center space-x-3">
+                        <Avatar creator={selectedNotification.creator} />
+                        <div>
+                          <CardTitle className="text-lg">
+                            {selectedNotification.creator.name}
+                          </CardTitle>
+                          <CardDescription>
+                            {selectedNotification.title}
+                          </CardDescription>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="flex-grow overflow-auto p-4">
                   {selectedNotification && (
-                    <div className="flex items-start space-x-4">
-                      <Avatar creator={selectedNotification.creator} />
-                      <div>
-                        <span
-                          className="text-sm"
-                          dangerouslySetInnerHTML={{
-                            __html: selectedNotification.message,
-                          }}
-                        ></span>
-                      </div>
+                    <div>
+                      <span
+                        className="text-sm"
+                        dangerouslySetInnerHTML={{
+                          __html: selectedNotification.message,
+                        }}
+                      ></span>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {getRelativeTimeString(
+                          new Date(selectedNotification.created_at)
+                        )}
+                      </p>
                     </div>
                   )}
                 </CardContent>
