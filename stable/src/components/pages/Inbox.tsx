@@ -116,28 +116,6 @@ export default function Inbox() {
     }
   };
 
-  const toggleReadStatus = useCallback(
-    async (notificationId: string, currentStatus: boolean) => {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ read: !currentStatus })
-        .eq("id", notificationId);
-
-      if (!error) {
-        setNotifications((prevNotifications) =>
-          prevNotifications.map((notification) =>
-            notification.id === notificationId
-              ? { ...notification, read: !currentStatus }
-              : notification
-          )
-        );
-      } else {
-        console.error("Error toggling read status:", error);
-      }
-    },
-    []
-  );
-
   const handleNotificationClick = useCallback(
     (notification: Notification) => {
       setSelectedNotification(notification);

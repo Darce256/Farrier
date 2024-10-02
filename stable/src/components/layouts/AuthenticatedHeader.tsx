@@ -18,12 +18,9 @@ import {
   InfoIcon,
   SettingsIcon,
   BellIcon,
-  EyeIcon,
-  EyeOffIcon,
 } from "lucide-react";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
-import { supabase } from "@/lib/supabaseClient";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -69,7 +66,7 @@ export default function AuthenticatedHeader() {
   const dropdownRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { notifications } = useNotifications(); // Use the NotificationProvider
+  const { notifications, fetchNotifications } = useNotifications();
 
   const getInitials = (name: string) => {
     const names = name.split(" ");
@@ -96,6 +93,11 @@ export default function AuthenticatedHeader() {
     setIsDropdownOpen(false);
     navigate(`/inbox?notificationId=${notification.id}`);
   };
+
+  useEffect(() => {
+    // Fetch notifications when the component mounts
+    fetchNotifications();
+  }, [fetchNotifications]);
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">

@@ -1,4 +1,10 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, {
+  createContext,
+  useState,
+  useContext,
+  useEffect,
+  useCallback,
+} from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "./AuthProvider";
 
@@ -15,6 +21,7 @@ interface Notification {
 interface NotificationContextType {
   notifications: Notification[];
   setNotifications: React.Dispatch<React.SetStateAction<Notification[]>>;
+  fetchNotifications: () => Promise<void>; // Add this line
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -27,13 +34,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const { user } = useAuth();
 
-  useEffect(() => {
-    if (user) {
-      fetchNotifications();
-    }
-  }, [user]);
-
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (user) {
       const { data, error } = await supabase
         .from("notifications")
@@ -52,10 +53,19 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         setNotifications(data as Notification[]);
       }
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
 
   return (
-    <NotificationContext.Provider value={{ notifications, setNotifications }}>
+    <NotificationContext.Provider
+      value={{ notifications, setNotifications, fetchNotifications }}
+    >
       {children}
     </NotificationContext.Provider>
   );
