@@ -167,28 +167,30 @@ export default function Calendar() {
         {calendarDays.map((day, index) => (
           <div
             key={index}
-            className={`bg-white p-2 h-full sm:h-40 overflow-y-auto no-scrollbar ${
+            className={`bg-white p-2 h-full sm:h-40 flex flex-col ${
               day && isToday(day) ? "border-2 border-primary/70" : ""
             }`}
           >
             {day && (
               <>
                 <div
-                  className={`text-right ${
+                  className={`text-right mb-1 ${
                     isToday(day) ? "font-bold text-primary" : "text-gray-500"
                   }`}
                 >
                   {day.getDate()}
                 </div>
-                <div className="space-y-1 mt-1">
-                  {getShoeingsForDate(day).map((shoeing) => (
-                    <div
-                      key={shoeing.id}
-                      className="bg-blue-200 p-1 rounded text-xs truncate"
-                    >
-                      {shoeing.Horses} - {shoeing["Location of Service"]}
-                    </div>
-                  ))}
+                <div className="flex-grow overflow-y-auto no-scrollbar">
+                  <div className="space-y-1">
+                    {getShoeingsForDate(day).map((shoeing) => (
+                      <div
+                        key={shoeing.id}
+                        className="bg-blue-200 p-1 rounded text-xs truncate"
+                      >
+                        {shoeing.Horses} - {shoeing["Location of Service"]}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </>
             )}
@@ -249,9 +251,9 @@ export default function Calendar() {
           })}
         </h3>
         <div className="flex-grow overflow-y-auto no-scrollbar p-4">
-          <div className="space-y-2 h-[calc(100vh-12rem)] overflow-y-auto no-scrollbar">
+          <div className="space-y-2">
             {getShoeingsForDate(date).map((shoeing) => (
-              <div key={shoeing.id} className="bg-blue-200 p-2 rounded mb-2">
+              <div key={shoeing.id} className="bg-blue-200 p-2 rounded">
                 <div className="font-semibold">{shoeing.Horses}</div>
                 <div className="text-sm">{shoeing["Location of Service"]}</div>
                 <div className="text-sm">{shoeing["Base Service"]}</div>
