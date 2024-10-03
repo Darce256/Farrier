@@ -1,39 +1,58 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { FaRegStickyNote } from "react-icons/fa";
-import { MentionsInput, Mention, OnChangeHandlerFunc } from "react-mentions";
+import { FaRegStickyNote, FaUser } from "react-icons/fa";
+import {
+  MentionsInput,
+  Mention,
+  OnChangeHandlerFunc,
+  SuggestionDataItem,
+} from "react-mentions";
 import MentionInputStyles from "../../MentionInputStyles.ts";
 import MentionStyles from "../../MentionStyles.ts";
-import { Loader2 } from "lucide-react"; // Import the spinner icon
-import toast from "react-hot-toast"; // Import react-hot-toast
-
+import { Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
-import { useAuth } from "@/components/Contexts/AuthProvider"; // Assuming you have an AuthProvider
+import { useAuth } from "@/components/Contexts/AuthProvider";
+import { LiaHorseHeadSolid } from "react-icons/lia"; // Import horse icon
 
 type UserProfile = {
   id: string;
   name: string;
 };
 
+type HorseProfile = {
+  id: string;
+  Name: string;
+};
+
 export default function Notes() {
-  const { user } = useAuth(); // Get the authenticated user
+  const { user } = useAuth();
   const [newNote, setNewNote] = useState("");
   const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
+  const [horseProfiles, setHorseProfiles] = useState<HorseProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const fetchUserProfiles = async () => {
-      const { data, error } = await supabase
+    const fetchProfiles = async () => {
+      const { data: userData, error: userError } = await supabase
         .from("profiles")
         .select("id, name");
-      if (error) {
-        console.error("Error fetching profiles:", error);
+      if (userError) {
+        console.error("Error fetching user profiles:", userError);
       } else {
-        console.log("Fetched profiles:", data);
-        setUserProfiles(data);
+        setUserProfiles(userData);
+      }
+
+      const { data: horseData, error: horseError } = await supabase
+        .from("horses")
+        .select("id, Name");
+      if (horseError) {
+        console.error("Error fetching horse profiles:", horseError);
+      } else {
+        setHorseProfiles(horseData);
       }
     };
-    fetchUserProfiles();
+    fetchProfiles();
   }, []);
 
   const handleAddNote = async () => {
@@ -47,7 +66,6 @@ export default function Notes() {
     try {
       console.log(newNote);
 
-      // Add the note to the notes table
       const { data: noteData, error: noteError } = await supabase
         .from("notes")
         .insert([{ content: newNote, user_id: user.id }])
@@ -57,7 +75,6 @@ export default function Notes() {
 
       const noteId = noteData[0].id;
 
-      // Extract mentions from the note
       const mentionRegex = /@\[(.*?)\]\((.*?)\)/g;
       let match;
       const mentions = [];
@@ -65,10 +82,8 @@ export default function Notes() {
         mentions.push({ name: match[1], id: match[2] });
       }
 
-      // Clean up the note content to replace mentions with just the user's name
       let cleanedNote = newNote.replace(mentionRegex, "@$1");
 
-      // Add notifications for mentioned users
       for (const mention of mentions) {
         const notificationMessage = cleanedNote.replace(
           new RegExp(`@${mention.name}`, "g"),
@@ -86,10 +101,7 @@ export default function Notes() {
         ]);
       }
 
-      // Clear the note input
       setNewNote("");
-
-      // Show success toast
       toast.success("Note added successfully!");
     } catch (error) {
       console.error("Error adding note:", error);
@@ -119,12 +131,33 @@ export default function Notes() {
           >
             <Mention
               style={MentionStyles}
-              data={userProfiles.map((user) => ({
-                id: user.id,
-                display: user.name,
-              }))}
+              data={[
+                ...userProfiles.map((user) => ({
+                  id: user.id,
+                  display: user.name,
+                  type: "user",
+                })),
+                ...horseProfiles.map((horse) => ({
+                  id: horse.id,
+                  display: horse.Name,
+                  type: "horse",
+                })),
+              ]}
               markup={"@[__display__](__id__)"}
               trigger={"@"}
+              renderSuggestion={(
+                suggestion: SuggestionDataItem,
+                highlightedDisplay
+              ) => (
+                <div className="flex items-center gap-2">
+                  {(suggestion as { type?: string }).type === "user" ? (
+                    <FaUser className="text-gray-500" />
+                  ) : (
+                    <LiaHorseHeadSolid className="text-gray-500" />
+                  )}
+                  <span>{suggestion.display}</span>
+                </div>
+              )}
             />
           </MentionsInput>
           <Button onClick={handleAddNote} disabled={isLoading}>

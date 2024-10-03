@@ -454,11 +454,13 @@ function HorseCard({
       <CardContent className="flex flex-col justify-between flex-grow pt-0">
         <div className="mb-4">
           {horse["Barn / Trainer"] && (
-            <div className="text-sm flex items-center">
-              <strong className="font-semibold mr-2">Barn / Trainer:</strong>
-              <Badge variant="default" className="text-xs">
-                {horse["Barn / Trainer"]}
-              </Badge>
+            <div className="text-sm">
+              <strong className="font-semibold">Barn / Trainer:</strong>
+              <div className="mt-2">
+                <Badge variant="default" className="text-xs">
+                  {horse["Barn / Trainer"]}
+                </Badge>
+              </div>
             </div>
           )}
         </div>
