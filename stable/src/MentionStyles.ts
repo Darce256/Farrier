@@ -4,7 +4,6 @@ export default {
   zIndex: 20,
   position: "relative",
   paddingBottom: "1px",
-  paddingLeft: "0px",
   paddingRight: "1px",
   borderRadius: "5px",
   fontWeight: "400",

@@ -2,6 +2,12 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
 import { Horse } from "@/lib/horseService";
 import { supabase } from "@/lib/supabaseClient";
 import { House, AlertCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
@@ -20,6 +26,12 @@ interface XRayImagesResponse {
   "x-ray-images": string[];
 }
 
+interface Note {
+  id: string;
+  content: string;
+  created_at: string;
+}
+
 export default function HorseProfile() {
   const { id } = useParams<{ id: string }>();
   const [horse, setHorse] = useState<Horse | null>(null);
@@ -31,6 +43,7 @@ export default function HorseProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasAlert, setHasAlert] = useState(false);
+  const [notes, setNotes] = useState<Note[]>([]);
 
   useEffect(() => {
     async function fetchHorse() {
@@ -99,8 +112,37 @@ export default function HorseProfile() {
       }
     }
 
+    async function fetchNotes() {
+      if (!horse) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("horse_notes")
+          .select("notes(id, content, created_at)")
+          .eq("horse_id", horse.id);
+
+        if (error) throw error;
+
+        const formattedNotes = data
+          ? data.map((item: any) => item.notes).filter((note) => note !== null)
+          : [];
+
+        // Sort notes by created_at in descending order
+        formattedNotes.sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+
+        setNotes(formattedNotes);
+      } catch (error) {
+        console.error("Error fetching notes:", error);
+        setNotes([]);
+      }
+    }
+
     fetchShoeings();
     fetchXRayImages();
+    fetchNotes();
   }, [horse]);
 
   if (loading) return <div className="container mx-auto p-4">Loading...</div>;
@@ -151,46 +193,45 @@ export default function HorseProfile() {
               </TabsTrigger>
             </TabsList>
             <TabsContent value="shoeing">
-              <div className="grid gap-4">
+              <Accordion type="single" collapsible className="w-full">
                 {shoeings.length > 0 ? (
-                  shoeings.map((shoeing) => (
-                    <div key={shoeing.id} className="border-b pb-4 mb-4">
-                      <p>
-                        <strong>Location of Service:</strong>{" "}
-                        {shoeing["Location of Service"]}
-                      </p>
-                      <p>
-                        <strong>Date of Service:</strong>{" "}
+                  shoeings.map((shoeing, index) => (
+                    <AccordionItem key={shoeing.id} value={`shoeing-${index}`}>
+                      <AccordionTrigger className="font-semibold">
                         {new Date(
                           shoeing["Date of Service"]
-                        ).toLocaleDateString()}
-                      </p>
-                      <p>
-                        <strong>Base Service:</strong> {shoeing["Base Service"]}
-                      </p>
-                      {shoeing["Front Add-On's"] && (
+                        ).toLocaleDateString()}{" "}
+                        - {shoeing["Location of Service"]}
+                      </AccordionTrigger>
+                      <AccordionContent>
                         <p>
-                          <strong>Front Add-On's:</strong>{" "}
-                          {shoeing["Front Add-On's"]}
+                          <strong>Base Service:</strong>{" "}
+                          {shoeing["Base Service"]}
                         </p>
-                      )}
-                      {shoeing["Other Custom Services"] && (
-                        <p>
-                          <strong>Other Custom Services:</strong>{" "}
-                          {shoeing["Other Custom Services"]}
-                        </p>
-                      )}
-                      {shoeing["Shoe Notes"] && (
-                        <p>
-                          <strong>Shoe Notes:</strong> {shoeing["Shoe Notes"]}
-                        </p>
-                      )}
-                    </div>
+                        {shoeing["Front Add-On's"] && (
+                          <p>
+                            <strong>Front Add-On's:</strong>{" "}
+                            {shoeing["Front Add-On's"]}
+                          </p>
+                        )}
+                        {shoeing["Other Custom Services"] && (
+                          <p>
+                            <strong>Other Custom Services:</strong>{" "}
+                            {shoeing["Other Custom Services"]}
+                          </p>
+                        )}
+                        {shoeing["Shoe Notes"] && (
+                          <p>
+                            <strong>Shoe Notes:</strong> {shoeing["Shoe Notes"]}
+                          </p>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
                   ))
                 ) : (
                   <p>No shoeing history available.</p>
                 )}
-              </div>
+              </Accordion>
             </TabsContent>
             <TabsContent value="xrays">
               <div className="grid gap-4">
@@ -270,7 +311,34 @@ export default function HorseProfile() {
               </div>
             </TabsContent>
             <TabsContent value="notes">
-              <p>Notes will be displayed here.</p>
+              <Accordion type="single" collapsible className="w-full">
+                {notes.length > 0 ? (
+                  notes.map((note, index) => (
+                    <AccordionItem key={note.id} value={`note-${index}`}>
+                      <AccordionTrigger className="font-semibold">
+                        {new Date(note.created_at).toLocaleDateString()}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <p
+                          dangerouslySetInnerHTML={{
+                            __html: note.content.replace(
+                              /@\[(.*?)\](?:\((.*?)\))?/g,
+                              (match, name) => {
+                                const cleanName = name.split(" - ")[0].trim();
+                                return cleanName === horse.Name.trim()
+                                  ? `<strong>${cleanName}</strong>`
+                                  : cleanName;
+                              }
+                            ),
+                          }}
+                        />
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))
+                ) : (
+                  <p>No notes available.</p>
+                )}
+              </Accordion>
             </TabsContent>
           </Tabs>
         </CardContent>
