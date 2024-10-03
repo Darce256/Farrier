@@ -15,6 +15,7 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
+import { getLocationColor } from "@/lib/colorUtils";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -152,18 +153,28 @@ export default function Calendar() {
     }
   };
 
+  const renderShoeing = (shoeing: Shoeing) => (
+    <div
+      key={shoeing.id}
+      style={{
+        ...getLocationColor(shoeing["Location of Service"]),
+        padding: "0.25rem",
+        borderRadius: "0.25rem",
+        marginBottom: "0.25rem",
+        fontSize: "0.75rem",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {shoeing.Horses} - {shoeing["Location of Service"]}
+    </div>
+  );
+
   const renderMonthView = (date: Date) => {
     const calendarDays = generateCalendarDays(date);
     return (
       <>
-        {DAYS.map((day) => (
-          <div
-            key={day}
-            className="bg-white p-2 text-center font-semibold hidden sm:block"
-          >
-            {day}
-          </div>
-        ))}
         {calendarDays.map((day, index) => (
           <div
             key={index}
@@ -181,16 +192,7 @@ export default function Calendar() {
                   {day.getDate()}
                 </div>
                 <div className="flex-grow overflow-y-auto no-scrollbar">
-                  <div className="space-y-1">
-                    {getShoeingsForDate(day).map((shoeing) => (
-                      <div
-                        key={shoeing.id}
-                        className="bg-blue-200 p-1 rounded text-xs truncate"
-                      >
-                        {shoeing.Horses} - {shoeing["Location of Service"]}
-                      </div>
-                    ))}
-                  </div>
+                  {getShoeingsForDate(day).map(renderShoeing)}
                 </div>
               </>
             )}
@@ -208,7 +210,7 @@ export default function Calendar() {
           <div
             key={index}
             className={`bg-white p-2 flex flex-col h-full ${
-              isToday(day) ? "border-2 border-primary/70" : ""
+              isToday(day) ? "border-2 border-primary" : ""
             }`}
           >
             <div
@@ -217,17 +219,10 @@ export default function Calendar() {
               }`}
             >
               <div className="font-semibold">{DAYS[day.getDay()]}</div>
-              <div className="text-sm ">{day.getDate()}</div>
+              <div className="text-sm text-gray-500">{day.getDate()}</div>
             </div>
-            <div className="flex-grow overflow-y-auto no-scrollbar">
-              {getShoeingsForDate(day).map((shoeing) => (
-                <div
-                  key={shoeing.id}
-                  className="bg-blue-200 p-1 rounded text-xs truncate mb-1"
-                >
-                  {shoeing.Horses} - {shoeing["Location of Service"]}
-                </div>
-              ))}
+            <div className="flex-grow overflow-y-auto">
+              {getShoeingsForDate(day).map(renderShoeing)}
             </div>
           </div>
         ))}
@@ -237,9 +232,9 @@ export default function Calendar() {
 
   const renderDayView = (date: Date) => {
     return (
-      <div className="col-span-7 bg-white border border-gray-200 rounded-md h-full flex flex-col">
+      <div className="col-span-7 bg-white p-4 border border-gray-200 rounded-md h-full flex flex-col">
         <h3
-          className={`text-lg font-semibold p-4 ${
+          className={`text-lg font-semibold mb-4 ${
             isToday(date) ? "text-primary" : ""
           }`}
         >
@@ -250,16 +245,8 @@ export default function Calendar() {
             day: "numeric",
           })}
         </h3>
-        <div className="flex-grow overflow-y-auto no-scrollbar p-4">
-          <div className="space-y-2">
-            {getShoeingsForDate(date).map((shoeing) => (
-              <div key={shoeing.id} className="bg-blue-200 p-2 rounded">
-                <div className="font-semibold">{shoeing.Horses}</div>
-                <div className="text-sm">{shoeing["Location of Service"]}</div>
-                <div className="text-sm">{shoeing["Base Service"]}</div>
-              </div>
-            ))}
-          </div>
+        <div className="flex-grow overflow-y-auto space-y-2">
+          {getShoeingsForDate(date).map(renderShoeing)}
         </div>
       </div>
     );
