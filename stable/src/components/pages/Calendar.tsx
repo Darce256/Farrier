@@ -2,9 +2,7 @@ import { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  Calendar as CalendarIcon,
-  MoreHorizontal,
-  Menu,
+  Calendar as _CalendarIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,13 +12,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import { Card, CardContent } from "@/components/ui/card";
+import { supabase } from "@/lib/supabaseClient";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -38,42 +32,42 @@ const MONTHS = [
   "December",
 ];
 
-type Appointment = {
+interface Shoeing {
   id: string;
-  title: string;
-  color: string;
-};
-
-const MOCK_APPOINTMENTS: Record<string, Appointment[]> = {
-  "2024-10-01": [
-    { id: "1", title: "21993-Marty - [PJP]", color: "bg-blue-200" },
-  ],
-  "2024-10-02": [
-    {
-      id: "2",
-      title: "21995-Lovey - [True Companions]",
-      color: "bg-orange-200",
-    },
-  ],
-  "2024-10-03": [
-    { id: "3", title: "22003-Cavallier - [Pine Hollow]", color: "bg-blue-200" },
-  ],
-  "2024-10-04": [
-    { id: "4", title: "22010-Jasper - [Pine Hollow]", color: "bg-blue-200" },
-  ],
-  "2024-10-05": [
-    { id: "5", title: "22023-Atlanta - [Madrona]", color: "bg-orange-200" },
-  ],
-  "2024-10-06": [
-    { id: "6", title: "22030-McKenna - [Erikson]", color: "bg-blue-200" },
-  ],
-};
+  "Date of Service": string;
+  Horses: string;
+  "Location of Service": string;
+  "Base Service": string;
+}
 
 const TODAY = new Date();
 
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
+  const [shoeings, setShoeings] = useState<Shoeing[]>([]);
+
+  useEffect(() => {
+    fetchShoeings();
+  }, [viewMode]);
+
+  const fetchShoeings = async () => {
+    console.log("Fetching all shoeings");
+
+    const { data, error } = await supabase
+      .from("shoeings")
+      .select(
+        'id, "Date of Service", Horses, "Location of Service", "Base Service"'
+      );
+
+    console.log("Supabase response:", { data, error });
+
+    if (error) {
+      console.error("Error fetching shoeings:", error);
+    } else {
+      setShoeings(data || []);
+    }
+  };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -107,9 +101,12 @@ export default function Calendar() {
     return days;
   };
 
-  const getAppointmentsForDate = (date: Date) => {
+  const getShoeingsForDate = (date: Date) => {
     const dateString = date.toISOString().split("T")[0];
-    return MOCK_APPOINTMENTS[dateString] || [];
+    return shoeings.filter((shoeing) => {
+      const shoeingDate = new Date(shoeing["Date of Service"]);
+      return shoeingDate.toISOString().split("T")[0] === dateString;
+    });
   };
 
   const generateWeekDays = (date: Date) => {
@@ -156,7 +153,6 @@ export default function Calendar() {
   };
 
   const renderMonthView = (date: Date) => {
-    console.log("Rendering month view for:", date);
     const calendarDays = generateCalendarDays(date);
     return (
       <>
@@ -171,7 +167,7 @@ export default function Calendar() {
         {calendarDays.map((day, index) => (
           <div
             key={index}
-            className={`bg-white p-2 h-full sm:h-full overflow-y-auto ${
+            className={`bg-white p-2 h-full sm:h-40 overflow-y-auto no-scrollbar ${
               day && isToday(day) ? "border-2 border-primary/70" : ""
             }`}
           >
@@ -184,13 +180,13 @@ export default function Calendar() {
                 >
                   {day.getDate()}
                 </div>
-                <div className="space-y-1">
-                  {getAppointmentsForDate(day).map((appointment) => (
+                <div className="space-y-1 mt-1">
+                  {getShoeingsForDate(day).map((shoeing) => (
                     <div
-                      key={appointment.id}
-                      className={`${appointment.color} p-1 rounded text-xs truncate`}
+                      key={shoeing.id}
+                      className="bg-blue-200 p-1 rounded text-xs truncate"
                     >
-                      {appointment.title}
+                      {shoeing.Horses} - {shoeing["Location of Service"]}
                     </div>
                   ))}
                 </div>
@@ -221,13 +217,13 @@ export default function Calendar() {
               <div className="font-semibold">{DAYS[day.getDay()]}</div>
               <div className="text-sm ">{day.getDate()}</div>
             </div>
-            <div className="flex-grow overflow-y-auto">
-              {getAppointmentsForDate(day).map((appointment) => (
+            <div className="flex-grow overflow-y-auto no-scrollbar">
+              {getShoeingsForDate(day).map((shoeing) => (
                 <div
-                  key={appointment.id}
-                  className={`${appointment.color} p-1 rounded text-xs truncate mb-1`}
+                  key={shoeing.id}
+                  className="bg-blue-200 p-1 rounded text-xs truncate mb-1"
                 >
-                  {appointment.title}
+                  {shoeing.Horses} - {shoeing["Location of Service"]}
                 </div>
               ))}
             </div>
@@ -239,10 +235,10 @@ export default function Calendar() {
 
   const renderDayView = (date: Date) => {
     return (
-      <div className="col-span-7 bg-white p-4 border border-gray-200 rounded-md h-full">
+      <div className="col-span-7 bg-white border border-gray-200 rounded-md h-full flex flex-col">
         <h3
-          className={`text-lg font-semibold mb-4 ${
-            isToday(date) ? "text-black" : ""
+          className={`text-lg font-semibold p-4 ${
+            isToday(date) ? "text-primary" : ""
           }`}
         >
           {date.toLocaleDateString(undefined, {
@@ -252,15 +248,16 @@ export default function Calendar() {
             day: "numeric",
           })}
         </h3>
-        <div className="space-y-2 overflow-y-auto h-[calc(100%-2rem)]">
-          {getAppointmentsForDate(date).map((appointment) => (
-            <div
-              key={appointment.id}
-              className={`${appointment.color} p-2 rounded`}
-            >
-              {appointment.title}
-            </div>
-          ))}
+        <div className="flex-grow overflow-y-auto no-scrollbar p-4">
+          <div className="space-y-2 h-[calc(100vh-12rem)] overflow-y-auto no-scrollbar">
+            {getShoeingsForDate(date).map((shoeing) => (
+              <div key={shoeing.id} className="bg-blue-200 p-2 rounded mb-2">
+                <div className="font-semibold">{shoeing.Horses}</div>
+                <div className="text-sm">{shoeing["Location of Service"]}</div>
+                <div className="text-sm">{shoeing["Base Service"]}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -272,10 +269,8 @@ export default function Calendar() {
     setViewMode("month");
   };
 
-  useEffect(() => {}, [currentDate]);
-
   return (
-    <Card className="w-full h-[calc(100vh-2rem)] shadow-lg flex flex-col">
+    <Card className="w-full h-full shadow-lg flex flex-col">
       <CardContent className="p-6 flex flex-col flex-grow">
         <div className="flex flex-col h-full">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-4 space-y-2 sm:space-y-0">
