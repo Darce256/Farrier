@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,6 +20,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Card, CardContent } from "@/components/ui/card";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -44,33 +45,33 @@ type Appointment = {
 };
 
 const MOCK_APPOINTMENTS: Record<string, Appointment[]> = {
-  "2024-09-01": [
+  "2024-10-01": [
     { id: "1", title: "21993-Marty - [PJP]", color: "bg-blue-200" },
   ],
-  "2024-09-02": [
+  "2024-10-02": [
     {
       id: "2",
       title: "21995-Lovey - [True Companions]",
       color: "bg-orange-200",
     },
   ],
-  "2024-09-03": [
+  "2024-10-03": [
     { id: "3", title: "22003-Cavallier - [Pine Hollow]", color: "bg-blue-200" },
   ],
-  "2024-09-04": [
+  "2024-10-04": [
     { id: "4", title: "22010-Jasper - [Pine Hollow]", color: "bg-blue-200" },
   ],
-  "2024-09-05": [
+  "2024-10-05": [
     { id: "5", title: "22023-Atlanta - [Madrona]", color: "bg-orange-200" },
   ],
-  "2024-09-06": [
+  "2024-10-06": [
     { id: "6", title: "22030-McKenna - [Erikson]", color: "bg-blue-200" },
   ],
 };
 
 const TODAY = new Date();
 
-export default function Component() {
+export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
 
@@ -86,11 +87,11 @@ export default function Component() {
       date.getFullYear() === TODAY.getFullYear()
     );
   };
-  const generateCalendarDays = () => {
-    const daysInMonth = getDaysInMonth(currentDate);
+  const generateCalendarDays = (date: Date) => {
+    const daysInMonth = getDaysInMonth(date);
     const firstDayOfMonth = new Date(
-      currentDate.getFullYear(),
-      currentDate.getMonth(),
+      date.getFullYear(),
+      date.getMonth(),
       1
     ).getDay();
     const days = [];
@@ -100,7 +101,7 @@ export default function Component() {
     }
 
     for (let i = 1; i <= daysInMonth; i++) {
-      days.push(new Date(currentDate.getFullYear(), currentDate.getMonth(), i));
+      days.push(new Date(date.getFullYear(), date.getMonth(), i));
     }
 
     return days;
@@ -111,9 +112,9 @@ export default function Component() {
     return MOCK_APPOINTMENTS[dateString] || [];
   };
 
-  const generateWeekDays = () => {
-    const startOfWeek = new Date(currentDate);
-    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+  const generateWeekDays = (date: Date) => {
+    const startOfWeek = new Date(date);
+    startOfWeek.setDate(date.getDate() - date.getDay());
     const days = [];
     for (let i = 0; i < 7; i++) {
       days.push(
@@ -146,16 +147,17 @@ export default function Component() {
   const renderCalendarContent = () => {
     switch (viewMode) {
       case "month":
-        return renderMonthView();
+        return renderMonthView(currentDate);
       case "week":
-        return renderWeekView();
+        return renderWeekView(currentDate);
       case "day":
-        return renderDayView();
+        return renderDayView(currentDate);
     }
   };
 
-  const renderMonthView = () => {
-    const calendarDays = generateCalendarDays();
+  const renderMonthView = (date: Date) => {
+    console.log("Rendering month view for:", date);
+    const calendarDays = generateCalendarDays(date);
     return (
       <>
         {DAYS.map((day) => (
@@ -170,7 +172,7 @@ export default function Component() {
           <div
             key={index}
             className={`bg-white p-2 h-full sm:h-full overflow-y-auto ${
-              day && isToday(day) ? "border-2 border-primary" : ""
+              day && isToday(day) ? "border-2 border-primary/70" : ""
             }`}
           >
             {day && (
@@ -200,24 +202,24 @@ export default function Component() {
     );
   };
 
-  const renderWeekView = () => {
-    const weekDays = generateWeekDays();
+  const renderWeekView = (date: Date) => {
+    const weekDays = generateWeekDays(date);
     return (
       <>
         {weekDays.map((day, index) => (
           <div
             key={index}
             className={`bg-white p-2 flex flex-col h-full ${
-              isToday(day) ? "bg-primary-100" : ""
+              isToday(day) ? "border-2 border-primary/70" : ""
             }`}
           >
             <div
               className={`text-center mb-2 ${
-                isToday(day) ? "font-bold text-primary-600" : ""
+                isToday(day) ? "font-bold text-primary" : ""
               }`}
             >
               <div className="font-semibold">{DAYS[day.getDay()]}</div>
-              <div className="text-sm text-gray-500">{day.getDate()}</div>
+              <div className="text-sm ">{day.getDate()}</div>
             </div>
             <div className="flex-grow overflow-y-auto">
               {getAppointmentsForDate(day).map((appointment) => (
@@ -235,23 +237,23 @@ export default function Component() {
     );
   };
 
-  const renderDayView = () => {
+  const renderDayView = (date: Date) => {
     return (
-      <div className="col-span-7 bg-white p-4">
+      <div className="col-span-7 bg-white p-4 border border-gray-200 rounded-md h-full">
         <h3
           className={`text-lg font-semibold mb-4 ${
-            isToday(currentDate) ? "text-primary-600" : ""
+            isToday(date) ? "text-black" : ""
           }`}
         >
-          {currentDate.toLocaleDateString(undefined, {
+          {date.toLocaleDateString(undefined, {
             weekday: "long",
             year: "numeric",
             month: "long",
             day: "numeric",
           })}
         </h3>
-        <div className="space-y-2">
-          {getAppointmentsForDate(currentDate).map((appointment) => (
+        <div className="space-y-2 overflow-y-auto h-[calc(100%-2rem)]">
+          {getAppointmentsForDate(date).map((appointment) => (
             <div
               key={appointment.id}
               className={`${appointment.color} p-2 rounded`}
@@ -264,77 +266,71 @@ export default function Component() {
     );
   };
 
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    setViewMode("month");
+  };
+
+  useEffect(() => {}, [currentDate]);
+
   return (
-    <div className="container mx-auto p-4 h-screen flex flex-col">
-      <div className="flex flex-col sm:flex-row justify-between items-center mb-4 space-y-2 sm:space-y-0">
-        <h2 className="text-2xl font-bold">
-          {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-        </h2>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigatePeriod("prev")}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => navigatePeriod("next")}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" className="hidden sm:inline-flex">
-            Today
-          </Button>
-          <Select
-            value={viewMode}
-            onValueChange={(value: "month" | "week" | "day") =>
-              setViewMode(value)
-            }
-          >
-            <SelectTrigger className="w-[100px] sm:w-[180px]">
-              <SelectValue placeholder="View" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="month">Month</SelectItem>
-              <SelectItem value="week">Week</SelectItem>
-              <SelectItem value="day">Day</SelectItem>
-            </SelectContent>
-          </Select>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="hidden sm:inline-flex">
-                See records
-                <MoreHorizontal className="ml-2 h-4 w-4" />
+    <Card className="w-full h-[calc(100vh-2rem)] shadow-lg flex flex-col">
+      <CardContent className="p-6 flex flex-col flex-grow">
+        <div className="flex flex-col h-full">
+          <div className="flex flex-col sm:flex-row justify-between items-center mb-4 space-y-2 sm:space-y-0">
+            <h2 className="text-2xl font-bold">
+              {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h2>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => navigatePeriod("prev")}
+              >
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>View all records</DropdownMenuItem>
-              <DropdownMenuItem>Export records</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" className="sm:hidden">
-                <Menu className="h-4 w-4" />
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => navigatePeriod("next")}
+              >
+                <ChevronRight className="h-4 w-4" />
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent>
-              <DropdownMenuItem>Today</DropdownMenuItem>
-              <DropdownMenuItem>See records</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              <Button
+                variant="outline"
+                className="hidden sm:inline-flex"
+                onClick={goToToday}
+              >
+                Today
+              </Button>
+              <Select
+                value={viewMode}
+                onValueChange={(value: "month" | "week" | "day") =>
+                  setViewMode(value)
+                }
+              >
+                <SelectTrigger className="w-[100px] sm:w-[180px]">
+                  <SelectValue placeholder="View" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="month">Month</SelectItem>
+                  <SelectItem value="week">Week</SelectItem>
+                  <SelectItem value="day">Day</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div
+            className={`flex-grow grid ${
+              viewMode === "day" ? "grid-cols-1" : "grid-cols-7"
+            } gap-px bg-gray-200 overflow-hidden`}
+            key={currentDate.toISOString()}
+          >
+            {renderCalendarContent()}
+          </div>
         </div>
-      </div>
-      <div
-        className={`flex-grow grid ${
-          viewMode === "day" ? "grid-cols-1" : "grid-cols-7"
-        } gap-px bg-gray-200 overflow-hidden`}
-      >
-        {renderCalendarContent()}
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
