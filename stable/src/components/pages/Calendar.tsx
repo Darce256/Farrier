@@ -303,8 +303,8 @@ export default function Calendar() {
   };
 
   return (
-    <Card className="w-full h-full shadow-lg flex flex-col">
-      <CardContent className="p-6 flex flex-col flex-grow">
+    <Card className="w-full min-h-[calc(100vh-4rem)] shadow-lg flex flex-col">
+      <CardContent className="p-4 sm:p-6 flex flex-col flex-grow">
         <div className="flex flex-col h-full">
           <div className="flex flex-col sm:flex-row justify-between items-center mb-4 space-y-2 sm:space-y-0">
             <h2 className="text-2xl font-bold">
@@ -332,27 +332,36 @@ export default function Calendar() {
               >
                 Today
               </Button>
-              <Select
-                value={viewMode}
-                onValueChange={(value: "month" | "week" | "day") =>
-                  setViewMode(value)
-                }
-              >
-                <SelectTrigger className="w-[100px] sm:w-[180px]">
-                  <SelectValue placeholder="View" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="month">Month</SelectItem>
-                  <SelectItem value="week">Week</SelectItem>
-                  <SelectItem value="day">Day</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  className="sm:hidden"
+                  onClick={goToToday}
+                >
+                  Today
+                </Button>
+                <Select
+                  value={viewMode}
+                  onValueChange={(value: "month" | "week" | "day") =>
+                    setViewMode(value)
+                  }
+                >
+                  <SelectTrigger className="w-[100px] sm:w-[180px]">
+                    <SelectValue placeholder="View" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="month">Month</SelectItem>
+                    <SelectItem value="week">Week</SelectItem>
+                    <SelectItem value="day">Day</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
           <div
             className={`flex-grow grid ${
               viewMode === "day" ? "grid-cols-1" : "grid-cols-7"
-            } gap-px bg-gray-200 overflow-hidden`}
+            } gap-px bg-gray-200 overflow-hidden h-[calc(100vh-12rem)]`}
             key={currentDate.toISOString()}
           >
             {renderCalendarContent()}
