@@ -15,7 +15,6 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
-import { getLocationColor } from "@/lib/colorUtils";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -33,6 +32,11 @@ const MONTHS = [
   "December",
 ];
 
+interface Location {
+  service_location: string;
+  location_color: string;
+}
+
 interface Shoeing {
   id: string;
   "Date of Service": string;
@@ -47,9 +51,11 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
   const [shoeings, setShoeings] = useState<Shoeing[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
 
   useEffect(() => {
     fetchShoeings();
+    fetchLocations();
   }, [viewMode]);
 
   const fetchShoeings = async () => {
@@ -67,6 +73,18 @@ export default function Calendar() {
       console.error("Error fetching shoeings:", error);
     } else {
       setShoeings(data || []);
+    }
+  };
+
+  const fetchLocations = async () => {
+    const { data, error } = await supabase
+      .from("locations")
+      .select("service_location, location_color");
+    console.log("Supabase response:", { data, error });
+    if (error) {
+      console.error("Error fetching locations:", error);
+    } else {
+      setLocations(data || []);
     }
   };
 
@@ -153,46 +171,68 @@ export default function Calendar() {
     }
   };
 
-  const renderShoeing = (shoeing: Shoeing) => (
-    <div
-      key={shoeing.id}
-      style={{
-        ...getLocationColor(shoeing["Location of Service"]),
-        padding: "0.25rem",
-        borderRadius: "0.25rem",
-        marginBottom: "0.25rem",
-        fontSize: "0.75rem",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
-      }}
-    >
-      {shoeing.Horses} - {shoeing["Location of Service"]}
-    </div>
-  );
+  const getLocationColor = (locationName: string): string => {
+    const location = locations.find(
+      (loc) => loc.service_location === locationName
+    );
+    return location ? location.location_color : "#CCCCCC"; // Default color if not found
+  };
+
+  const renderShoeing = (shoeing: Shoeing) => {
+    const bgColor = getLocationColor(shoeing["Location of Service"]);
+
+    return (
+      <div
+        key={shoeing.id}
+        style={{
+          backgroundColor: bgColor,
+          color: "#000",
+          padding: "0.25rem",
+          borderRadius: "0.25rem",
+          marginBottom: "0.25rem",
+        }}
+        className="text-[10px] sm:text-xs overflow-hidden"
+      >
+        <span className="font-semibold block">{shoeing.Horses}</span>
+        <span className="text-[8px] sm:text-xs">
+          {shoeing["Location of Service"]}
+        </span>
+      </div>
+    );
+  };
 
   const renderMonthView = (date: Date) => {
     const calendarDays = generateCalendarDays(date);
     return (
       <>
+        {DAYS.map((day) => (
+          <div
+            key={day}
+            className="bg-white p-1 sm:p-2 text-center font-semibold text-xs sm:text-sm"
+          >
+            {day}
+          </div>
+        ))}
         {calendarDays.map((day, index) => (
           <div
             key={index}
-            className={`bg-white p-2 h-full sm:h-40 flex flex-col ${
+            className={`bg-white p-1 sm:p-2 h-24 sm:h-32 md:h-40 flex flex-col ${
               day && isToday(day) ? "border-2 border-primary/70" : ""
             }`}
           >
             {day && (
               <>
                 <div
-                  className={`text-right mb-1 ${
+                  className={`text-right mb-1 text-xs sm:text-sm ${
                     isToday(day) ? "font-bold text-primary" : "text-gray-500"
                   }`}
                 >
                   {day.getDate()}
                 </div>
                 <div className="flex-grow overflow-y-auto no-scrollbar">
-                  {getShoeingsForDate(day).map(renderShoeing)}
+                  <div className="space-y-1">
+                    {getShoeingsForDate(day).map(renderShoeing)}
+                  </div>
                 </div>
               </>
             )}
@@ -209,19 +249,21 @@ export default function Calendar() {
         {weekDays.map((day, index) => (
           <div
             key={index}
-            className={`bg-white p-2 flex flex-col h-full ${
-              isToday(day) ? "border-2 border-primary" : ""
+            className={`bg-white p-1 sm:p-2 flex flex-col h-full ${
+              isToday(day) ? "border-2 border-primary/70" : ""
             }`}
           >
             <div
-              className={`text-center mb-2 ${
+              className={`text-center mb-1 sm:mb-2 ${
                 isToday(day) ? "font-bold text-primary" : ""
               }`}
             >
-              <div className="font-semibold">{DAYS[day.getDay()]}</div>
-              <div className="text-sm text-gray-500">{day.getDate()}</div>
+              <div className="font-semibold text-xs sm:text-sm">
+                {DAYS[day.getDay()]}
+              </div>
+              <div className="text-xs sm:text-sm">{day.getDate()}</div>
             </div>
-            <div className="flex-grow overflow-y-auto">
+            <div className="flex-grow overflow-y-auto no-scrollbar">
               {getShoeingsForDate(day).map(renderShoeing)}
             </div>
           </div>
@@ -232,9 +274,9 @@ export default function Calendar() {
 
   const renderDayView = (date: Date) => {
     return (
-      <div className="col-span-7 bg-white p-4 border border-gray-200 rounded-md h-full flex flex-col">
+      <div className="col-span-7 bg-white border border-gray-200 rounded-md h-full flex flex-col">
         <h3
-          className={`text-lg font-semibold mb-4 ${
+          className={`text-base sm:text-lg font-semibold p-2 sm:p-4 ${
             isToday(date) ? "text-primary" : ""
           }`}
         >
@@ -245,8 +287,10 @@ export default function Calendar() {
             day: "numeric",
           })}
         </h3>
-        <div className="flex-grow overflow-y-auto space-y-2">
-          {getShoeingsForDate(date).map(renderShoeing)}
+        <div className="flex-grow overflow-y-auto no-scrollbar p-2 sm:p-4">
+          <div className="space-y-2 h-[calc(100vh-12rem)] overflow-y-auto no-scrollbar">
+            {getShoeingsForDate(date).map(renderShoeing)}
+          </div>
         </div>
       </div>
     );
