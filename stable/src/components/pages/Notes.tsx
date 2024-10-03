@@ -13,7 +13,7 @@ import { Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/Contexts/AuthProvider";
-import { LiaHorseHeadSolid } from "react-icons/lia"; // Import horse icon
+import { LiaHorseHeadSolid } from "react-icons/lia";
 
 type UserProfile = {
   id: string;
@@ -23,6 +23,7 @@ type UserProfile = {
 type HorseProfile = {
   id: string;
   Name: string;
+  "Barn / Trainer": string;
 };
 
 export default function Notes() {
@@ -45,7 +46,7 @@ export default function Notes() {
 
       const { data: horseData, error: horseError } = await supabase
         .from("horses")
-        .select("id, Name");
+        .select('id, Name, "Barn / Trainer"');
       if (horseError) {
         console.error("Error fetching horse profiles:", horseError);
       } else {
@@ -79,7 +80,9 @@ export default function Notes() {
       let match;
       const mentions = [];
       while ((match = mentionRegex.exec(newNote)) !== null) {
-        mentions.push({ name: match[1], id: match[2] });
+        const [display, id] = match.slice(1);
+        const isUser = userProfiles.some((profile) => profile.id === id);
+        mentions.push({ name: display, id, type: isUser ? "user" : "horse" });
       }
 
       let cleanedNote = newNote.replace(mentionRegex, "@$1");
@@ -90,15 +93,24 @@ export default function Notes() {
           `<strong>@${mention.name}</strong>`
         );
 
-        await supabase.from("notifications").insert([
-          {
-            mentioned_user_id: mention.id,
-            creator_id: user.id,
-            message: `You were mentioned in a note: "${notificationMessage}"`,
-            type: "mention",
-            related_id: noteId,
-          },
-        ]);
+        if (mention.type === "user") {
+          await supabase.from("notifications").insert([
+            {
+              mentioned_user_id: mention.id,
+              creator_id: user.id,
+              message: `You were mentioned in a note: "${notificationMessage}"`,
+              type: "mention",
+              related_id: noteId,
+            },
+          ]);
+        } else {
+          await supabase.from("horse_notes").insert([
+            {
+              note_id: noteId,
+              horse_id: mention.id,
+            },
+          ]);
+        }
       }
 
       setNewNote("");
@@ -139,7 +151,7 @@ export default function Notes() {
                 })),
                 ...horseProfiles.map((horse) => ({
                   id: horse.id,
-                  display: horse.Name,
+                  display: `${horse.Name} - ${horse["Barn / Trainer"]}`,
                   type: "horse",
                 })),
               ]}
