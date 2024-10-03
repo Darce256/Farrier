@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -10,7 +10,6 @@ import {
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Add this import
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import {
   MenuIcon,
@@ -19,10 +18,12 @@ import {
   InfoIcon,
   SettingsIcon,
   BellIcon,
+  EyeIcon,
+  EyeOffIcon,
 } from "lucide-react";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
-import { MdMailOutline } from "react-icons/md"; // Add this import
+import { supabase } from "@/lib/supabaseClient";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -31,8 +32,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "../ui/breadcrumb";
-import { useNotifications } from "@/components/Contexts/NotificationProvider";
-import { getRelativeTimeString } from "@/lib/dateUtils"; // Add this import
 
 interface Notification {
   id: string;
@@ -65,11 +64,96 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
 export default function AuthenticatedHeader() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const location = useLocation();
   const navigate = useNavigate();
-  const { notifications, fetchNotifications } = useNotifications();
+  const { id } = useParams<{ id: string }>();
+  const [horseName, setHorseName] = useState<string | null>(null);
+
+  const fetchNotifications = async () => {
+    if (user) {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select(
+          `
+          *,
+          creator:profiles!notifications_creator_id_fkey(name)
+        `
+        )
+        .eq("mentioned_user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Error fetching notifications:", error);
+      } else if (data) {
+        setNotifications(data as Notification[]);
+      }
+    }
+  };
+  useEffect(() => {
+    if (id) {
+      const fetchHorseName = async () => {
+        const { data, error } = await supabase
+          .from("horses")
+          .select("Name")
+          .eq("id", id)
+          .single();
+
+        if (!error && data) {
+          setHorseName(data.Name);
+        }
+      };
+
+      fetchHorseName();
+    }
+  }, [id]);
+  const toggleReadStatus = async (
+    notificationId: string,
+    currentStatus: boolean
+  ) => {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read: !currentStatus })
+      .eq("id", notificationId);
+
+    if (!error) {
+      setNotifications((prevNotifications: Notification[]) =>
+        prevNotifications.map((notification: Notification) =>
+          notification.id === notificationId
+            ? { ...notification, read: !currentStatus }
+            : notification
+        )
+      );
+    }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+
+    const intervalId = setInterval(() => {
+      fetchNotifications();
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(intervalId); // Cleanup interval on component unmount
+  }, [user]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !(dropdownRef.current as Node).contains(event.target as Node)
+      ) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
 
   const getInitials = (name: string) => {
     const names = name.split(" ");
@@ -84,7 +168,6 @@ export default function AuthenticatedHeader() {
     { name: "Customers", icon: UsersIcon, href: "/customers" },
     { name: "Analytics", icon: InfoIcon, href: "/analytics" },
     { name: "Settings", icon: SettingsIcon, href: "/settings" },
-    { name: "Inbox", icon: MdMailOutline, href: "/inbox" }, // Add this line
   ];
 
   const getCurrentPageName = () => {
@@ -97,11 +180,6 @@ export default function AuthenticatedHeader() {
     setIsDropdownOpen(false);
     navigate(`/inbox?notificationId=${notification.id}`);
   };
-
-  useEffect(() => {
-    // Fetch notifications when the component mounts
-    fetchNotifications();
-  }, [fetchNotifications]);
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">
@@ -143,12 +221,22 @@ export default function AuthenticatedHeader() {
                 <Link to="/dashboard">Dashboard</Link>
               </BreadcrumbLink>
             </BreadcrumbItem>
-            {location.pathname !== "/dashboard" && (
+            {location.pathname.startsWith("/horses") && (
               <>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbPage>{getCurrentPageName()}</BreadcrumbPage>
+                  <BreadcrumbLink asChild>
+                    <Link to="/horses">Horses</Link>
+                  </BreadcrumbLink>
                 </BreadcrumbItem>
+                {id && horseName && (
+                  <>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{horseName}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </>
+                )}
               </>
             )}
           </BreadcrumbList>
@@ -171,38 +259,50 @@ export default function AuthenticatedHeader() {
           </Button>
           {isDropdownOpen && notifications.length > 0 && (
             <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-              <div className="p-4 flex flex-col h-64">
+              <div className="p-4 h-64 flex flex-col">
                 <h3 className="text-lg font-semibold mb-2">Notifications</h3>
-                <ScrollArea className="flex-grow">
-                  <ul>
-                    {notifications.map((notification: Notification) => (
-                      <li
-                        key={notification.id}
-                        className={`py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150 ${
-                          !notification.read ? "font-bold" : ""
-                        }`}
-                        onClick={() => handleNotificationClick(notification)}
-                      >
-                        <div className="flex items-start space-x-3">
-                          <Avatar creator={notification.creator} />
-                          <div className="flex-grow min-w-0">
-                            <span
-                              className="block text-sm line-clamp-1"
-                              dangerouslySetInnerHTML={{
-                                __html: notification.message,
-                              }}
-                            ></span>
-                            <span className="text-xs text-gray-500 mt-1 block">
-                              {getRelativeTimeString(
-                                new Date(notification.created_at)
-                              )}
-                            </span>
-                          </div>
+                <ul className="overflow-y-auto flex-grow">
+                  {notifications.map((notification: Notification) => (
+                    <li
+                      key={notification.id}
+                      className="py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150"
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex items-center space-x-3">
+                        <Avatar creator={notification.creator} />
+                        <div className="flex-grow min-w-0">
+                          <span
+                            className="block truncate"
+                            dangerouslySetInnerHTML={{
+                              __html: notification.message,
+                            }}
+                          ></span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(notification.created_at).toLocaleString()}
+                          </span>
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                </ScrollArea>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleReadStatus(
+                              notification.id,
+                              notification.read
+                            );
+                          }}
+                        >
+                          {notification.read ? (
+                            <EyeOffIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                          ) : (
+                            <EyeIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                          )}
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           )}

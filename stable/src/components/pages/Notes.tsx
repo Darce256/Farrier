@@ -145,10 +145,7 @@ export default function Notes() {
               ]}
               markup={"@[__display__](__id__)"}
               trigger={"@"}
-              renderSuggestion={(
-                suggestion: SuggestionDataItem,
-                highlightedDisplay
-              ) => (
+              renderSuggestion={(suggestion: SuggestionDataItem) => (
                 <div className="flex items-center gap-2">
                   {(suggestion as { type?: string }).type === "user" ? (
                     <FaUser className="text-gray-500" />
