@@ -15,6 +15,7 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
+import { Link } from "react-router-dom";
 
 export default function Dashboard() {
   return (
@@ -64,16 +65,21 @@ export default function Dashboard() {
         </Card>
         <Card x-chunk="dashboard-01-chunk-3">
           <CardHeader className="pb-2">
-            <CardDescription>Conversion Rate</CardDescription>
-            <CardTitle className="text-4xl">3.2%</CardTitle>
+            <CardDescription>Horse Approvals</CardDescription>
+            <CardTitle className="text-4xl">Pending</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
-              +1.2% from last month
+              Review and approve new horse submissions.
             </div>
           </CardContent>
           <CardFooter>
-            <Progress value={12} aria-label="12% increase" />
+            <Link
+              to={"/horse-approval-panel"}
+              className="text-primary hover:underline"
+            >
+              Go to Approvals
+            </Link>
           </CardFooter>
         </Card>
       </div>

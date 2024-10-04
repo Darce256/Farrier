@@ -22,6 +22,7 @@ import Inbox from "./components/pages/Inbox";
 import { NotificationProvider } from "@/components/Contexts/NotificationProvider";
 import Calendar from "./components/pages/Calendar";
 import HorseProfile from "./components/pages/HorseProfile";
+import HorseApprovalPanel from "./components/pages/HorseApprovalPanel";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
@@ -90,6 +91,10 @@ function App() {
                   <Route path="/inbox" element={<Inbox />} />
                   <Route path="/calendar" element={<Calendar />} />
                   <Route path="/horses/:id" element={<HorseProfile />} />
+                  <Route
+                    path="/horse-approval-panel"
+                    element={<HorseApprovalPanel />}
+                  />
                 </Route>
               </Routes>
             </div>

@@ -328,12 +328,12 @@ export default function Calendar() {
                       style={{ backgroundColor: bgColor }}
                       className="rounded-md mb-2"
                     >
-                      <AccordionTrigger className="font-semibold flex justify-between items-center">
+                      <AccordionTrigger className="font-semibold text-lg  pl-2 flex justify-between items-center">
                         <span>
                           {shoeing.Horses} - {shoeing["Location of Service"]}
                         </span>
                       </AccordionTrigger>
-                      <AccordionContent>
+                      <AccordionContent className="pl-2">
                         <p>
                           <strong>Base Service:</strong>{" "}
                           {shoeing["Base Service"]}
