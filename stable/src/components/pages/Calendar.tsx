@@ -361,7 +361,8 @@ export default function Calendar() {
           <div
             className={`flex-grow grid ${
               viewMode === "day" ? "grid-cols-1" : "grid-cols-7"
-            } gap-px bg-gray-200 overflow-hidden h-[calc(100vh-12rem)]`}
+            } gap-px bg-gray-200 overflow-y-auto h-[calc(100vh-12rem)]`}
+            style={{ maxHeight: "calc(100vh - 12rem)" }} // Set max height
             key={currentDate.toISOString()}
           >
             {renderCalendarContent()}
