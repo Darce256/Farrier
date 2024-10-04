@@ -15,6 +15,12 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -43,6 +49,8 @@ interface Shoeing {
   Horses: string;
   "Location of Service": string;
   "Base Service": string;
+  "Front Add-On's": string;
+  "Other Custom Services": string;
 }
 
 const TODAY = new Date();
@@ -72,7 +80,13 @@ export default function Calendar() {
     if (error) {
       console.error("Error fetching shoeings:", error);
     } else {
-      setShoeings(data || []);
+      setShoeings(
+        data?.map((shoeing) => ({
+          ...shoeing,
+          "Front Add-On's": "",
+          "Other Custom Services": "",
+        })) || []
+      );
     }
   };
 
@@ -219,6 +233,12 @@ export default function Calendar() {
             className={`bg-white p-1 sm:p-2 h-24 sm:h-32 md:h-40 flex flex-col ${
               day && isToday(day) ? "border-2 border-primary/70" : ""
             }`}
+            onClick={() => {
+              if (day) {
+                setCurrentDate(day);
+                setViewMode("day");
+              }
+            }}
           >
             {day && (
               <>
@@ -252,6 +272,10 @@ export default function Calendar() {
             className={`bg-white p-1 sm:p-2 flex flex-col h-full ${
               isToday(day) ? "border-2 border-primary/70" : ""
             }`}
+            onClick={() => {
+              setCurrentDate(day);
+              setViewMode("day");
+            }}
           >
             <div
               className={`text-center mb-1 sm:mb-2 ${
@@ -273,6 +297,8 @@ export default function Calendar() {
   };
 
   const renderDayView = (date: Date) => {
+    const shoeingsForDate = getShoeingsForDate(date);
+
     return (
       <div className="col-span-7 bg-white border border-gray-200 rounded-md h-full flex flex-col">
         <h3
@@ -289,7 +315,49 @@ export default function Calendar() {
         </h3>
         <div className="flex-grow overflow-y-auto no-scrollbar p-2 sm:p-4">
           <div className="space-y-2 h-[calc(100vh-12rem)] overflow-y-auto no-scrollbar">
-            {getShoeingsForDate(date).map(renderShoeing)}
+            {shoeingsForDate.length > 0 ? (
+              <Accordion type="single" collapsible className="w-full">
+                {shoeingsForDate.map((shoeing, index) => {
+                  const bgColor = getLocationColor(
+                    shoeing["Location of Service"]
+                  );
+                  return (
+                    <AccordionItem
+                      key={shoeing.id}
+                      value={`item-${index}`}
+                      style={{ backgroundColor: bgColor }}
+                      className="rounded-md mb-2"
+                    >
+                      <AccordionTrigger className="font-semibold flex justify-between items-center">
+                        <span>
+                          {shoeing.Horses} - {shoeing["Location of Service"]}
+                        </span>
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <p>
+                          <strong>Base Service:</strong>{" "}
+                          {shoeing["Base Service"]}
+                        </p>
+                        {shoeing["Front Add-On's"] && (
+                          <p>
+                            <strong>Front Add-On's:</strong>{" "}
+                            {shoeing["Front Add-On's"]}
+                          </p>
+                        )}
+                        {shoeing["Other Custom Services"] && (
+                          <p>
+                            <strong>Other Custom Services:</strong>{" "}
+                            {shoeing["Other Custom Services"]}
+                          </p>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            ) : (
+              <p>No shoeings for this day.</p>
+            )}
           </div>
         </div>
       </div>
