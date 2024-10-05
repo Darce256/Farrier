@@ -228,8 +228,12 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                       </span>
                     </td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <Button onClick={() => onEdit(shoeing)} className="mr-2">
-                        <Edit className="h-4 w-4" />
+                      <Button
+                        onClick={() => onEdit(shoeing)}
+                        className="mr-2 "
+                        variant="outline"
+                      >
+                        <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </Button>
                       {shoeing.status === "pending" && (
@@ -237,7 +241,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                           variant="destructive"
                           onClick={() => handleDelete(shoeing.id)}
                         >
-                          <Trash className="h-4 w-4" />
+                          <Trash className="h-4 w-4 mr-2" />
                           Delete
                         </Button>
                       )}
