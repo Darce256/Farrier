@@ -29,7 +29,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { TbHorseshoe } from "react-icons/tb";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { FixedSizeList as List } from "react-window";
 import { supabase } from "../../lib/supabaseClient";
 import { PlusCircle, Search } from "lucide-react";
@@ -90,6 +90,9 @@ export default function ShoeingForm() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [existingBarns, setExistingBarns] = useState<string[]>([]);
   const [barnSearchQuery, setBarnSearchQuery] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const selectRef = useRef<HTMLButtonElement>(null);
+  const isNewHorseAdded = useRef(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -273,8 +276,29 @@ export default function ShoeingForm() {
         name: horseData[0].Name,
         barn: horseData[0]["Barn / Trainer"],
       };
-      setHorses((prevHorses) => [...prevHorses, newHorse]);
+
+      console.log("New horse added:", newHorse);
+
+      setHorses((prevHorses) => {
+        const updatedHorses = [...prevHorses, newHorse];
+        console.log("Updated horses state:", updatedHorses);
+        return updatedHorses;
+      });
+
       setIsModalOpen(false);
+      setIsDropdownOpen(false);
+      isNewHorseAdded.current = true;
+
+      setTimeout(() => {
+        form.setValue("horseName", newHorse.id);
+        console.log("Form value set to:", newHorse.id);
+
+        if (selectRef.current) {
+          selectRef.current.click();
+          selectRef.current.click();
+        }
+      }, 0);
+
       toast.success("New horse and customer added successfully.");
     }
   };
@@ -299,92 +323,112 @@ export default function ShoeingForm() {
                 <FormField
                   control={form.control}
                   name="horseName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Horse Name*</FormLabel>
-                      {loading ? (
-                        <Skeleton className="h-10 w-full" />
-                      ) : (
-                        <Select
-                          value={field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a Horse">
-                                {field.value ? (
-                                  <>
-                                    <span className="font-bold">
-                                      {
-                                        horses.find(
+                  render={({ field }) => {
+                    console.log(
+                      "Rendering horse select. Current value:",
+                      field.value
+                    );
+                    console.log("Current horses state:", horses);
+
+                    return (
+                      <FormItem>
+                        <FormLabel>Horse Name*</FormLabel>
+                        {loading ? (
+                          <Skeleton className="h-10 w-full" />
+                        ) : (
+                          <Select
+                            open={isDropdownOpen}
+                            onOpenChange={setIsDropdownOpen}
+                            value={field.value}
+                            onValueChange={(value) => {
+                              console.log("Select value changed to:", value);
+                              if (isNewHorseAdded.current && value === "") {
+                                console.log(
+                                  "Preventing empty value after new horse addition"
+                                );
+                                isNewHorseAdded.current = false;
+                                return;
+                              }
+                              field.onChange(value);
+                            }}
+                          >
+                            <FormControl>
+                              <SelectTrigger ref={selectRef}>
+                                <SelectValue placeholder="Select a Horse">
+                                  {field.value ? (
+                                    <>
+                                      <span className="font-bold">
+                                        {
+                                          horses.find(
+                                            (horse) => horse.id === field.value
+                                          )?.name
+                                        }
+                                      </span>
+                                      <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                        {horses.find(
                                           (horse) => horse.id === field.value
-                                        )?.name
-                                      }
+                                        )?.barn || "No Barn Available"}
+                                      </span>
+                                    </>
+                                  ) : (
+                                    "Select a Horse"
+                                  )}
+                                </SelectValue>
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <div className="p-2 flex items-center space-x-2">
+                                <div className="relative flex-grow">
+                                  <Input
+                                    type="text"
+                                    placeholder="Search horses..."
+                                    value={searchQuery}
+                                    onChange={(e) =>
+                                      setSearchQuery(e.target.value)
+                                    }
+                                    className="pr-8"
+                                  />
+                                  <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                </div>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="whitespace-nowrap bg-primary text-white hover:bg-primary hover:text-white"
+                                  onClick={() => setIsModalOpen(true)}
+                                >
+                                  <PlusCircle className="h-4 w-4 mr-2" />
+                                  Add New Horse
+                                </Button>
+                              </div>
+                              <List
+                                height={200}
+                                itemCount={filteredHorses.length}
+                                itemSize={35}
+                                width="100%"
+                              >
+                                {({ index, style }) => (
+                                  <SelectItem
+                                    key={filteredHorses[index].id}
+                                    value={filteredHorses[index].id}
+                                    style={style}
+                                  >
+                                    <span className="font-bold">
+                                      {filteredHorses[index].name}
                                     </span>
                                     <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-                                      {horses.find(
-                                        (horse) => horse.id === field.value
-                                      )?.barn || "No Barn Available"}
+                                      {filteredHorses[index].barn ||
+                                        "No Barn Available"}
                                     </span>
-                                  </>
-                                ) : (
-                                  "Select a Horse"
+                                  </SelectItem>
                                 )}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <div className="p-2 flex items-center space-x-2">
-                              <div className="relative flex-grow">
-                                <Input
-                                  type="text"
-                                  placeholder="Search horses..."
-                                  value={searchQuery}
-                                  onChange={(e) =>
-                                    setSearchQuery(e.target.value)
-                                  }
-                                  className="pr-8"
-                                />
-                                <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                              </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="whitespace-nowrap bg-primary text-white hover:bg-primary hover:text-white"
-                                onClick={() => setIsModalOpen(true)}
-                              >
-                                <PlusCircle className="h-4 w-4 mr-2" />
-                                Add New Horse
-                              </Button>
-                            </div>
-                            <List
-                              height={200}
-                              itemCount={filteredHorses.length}
-                              itemSize={35}
-                              width="100%"
-                            >
-                              {({ index, style }) => (
-                                <SelectItem
-                                  key={filteredHorses[index].id}
-                                  value={filteredHorses[index].id}
-                                  style={style}
-                                >
-                                  <span className="font-bold">
-                                    {filteredHorses[index].name}
-                                  </span>
-                                  <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-                                    {filteredHorses[index].barn ||
-                                      "No Barn Available"}
-                                  </span>
-                                </SelectItem>
-                              )}
-                            </List>
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                              </List>
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
                 <FormField
                   control={form.control}
