@@ -547,12 +547,36 @@ export default function ShoeingForm() {
           : "Shoeing record added successfully!"
       );
 
+      // Reset form and clear all values
+      form.reset({
+        horseName: "",
+        dateOfService: new Date(),
+        locationOfService: "",
+        baseService: "",
+        frontAddOns: [],
+        hindAddOns: [],
+        customServices: "",
+        shoeingNotes: "",
+      });
+
+      // Clear any selected values in dropdowns or multi-selects
+      setSelectedLocation("");
+      setSelectedBaseService("");
+      // If you have state for selected add-ons, reset those too
+      // setSelectedFrontAddOns([]);
+      // setSelectedHindAddOns([]);
+
+      // Reset editing state
+      setEditingShoeing(null);
+
+      // Switch to the submitted shoeings tab
+      setActiveTab("submitted-shoeings");
+
       // Trigger a refresh of the SubmittedShoeings component
       setSubmittedShoeingsKey((prevKey) => prevKey + 1);
 
-      form.reset();
-      setEditingShoeing(null);
-      setActiveTab("submitted-shoeings");
+      // Scroll to top of the page
+      window.scrollTo(0, 0);
     } catch (error) {
       console.error("Error saving shoeing record:", error);
       toast.error("Failed to save shoeing record. Please try again.");
