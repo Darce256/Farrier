@@ -216,8 +216,101 @@ export default function ShoeingForm() {
     );
   }, [existingBarns, barnSearchQuery]);
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const selectedHorse = horses.find(
+        (horse) => horse.id === values.horseName
+      );
+      if (!selectedHorse) {
+        throw new Error("Selected horse not found");
+      }
+
+      const allAddOns = [
+        ...(values.frontAddOns || []),
+        ...(values.hindAddOns || []),
+      ];
+      const combinedAddOns = allAddOns.join(" and ");
+
+      // Helper function to parse price strings
+      const parsePrice = (priceString: string | null): number => {
+        if (!priceString) return 0;
+        return parseFloat(priceString.replace("$", "").replace(",", ""));
+      };
+
+      // Fetch pricing information
+      const { data: pricesData, error: pricesError } = await supabase
+        .from("prices")
+        .select("*")
+        .in("Name", [values.baseService, ...allAddOns]);
+
+      if (pricesError) throw pricesError;
+
+      // Calculate costs
+      let baseServiceCost = 0;
+      let addOnsCost = 0;
+
+      pricesData.forEach((price) => {
+        const serviceCost = parsePrice(price[values.locationOfService]);
+
+        console.log(
+          `Parsed price for ${price.Name} at ${values.locationOfService}: ${serviceCost}`
+        );
+
+        if (price.Name === values.baseService) {
+          console.log(`Setting base service cost for ${price.Name}`);
+          baseServiceCost = serviceCost;
+        } else if (allAddOns.includes(price.Name)) {
+          console.log(`Adding add-on cost for ${price.Name}`);
+          addOnsCost += serviceCost;
+        } else {
+          console.log(
+            `Skipping price for ${price.Name} - not selected as base service or add-on`
+          );
+        }
+      });
+
+      const totalCost = baseServiceCost + addOnsCost;
+
+      // Create the description
+      let description = `${selectedHorse.name} - ${values.baseService}`;
+      if (combinedAddOns) {
+        description += ` with ${combinedAddOns}`;
+      }
+
+      // Prepare the data for insertion
+      const shoeingData = {
+        "Horse Name": selectedHorse.name,
+        Horses: `${selectedHorse.name} - [${selectedHorse.barn || "No Barn"}]`,
+        "Date of Service": format(values.dateOfService, "MM/dd/yyyy"),
+        "Location of Service": values.locationOfService,
+        "Base Service": values.baseService,
+        "Front Add-On's": combinedAddOns,
+        "Other Custom Services": values.customServices,
+        "Shoe Notes": values.shoeingNotes,
+        "Cost of Service": baseServiceCost,
+        "Cost of Front Add-Ons": addOnsCost,
+        "Total Cost": totalCost,
+        Description: description,
+        status: "pending",
+      };
+
+      console.log("Shoeing Data to be inserted:", shoeingData);
+
+      // Insert the data into the shoeings table
+      const { data, error } = await supabase
+        .from("shoeings")
+        .insert([shoeingData]);
+
+      if (error) throw error;
+
+      console.log("Shoeing record inserted successfully:", data);
+      toast.success("Shoeing record added successfully!");
+
+      form.reset();
+    } catch (error) {
+      console.error("Error submitting shoeing record:", error);
+      toast.error("Failed to add shoeing record. Please try again.");
+    }
   }
 
   const handleAddNewHorse = async (values: NewHorseFormValues) => {
