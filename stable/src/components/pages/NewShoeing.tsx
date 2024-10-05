@@ -42,6 +42,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"; // Shadcn UI Dialog components
 import toast, { Toaster } from "react-hot-toast";
+import { MultiSelect } from "@/components/ui/multi-select";
 
 const formSchema = z.object({
   horseName: z.string({
@@ -54,8 +55,8 @@ const formSchema = z.object({
     required_error: "Please select a location.",
   }),
   baseService: z.string().optional(),
-  frontAddOns: z.string().optional(),
-  hindAddOns: z.string().optional(),
+  frontAddOns: z.array(z.string()).optional(),
+  hindAddOns: z.array(z.string()).optional(),
   customServices: z.string().optional(),
   shoeingNotes: z.string().optional(),
 });
@@ -546,32 +547,15 @@ export default function ShoeingForm() {
                       {loading ? (
                         <Skeleton className="h-10 w-full" />
                       ) : (
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select front add-on's">
-                                {field.value && (
-                                  <span className="font-bold">
-                                    {field.value}
-                                  </span>
-                                )}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {addOns.map(
-                              (addOn) =>
-                                addOn && (
-                                  <SelectItem key={addOn} value={addOn}>
-                                    <span className="font-bold">{addOn}</span>
-                                  </SelectItem>
-                                )
-                            )}
-                          </SelectContent>
-                        </Select>
+                        <MultiSelect
+                          options={addOns.map((addOn) => ({
+                            value: addOn,
+                            label: addOn,
+                          }))}
+                          onValueChange={(values) => field.onChange(values)}
+                          defaultValue={field.value || []}
+                          placeholder="Select front add-on's"
+                        />
                       )}
                       <FormMessage />
                     </FormItem>
@@ -586,32 +570,15 @@ export default function ShoeingForm() {
                       {loading ? (
                         <Skeleton className="h-10 w-full" />
                       ) : (
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select hind add-on's">
-                                {field.value && (
-                                  <span className="font-bold">
-                                    {field.value}
-                                  </span>
-                                )}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {addOns.map(
-                              (addOn) =>
-                                addOn && (
-                                  <SelectItem key={addOn} value={addOn}>
-                                    <span className="font-bold">{addOn}</span>
-                                  </SelectItem>
-                                )
-                            )}
-                          </SelectContent>
-                        </Select>
+                        <MultiSelect
+                          options={addOns.map((addOn) => ({
+                            value: addOn,
+                            label: addOn,
+                          }))}
+                          onValueChange={(values) => field.onChange(values)}
+                          defaultValue={field.value || []}
+                          placeholder="Select hind add-on's"
+                        />
                       )}
                       <FormMessage />
                     </FormItem>

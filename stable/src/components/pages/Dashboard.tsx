@@ -74,10 +74,7 @@ export default function Dashboard() {
             </div>
           </CardContent>
           <CardFooter>
-            <Link
-              to={"/horse-approval-panel"}
-              className="text-primary hover:underline"
-            >
+            <Link to={"/horse-approval-panel"} className="">
               Go to Approvals
             </Link>
           </CardFooter>
