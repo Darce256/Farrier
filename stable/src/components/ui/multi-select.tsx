@@ -117,6 +117,12 @@ interface MultiSelectProps
    * Optional, can be used to add custom styles.
    */
   className?: string;
+
+  /**
+   * The selected values to be displayed initially.
+   * Optional, defaults to the defaultValue.
+   */
+  selected?: string[];
 }
 
 export const MultiSelect = React.forwardRef<
@@ -129,6 +135,7 @@ export const MultiSelect = React.forwardRef<
       onValueChange,
       variant,
       defaultValue = [],
+      selected,
       placeholder = "Select options",
       animation = 0,
       maxCount = 3,
@@ -139,8 +146,9 @@ export const MultiSelect = React.forwardRef<
     },
     ref
   ) => {
-    const [selectedValues, setSelectedValues] =
-      React.useState<string[]>(defaultValue);
+    const [selectedValues, setSelectedValues] = React.useState<string[]>(
+      selected || defaultValue
+    );
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
     const [isAnimating, setIsAnimating] = React.useState(false);
 

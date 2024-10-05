@@ -95,6 +95,10 @@ export default function ShoeingForm() {
   const selectRef = useRef<HTMLButtonElement>(null);
   const isNewHorseAdded = useRef(false);
 
+  // Add refs for MultiSelect components
+  const frontAddOnsRef = useRef(null);
+  const hindAddOnsRef = useRef(null);
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   });
@@ -216,6 +220,14 @@ export default function ShoeingForm() {
     );
   }, [existingBarns, barnSearchQuery]);
 
+  // Add these new state variables
+  const [selectedLocation, setSelectedLocation] = useState<string | undefined>(
+    undefined
+  );
+  const [selectedBaseService, setSelectedBaseService] = useState<
+    string | undefined
+  >(undefined);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       const selectedHorse = horses.find(
@@ -306,7 +318,27 @@ export default function ShoeingForm() {
       console.log("Shoeing record inserted successfully:", data);
       toast.success("Shoeing record added successfully!");
 
-      form.reset();
+      // Reset the form
+      form.reset({
+        horseName: "",
+        dateOfService: undefined,
+        locationOfService: undefined,
+        baseService: undefined,
+        frontAddOns: [],
+        hindAddOns: [],
+        customServices: "",
+        shoeingNotes: "",
+      });
+
+      // Reset the select fields
+      setSelectedLocation(undefined);
+      setSelectedBaseService(undefined);
+
+      // Force re-render of all form components
+      setForceUpdate((prev) => !prev);
+
+      // Scroll to top of the page
+      window.scrollTo(0, 0);
     } catch (error) {
       console.error("Error submitting shoeing record:", error);
       toast.error("Failed to add shoeing record. Please try again.");
@@ -398,6 +430,9 @@ export default function ShoeingForm() {
     const value = e.target.value.replace(/\D/g, ""); // Remove non-digit characters
     newHorseForm.setValue("ownerPhone", value);
   };
+
+  // Add a state to force re-render
+  const [forceUpdate, setForceUpdate] = useState(false);
 
   return (
     <div className="container mx-auto p-4">
@@ -557,34 +592,26 @@ export default function ShoeingForm() {
                   name="locationOfService"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Location of Service*</FormLabel>
-                      {loading ? (
-                        <Skeleton className="h-10 w-full" />
-                      ) : (
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a location">
-                                {field.value && (
-                                  <span className="font-bold">
-                                    {field.value}
-                                  </span>
-                                )}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {locations.map((location) => (
-                              <SelectItem key={location} value={location}>
-                                <span className="font-bold">{location}</span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <FormLabel>Location of Service</FormLabel>
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedLocation(value);
+                        }}
+                        value={selectedLocation}
+                        key={`location-${forceUpdate}`}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a location" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {locations.map((location) => (
+                            <SelectItem key={location} value={location}>
+                              {location}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -595,36 +622,25 @@ export default function ShoeingForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Base Service</FormLabel>
-                      {loading ? (
-                        <Skeleton className="h-10 w-full" />
-                      ) : (
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select base service">
-                                {field.value && (
-                                  <span className="font-bold">
-                                    {field.value}
-                                  </span>
-                                )}
-                              </SelectValue>
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {baseServices.map(
-                              (service) =>
-                                service && (
-                                  <SelectItem key={service} value={service}>
-                                    <span className="font-bold">{service}</span>
-                                  </SelectItem>
-                                )
-                            )}
-                          </SelectContent>
-                        </Select>
-                      )}
+                      <Select
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          setSelectedBaseService(value);
+                        }}
+                        value={selectedBaseService}
+                        key={`baseService-${forceUpdate}`}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a base service" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {baseServices.map((service) => (
+                            <SelectItem key={service} value={service}>
+                              {service}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -637,19 +653,16 @@ export default function ShoeingForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Front Add-On's</FormLabel>
-                      {loading ? (
-                        <Skeleton className="h-10 w-full" />
-                      ) : (
-                        <MultiSelect
-                          options={addOns.map((addOn) => ({
-                            value: addOn,
-                            label: addOn,
-                          }))}
-                          onValueChange={(values) => field.onChange(values)}
-                          defaultValue={field.value || []}
-                          placeholder="Select front add-on's"
-                        />
-                      )}
+                      <MultiSelect
+                        options={addOns.map((addOn) => ({
+                          value: addOn,
+                          label: addOn,
+                        }))}
+                        onValueChange={(values) => field.onChange(values)}
+                        selected={field.value}
+                        placeholder="Select front add-on's"
+                        key={`front-${forceUpdate}`}
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
@@ -660,19 +673,16 @@ export default function ShoeingForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Hind Add-On's</FormLabel>
-                      {loading ? (
-                        <Skeleton className="h-10 w-full" />
-                      ) : (
-                        <MultiSelect
-                          options={addOns.map((addOn) => ({
-                            value: addOn,
-                            label: addOn,
-                          }))}
-                          onValueChange={(values) => field.onChange(values)}
-                          defaultValue={field.value || []}
-                          placeholder="Select hind add-on's"
-                        />
-                      )}
+                      <MultiSelect
+                        options={addOns.map((addOn) => ({
+                          value: addOn,
+                          label: addOn,
+                        }))}
+                        onValueChange={(values) => field.onChange(values)}
+                        selected={field.value}
+                        placeholder="Select hind add-on's"
+                        key={`hind-${forceUpdate}`}
+                      />
                       <FormMessage />
                     </FormItem>
                   )}
