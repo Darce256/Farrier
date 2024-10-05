@@ -44,6 +44,17 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { useAuth } from "@/components/Contexts/AuthProvider"; // Adjust the import path as necessary
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Edit } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 
 const formSchema = z.object({
   horseName: z.string({
@@ -82,6 +93,143 @@ const newHorseSchema = z.object({
 
 type NewHorseFormValues = z.infer<typeof newHorseSchema>;
 
+// New component for submitted shoeings
+function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
+  const [shoeings, setShoeings] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      fetchSubmittedShoeings();
+    }
+  }, [user]);
+
+  async function fetchSubmittedShoeings() {
+    const { data, error } = await supabase
+      .from("shoeings")
+      .select("*")
+      .eq("user_id", user?.id || "")
+      .order("Date of Service", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching shoeings:", error);
+      toast.error("Failed to fetch submitted shoeings");
+    } else {
+      setShoeings(data as any);
+    }
+  }
+
+  const filteredShoeings = shoeings.filter(
+    (shoeing: any) =>
+      shoeing["Horse Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
+      shoeing["Base Service"]
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      shoeing["Location of Service"]
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className="w-full">
+      <div className="mb-4 px-4 sm:px-0 relative">
+        <Input
+          type="text"
+          placeholder="Search shoeings..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10 w-full"
+        />
+        <Search
+          className="absolute left-7 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
+          size={20}
+        />
+      </div>
+      <Card className="shadow-sm">
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-full divide-y divide-gray-300">
+              <thead>
+                <tr>
+                  <th
+                    scope="col"
+                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+                  >
+                    Date
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                  >
+                    Details
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                  >
+                    Status
+                  </th>
+                  <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                    <span className="sr-only">Edit</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {filteredShoeings.map((shoeing: any) => (
+                  <tr key={shoeing.id}>
+                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                      {new Date(
+                        shoeing["Date of Service"]
+                      ).toLocaleDateString()}
+                    </td>
+                    <td className="px-3 py-4 text-sm text-black">
+                      <div className="font-medium font-semibold">
+                        {shoeing["Horse Name"]}
+                      </div>
+                      <div>{shoeing["Base Service"]}</div>
+                      <div>{shoeing["Location of Service"]}</div>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                      <span
+                        className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                          shoeing.status === "completed"
+                            ? "bg-green-100 text-green-800"
+                            : shoeing.status === "cancelled"
+                            ? "bg-red-100 text-red-800"
+                            : "bg-yellow-100 text-yellow-800"
+                        }`}
+                      >
+                        {shoeing.status.charAt(0).toUpperCase() +
+                          shoeing.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                      {shoeing.status === "pending" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-indigo-600 hover:text-indigo-900"
+                          onClick={() => onEdit(shoeing)}
+                        >
+                          Edit
+                          <span className="sr-only">
+                            , {shoeing["Horse Name"]}
+                          </span>
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function ShoeingForm() {
   const [horses, setHorses] = useState<Horse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +248,9 @@ export default function ShoeingForm() {
   const frontAddOnsRef = useRef(null);
   const hindAddOnsRef = useRef(null);
 
+  const [activeTab, setActiveTab] = useState("new-shoeing");
+  const [editingShoeing, setEditingShoeing] = useState<any>(null);
+  const { user } = useAuth();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   });
@@ -107,8 +258,6 @@ export default function ShoeingForm() {
   const newHorseForm = useForm<NewHorseFormValues>({
     resolver: zodResolver(newHorseSchema),
   });
-
-  const { user } = useAuth(); // Use the existing useAuth hook
 
   useEffect(() => {
     async function fetchData() {
@@ -131,6 +280,37 @@ export default function ShoeingForm() {
       setExistingBarns(uniqueBarns.sort() as any);
     }
   }, [horses]);
+
+  useEffect(() => {
+    if (editingShoeing) {
+      form.reset({
+        horseName: editingShoeing["Horses"].split(" - ")[0], // Extract horse name
+        dateOfService: new Date(editingShoeing["Date of Service"]),
+        locationOfService: editingShoeing["Location of Service"],
+        baseService: editingShoeing["Base Service"],
+        frontAddOns: editingShoeing["Front Add-On's"]
+          ? editingShoeing["Front Add-On's"].split(" and ")
+          : [],
+        hindAddOns: editingShoeing["Hind Add-On's"]
+          ? editingShoeing["Hind Add-On's"].split(" and ")
+          : [], // Add this line
+        customServices: editingShoeing["Other Custom Services"] || "",
+        shoeingNotes: editingShoeing["Shoe Notes"] || "",
+      });
+
+      // Update the selected values for dropdowns
+      setSelectedLocation(editingShoeing["Location of Service"]);
+      setSelectedBaseService(editingShoeing["Base Service"]);
+
+      // Force re-render of all form components
+      setForceUpdate((prev) => !prev);
+    }
+  }, [editingShoeing, form]);
+
+  const handleEdit = (shoeing: any) => {
+    setEditingShoeing(shoeing);
+    setActiveTab("new-shoeing");
+  };
 
   async function fetchLocations() {
     const { data, error } = await supabase
@@ -245,6 +425,13 @@ export default function ShoeingForm() {
         throw new Error("Selected horse not found");
       }
 
+      const frontAddOns = values.frontAddOns
+        ? values.frontAddOns.join(" and ")
+        : "";
+      const hindAddOns = values.hindAddOns
+        ? values.hindAddOns.join(" and ")
+        : "";
+
       const allAddOns = [
         ...(values.frontAddOns || []),
         ...(values.hindAddOns || []),
@@ -267,34 +454,33 @@ export default function ShoeingForm() {
 
       // Calculate costs
       let baseServiceCost = 0;
-      let addOnsCost = 0;
+      let frontAddOnsCost = 0;
+      let hindAddOnsCost = 0;
 
       pricesData.forEach((price) => {
         const serviceCost = parsePrice(price[values.locationOfService]);
 
-        console.log(
-          `Parsed price for ${price.Name} at ${values.locationOfService}: ${serviceCost}`
-        );
-
         if (price.Name === values.baseService) {
-          console.log(`Setting base service cost for ${price.Name}`);
           baseServiceCost = serviceCost;
-        } else if (allAddOns.includes(price.Name)) {
-          console.log(`Adding add-on cost for ${price.Name}`);
-          addOnsCost += serviceCost;
         } else {
-          console.log(
-            `Skipping price for ${price.Name} - not selected as base service or add-on`
-          );
+          if (values.frontAddOns?.includes(price.Name)) {
+            frontAddOnsCost += serviceCost;
+          }
+          if (values.hindAddOns?.includes(price.Name)) {
+            hindAddOnsCost += serviceCost;
+          }
         }
       });
 
-      const totalCost = baseServiceCost + addOnsCost;
+      const totalCost = baseServiceCost + frontAddOnsCost + hindAddOnsCost;
 
       // Create the description
       let description = `${selectedHorse.name} - ${values.baseService}`;
-      if (combinedAddOns) {
-        description += ` with ${combinedAddOns}`;
+      if (frontAddOns) {
+        description += ` with front add-ons: ${frontAddOns}`;
+      }
+      if (hindAddOns) {
+        description += ` and hind add-ons: ${hindAddOns}`;
       }
 
       // Prepare the data for insertion
@@ -304,11 +490,13 @@ export default function ShoeingForm() {
         "Date of Service": format(values.dateOfService, "MM/dd/yyyy"),
         "Location of Service": values.locationOfService,
         "Base Service": values.baseService,
-        "Front Add-On's": combinedAddOns,
+        "Front Add-On's": frontAddOns,
+        "Hind Add-On's": hindAddOns, // Add this line
         "Other Custom Services": values.customServices,
         "Shoe Notes": values.shoeingNotes,
         "Cost of Service": baseServiceCost,
-        "Cost of Front Add-Ons": addOnsCost,
+        "Cost of Front Add-Ons": frontAddOnsCost,
+        "Cost of Hind Add-Ons": hindAddOnsCost,
         "Total Cost": totalCost,
         Description: description,
         status: "pending",
@@ -317,15 +505,31 @@ export default function ShoeingForm() {
 
       console.log("Shoeing Data to be inserted:", shoeingData);
 
-      // Insert the data into the shoeings table
-      const { data, error } = await supabase
-        .from("shoeings")
-        .insert([shoeingData]);
+      let data, error;
+
+      if (editingShoeing) {
+        ({ data, error } = await supabase
+          .from("shoeings")
+          .update(shoeingData)
+          .eq("id", (editingShoeing as { id: number }).id));
+      } else {
+        ({ data, error } = await supabase
+          .from("shoeings")
+          .insert([shoeingData]));
+      }
 
       if (error) throw error;
 
-      console.log("Shoeing record inserted successfully:", data);
-      toast.success("Shoeing record added successfully!");
+      console.log("Shoeing record saved successfully:", data);
+      toast.success(
+        editingShoeing
+          ? "Shoeing record updated successfully!"
+          : "Shoeing record added successfully!"
+      );
+
+      form.reset();
+      setEditingShoeing(null);
+      setActiveTab("submitted-shoeings");
 
       // Reset the form
       form.reset({
@@ -349,8 +553,8 @@ export default function ShoeingForm() {
       // Scroll to top of the page
       window.scrollTo(0, 0);
     } catch (error) {
-      console.error("Error submitting shoeing record:", error);
-      toast.error("Failed to add shoeing record. Please try again.");
+      console.error("Error saving shoeing record:", error);
+      toast.error("Failed to save shoeing record. Please try again.");
     }
   }
 
@@ -444,298 +648,327 @@ export default function ShoeingForm() {
   const [forceUpdate, setForceUpdate] = useState(false);
 
   return (
-    <div className="container mx-auto p-4">
-      <Toaster position="top-right" />
+    <div className="container mx-auto px-0 sm:px-6 lg:px-8">
       <div className="flex items-center gap-2 align-middle mb-6">
-        <TbHorseshoe className="text-4xl" />
-        <h1 className="text-4xl font-bold text-black">New Shoeing</h1>
+        <TbHorseshoe className="text-4xl " />
+        <h1 className="text-4xl font-bold  text-black">Shoeings</h1>
       </div>
-      <div className="bg-white rounded-lg shadow-md border border-gray-200">
-        <div className="p-6 sm:p-8">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="horseName"
-                  render={({ field }) => {
-                    return (
-                      <FormItem>
-                        <FormLabel>Horse Name*</FormLabel>
-                        {loading ? (
-                          <Skeleton className="h-10 w-full" />
-                        ) : (
-                          <Select
-                            open={isDropdownOpen}
-                            onOpenChange={setIsDropdownOpen}
-                            value={field.value}
-                            onValueChange={(value) => {
-                              if (isNewHorseAdded.current && value === "") {
-                                isNewHorseAdded.current = false;
-                                return;
-                              }
-                              field.onChange(value);
-                            }}
-                          >
-                            <FormControl>
-                              <SelectTrigger ref={selectRef}>
-                                <SelectValue placeholder="Select a Horse">
-                                  {field.value ? (
-                                    <>
-                                      <span className="font-bold">
-                                        {
-                                          horses.find(
-                                            (horse) => horse.id === field.value
-                                          )?.name
-                                        }
-                                      </span>
-                                      <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-                                        {horses.find(
-                                          (horse) => horse.id === field.value
-                                        )?.barn || "No Barn Available"}
-                                      </span>
-                                    </>
-                                  ) : (
-                                    "Select a Horse"
-                                  )}
-                                </SelectValue>
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <div className="p-2 flex items-center space-x-2">
-                                <div className="relative flex-grow">
-                                  <Input
-                                    type="text"
-                                    placeholder="Search horses..."
-                                    value={searchQuery}
-                                    onChange={(e) =>
-                                      setSearchQuery(e.target.value)
-                                    }
-                                    className="pr-8"
-                                  />
-                                  <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="whitespace-nowrap bg-primary text-white hover:bg-primary hover:text-white"
-                                  onClick={() => setIsModalOpen(true)}
-                                >
-                                  <PlusCircle className="h-4 w-4 mr-2" />
-                                  Add New Horse
-                                </Button>
-                              </div>
-                              <List
-                                height={200}
-                                itemCount={filteredHorses.length}
-                                itemSize={35}
-                                width="100%"
-                              >
-                                {({ index, style }) => (
-                                  <SelectItem
-                                    key={filteredHorses[index].id}
-                                    value={filteredHorses[index].id}
-                                    style={style}
-                                  >
-                                    <span className="font-bold">
-                                      {filteredHorses[index].name}
-                                    </span>
-                                    <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-                                      {filteredHorses[index].barn ||
-                                        "No Barn Available"}
-                                    </span>
-                                  </SelectItem>
-                                )}
-                              </List>
-                            </SelectContent>
-                          </Select>
-                        )}
-                        <FormMessage />
-                      </FormItem>
-                    );
-                  }}
-                />
-                <FormField
-                  control={form.control}
-                  name="dateOfService"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col mt-2">
-                      <FormLabel>Date of Service*</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, "PPP")
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4 px-4 sm:px-1 bg-primary text-white">
+          <TabsTrigger value="new-shoeing">New Shoeing</TabsTrigger>
+          <TabsTrigger value="submitted-shoeings">
+            My Submitted Shoeings
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="new-shoeing">
+          <div className="mt-4">
+            <div className="bg-white rounded-lg shadow-md border border-gray-200">
+              <div className="p-6 sm:p-8">
+                <Form {...form}>
+                  <form
+                    onSubmit={form.handleSubmit(onSubmit)}
+                    className="space-y-8"
+                  >
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="horseName"
+                        render={({ field }) => {
+                          return (
+                            <FormItem>
+                              <FormLabel>Horse Name*</FormLabel>
+                              {loading ? (
+                                <Skeleton className="h-10 w-full" />
                               ) : (
-                                <span>Pick a date</span>
+                                <Select
+                                  open={isDropdownOpen}
+                                  onOpenChange={setIsDropdownOpen}
+                                  value={field.value}
+                                  onValueChange={(value) => {
+                                    if (
+                                      isNewHorseAdded.current &&
+                                      value === ""
+                                    ) {
+                                      isNewHorseAdded.current = false;
+                                      return;
+                                    }
+                                    field.onChange(value);
+                                  }}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger ref={selectRef}>
+                                      <SelectValue placeholder="Select a Horse">
+                                        {field.value ? (
+                                          <>
+                                            <span className="font-bold">
+                                              {
+                                                horses.find(
+                                                  (horse) =>
+                                                    horse.id === field.value
+                                                )?.name
+                                              }
+                                            </span>
+                                            <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                              {horses.find(
+                                                (horse) =>
+                                                  horse.id === field.value
+                                              )?.barn || "No Barn Available"}
+                                            </span>
+                                          </>
+                                        ) : (
+                                          "Select a Horse"
+                                        )}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <div className="p-2 flex items-center space-x-2">
+                                      <div className="relative flex-grow">
+                                        <Input
+                                          type="text"
+                                          placeholder="Search horses..."
+                                          value={searchQuery}
+                                          onChange={(e) =>
+                                            setSearchQuery(e.target.value)
+                                          }
+                                          className="pr-8"
+                                        />
+                                        <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                      </div>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="whitespace-nowrap bg-primary text-white hover:bg-primary hover:text-white"
+                                        onClick={() => setIsModalOpen(true)}
+                                      >
+                                        <PlusCircle className="h-4 w-4 mr-2" />
+                                        Add New Horse
+                                      </Button>
+                                    </div>
+                                    <List
+                                      height={200}
+                                      itemCount={filteredHorses.length}
+                                      itemSize={35}
+                                      width="100%"
+                                    >
+                                      {({ index, style }) => (
+                                        <SelectItem
+                                          key={filteredHorses[index].id}
+                                          value={filteredHorses[index].id}
+                                          style={style}
+                                        >
+                                          <span className="font-bold">
+                                            {filteredHorses[index].name}
+                                          </span>
+                                          <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                            {filteredHorses[index].barn ||
+                                              "No Barn Available"}
+                                          </span>
+                                        </SelectItem>
+                                      )}
+                                    </List>
+                                  </SelectContent>
+                                </Select>
                               )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
+                              <FormMessage />
+                            </FormItem>
+                          );
+                        }}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="dateOfService"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col mt-2">
+                            <FormLabel>Date of Service*</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant={"outline"}
+                                    className={cn(
+                                      "w-full pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                  >
+                                    {field.value ? (
+                                      format(field.value, "PPP")
+                                    ) : (
+                                      <span>Pick a date</span>
+                                    )}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent
+                                className="w-auto p-0"
+                                align="start"
+                              >
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  disabled={(date) =>
+                                    date < new Date("1900-01-01")
+                                  }
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="locationOfService"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Location of Service</FormLabel>
+                            <Select
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                setSelectedLocation(value);
+                              }}
+                              value={selectedLocation}
+                              key={`location-${forceUpdate}`}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a location" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {locations.map((location) => (
+                                  <SelectItem key={location} value={location}>
+                                    {location}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="baseService"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Base Service</FormLabel>
+                            <Select
+                              onValueChange={(value) => {
+                                field.onChange(value);
+                                setSelectedBaseService(value);
+                              }}
+                              value={selectedBaseService}
+                              key={`baseService-${forceUpdate}`}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a base service" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {baseServices.map((service) => (
+                                  <SelectItem key={service} value={service}>
+                                    {service}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="frontAddOns"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Front Add-On's</FormLabel>
+                            <MultiSelect
+                              options={addOns.map((addOn) => ({
+                                value: addOn,
+                                label: addOn,
+                              }))}
+                              onValueChange={(values) => field.onChange(values)}
+                              selected={field.value}
+                              placeholder="Select front add-on's"
+                              key={`front-${forceUpdate}`}
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="hindAddOns"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Hind Add-On's</FormLabel>
+                            <MultiSelect
+                              options={addOns.map((addOn) => ({
+                                value: addOn,
+                                label: addOn,
+                              }))}
+                              onValueChange={(values) => field.onChange(values)}
+                              selected={field.value}
+                              placeholder="Select hind add-on's"
+                              key={`hind-${forceUpdate}`}
+                            />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <FormField
+                      control={form.control}
+                      name="customServices"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Custom Services</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Enter any custom services"
+                              {...field}
+                              value={field.value || ""} // Ensure the value is never undefined
+                            />
                           </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date < new Date("1900-01-01")}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="shoeingNotes"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Shoeing Notes</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Enter any additional notes"
+                              className="resize-none"
+                              {...field}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                    <Button type="submit" className="w-full sm:w-auto">
+                      {editingShoeing ? "Update Shoeing" : "Submit New Shoeing"}
+                    </Button>
+                  </form>
+                </Form>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="locationOfService"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Location of Service</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedLocation(value);
-                        }}
-                        value={selectedLocation}
-                        key={`location-${forceUpdate}`}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a location" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {locations.map((location) => (
-                            <SelectItem key={location} value={location}>
-                              {location}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="baseService"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Base Service</FormLabel>
-                      <Select
-                        onValueChange={(value) => {
-                          field.onChange(value);
-                          setSelectedBaseService(value);
-                        }}
-                        value={selectedBaseService}
-                        key={`baseService-${forceUpdate}`}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a base service" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {baseServices.map((service) => (
-                            <SelectItem key={service} value={service}>
-                              {service}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="frontAddOns"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Front Add-On's</FormLabel>
-                      <MultiSelect
-                        options={addOns.map((addOn) => ({
-                          value: addOn,
-                          label: addOn,
-                        }))}
-                        onValueChange={(values) => field.onChange(values)}
-                        selected={field.value}
-                        placeholder="Select front add-on's"
-                        key={`front-${forceUpdate}`}
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="hindAddOns"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Hind Add-On's</FormLabel>
-                      <MultiSelect
-                        options={addOns.map((addOn) => ({
-                          value: addOn,
-                          label: addOn,
-                        }))}
-                        onValueChange={(values) => field.onChange(values)}
-                        selected={field.value}
-                        placeholder="Select hind add-on's"
-                        key={`hind-${forceUpdate}`}
-                      />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <FormField
-                control={form.control}
-                name="customServices"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Custom Services</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Enter any custom services"
-                        {...field}
-                        value={field.value || ""} // Ensure the value is never undefined
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="shoeingNotes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Shoeing Notes</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter any additional notes"
-                        className="resize-none"
-                        {...field}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full sm:w-auto">
-                Submit
-              </Button>
-            </form>
-          </Form>
-        </div>
-      </div>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="submitted-shoeings">
+          <SubmittedShoeings onEdit={handleEdit} />
+        </TabsContent>
+      </Tabs>
 
       {/* Modal for adding new horse */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
