@@ -10,14 +10,7 @@ import {
 } from "@/components/ui/accordion";
 import { Horse } from "@/lib/horseService";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  House,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Flag,
-} from "lucide-react";
+import { House, AlertCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
 
 interface Shoeing {
   id: string;
@@ -169,7 +162,6 @@ export default function HorseProfile() {
                 <p>{horse["Barn / Trainer"]}</p>
               </div>
             </div>
-            {horse.alert && <Flag className="text-red-500 w-6 h-6" />}
           </div>
         </CardHeader>
         <CardContent className="p-6 sm:p-8">

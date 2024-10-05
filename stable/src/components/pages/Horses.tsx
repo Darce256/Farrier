@@ -48,7 +48,7 @@ import toast from "react-hot-toast";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useQuery } from "react-query";
 import React from "react";
-import { FixedSizeList as List } from "react-window";
+import { FixedSizeGrid as Grid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 
 interface Shoeing {
@@ -124,7 +124,6 @@ export default function Horses() {
         .sort((a, b) => a.localeCompare(b)),
     [sortedHorses]
   );
-
   const filteredHorses = useMemo(() => {
     return sortedHorses.filter((horse) => {
       if (!horse.Name && !horse["Barn / Trainer"]) {
@@ -317,14 +316,32 @@ export default function Horses() {
     navigate(`/horses/${horse.id}`);
   };
 
+  const CARD_WIDTH = 300; // Adjust based on your card's actual width
   const CARD_HEIGHT = 250; // Adjust based on your card's actual height
-  const ROW_HEIGHT = CARD_HEIGHT + 16; // Add some margin
+  const GRID_GAP = 16; // Gap between cards
 
-  const HorseCardRow = useCallback(
-    ({ index, style }: { index: number; style: React.CSSProperties }) => {
+  const HorseCardCell = useCallback(
+    ({
+      columnIndex,
+      rowIndex,
+      style,
+    }: {
+      columnIndex: number;
+      rowIndex: number;
+      style: React.CSSProperties;
+    }) => {
+      const index = rowIndex * 4 + columnIndex;
+      if (index >= filteredHorses.length) return null;
       const horse = filteredHorses[index];
       return (
-        <div style={style}>
+        <div
+          style={{
+            ...style,
+            width: CARD_WIDTH,
+            height: CARD_HEIGHT,
+            padding: GRID_GAP / 2,
+          }}
+        >
           <HorseCard
             key={horse.id}
             horse={horse}
@@ -338,7 +355,7 @@ export default function Horses() {
   );
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto px-4 h-full flex flex-col">
       <div className="flex items-center gap-2 align-middle mb-6">
         <LiaHorseHeadSolid className="text-4xl " />
         <h1 className="text-4xl font-bold  text-black">Horses</h1>
@@ -411,7 +428,7 @@ export default function Horses() {
         </div>
       </div>
 
-      <div className="relative">
+      <div className="flex-grow relative overflow-hidden">
         {(isLoading || !contentVisible) && (
           <div className="absolute inset-0 z-10">
             <HorsesSkeleton viewMode={isDesktop ? viewMode : "card"} />
@@ -419,7 +436,7 @@ export default function Horses() {
         )}
 
         <div
-          className={`transition-opacity duration-300 ${
+          className={`h-full transition-opacity duration-300 ${
             contentVisible ? "opacity-100" : "opacity-0"
           }`}
         >
@@ -429,22 +446,32 @@ export default function Horses() {
             <div className="text-center">No horses found.</div>
           ) : (
             <>
-              <div className="text-center mb-4">
-                Displaying {filteredHorses.length} horses
-              </div>
               {!isDesktop || viewMode === "card" ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
-                  {filteredHorses.map((horse) => (
-                    <HorseCard
-                      key={horse.id}
-                      horse={horse}
-                      onSelect={() => handleViewDetails(horse)}
-                      onViewHorse={() => handleViewHorse(horse)}
-                    />
-                  ))}
+                <div className="h-full">
+                  <AutoSizer>
+                    {({ height, width }) => {
+                      const columnCount = 4;
+                      const rowCount = Math.ceil(
+                        filteredHorses.length / columnCount
+                      );
+                      return (
+                        <Grid
+                          height={height}
+                          width={width}
+                          columnCount={columnCount}
+                          columnWidth={width / columnCount}
+                          rowCount={rowCount}
+                          rowHeight={CARD_HEIGHT + GRID_GAP}
+                          itemData={filteredHorses}
+                        >
+                          {HorseCardCell}
+                        </Grid>
+                      );
+                    }}
+                  </AutoSizer>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto h-full">
                   <HorseTable
                     horses={filteredHorses}
                     onSelect={(horse) => handleViewDetails(horse)}
