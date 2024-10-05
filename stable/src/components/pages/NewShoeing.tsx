@@ -118,7 +118,7 @@ export default function ShoeingForm() {
   useEffect(() => {
     if (horses.length > 0) {
       const uniqueBarns = [
-        ...new Set(horses.map((horse) => horse.barn).filter(Boolean)),
+        ...new Set(horses.map((horse) => horse.barn?.trim()).filter(Boolean)),
       ];
       setExistingBarns(uniqueBarns.sort() as any);
     }
@@ -217,15 +217,17 @@ export default function ShoeingForm() {
 
   function onSubmit(values: z.infer<typeof formSchema>) {
     console.log(values);
-    // Here you would typically send this data to your backend
   }
 
   const handleAddNewHorse = async (values: NewHorseFormValues) => {
+    // Trim the barn name
+    const trimmedBarnName = values.barnName.trim();
+
     // Check if horse with same name and barn already exists
     const existingHorse = horses.find(
       (horse) =>
         horse.name?.toLowerCase() === values.horseName.toLowerCase() &&
-        horse.barn?.toLowerCase() === values.barnName.toLowerCase()
+        horse.barn?.toLowerCase().trim() === trimmedBarnName.toLowerCase()
     );
 
     if (existingHorse) {
@@ -239,10 +241,9 @@ export default function ShoeingForm() {
       .insert([
         {
           Name: values.horseName,
-          "Barn / Trainer": values.barnName,
+          "Barn / Trainer": trimmedBarnName, // Use trimmed barn name
           "Owner Email": values.ownerEmail,
           Customers: values.customerName,
-          "Owner Phone": values.ownerPhone,
         },
       ])
       .select();
@@ -277,11 +278,8 @@ export default function ShoeingForm() {
         barn: horseData[0]["Barn / Trainer"],
       };
 
-      console.log("New horse added:", newHorse);
-
       setHorses((prevHorses) => {
         const updatedHorses = [...prevHorses, newHorse];
-        console.log("Updated horses state:", updatedHorses);
         return updatedHorses;
       });
 
@@ -291,7 +289,6 @@ export default function ShoeingForm() {
 
       setTimeout(() => {
         form.setValue("horseName", newHorse.id);
-        console.log("Form value set to:", newHorse.id);
 
         if (selectRef.current) {
           selectRef.current.click();
@@ -324,12 +321,6 @@ export default function ShoeingForm() {
                   control={form.control}
                   name="horseName"
                   render={({ field }) => {
-                    console.log(
-                      "Rendering horse select. Current value:",
-                      field.value
-                    );
-                    console.log("Current horses state:", horses);
-
                     return (
                       <FormItem>
                         <FormLabel>Horse Name*</FormLabel>
@@ -341,11 +332,7 @@ export default function ShoeingForm() {
                             onOpenChange={setIsDropdownOpen}
                             value={field.value}
                             onValueChange={(value) => {
-                              console.log("Select value changed to:", value);
                               if (isNewHorseAdded.current && value === "") {
-                                console.log(
-                                  "Preventing empty value after new horse addition"
-                                );
                                 isNewHorseAdded.current = false;
                                 return;
                               }
@@ -707,8 +694,13 @@ export default function ShoeingForm() {
                           {...field}
                           placeholder="Enter barn name"
                           onChange={(e) => {
-                            field.onChange(e);
-                            setBarnSearchQuery(e.target.value);
+                            const trimmedValue = e.target.value.trim();
+                            field.onChange(trimmedValue);
+                            setBarnSearchQuery(trimmedValue);
+                          }}
+                          onBlur={(e) => {
+                            const trimmedValue = e.target.value.trim();
+                            field.onChange(trimmedValue);
                           }}
                         />
                         {barnSearchQuery && (
@@ -718,7 +710,7 @@ export default function ShoeingForm() {
                                 key={index}
                                 className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
                                 onClick={() => {
-                                  field.onChange(barn);
+                                  field.onChange(barn.trim());
                                   setBarnSearchQuery("");
                                 }}
                               >
