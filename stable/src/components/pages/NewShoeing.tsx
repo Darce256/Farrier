@@ -32,7 +32,7 @@ import { TbHorseshoe } from "react-icons/tb";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { FixedSizeList as List } from "react-window";
 import { supabase } from "../../lib/supabaseClient";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle, Search, Trash } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -121,6 +121,28 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
     }
   }
 
+  const handleDelete = async (id: string) => {
+    if (
+      window.confirm("Are you sure you want to delete this shoeing record?")
+    ) {
+      try {
+        const { error } = await supabase
+          .from("shoeings")
+          .delete()
+          .eq("id", id)
+          .eq("status", "pending");
+
+        if (error) throw error;
+
+        toast.success("Shoeing record deleted successfully");
+        fetchSubmittedShoeings(); // Refresh the list
+      } catch (error) {
+        console.error("Error deleting shoeing record:", error);
+        toast.error("Failed to delete shoeing record");
+      }
+    }
+  };
+
   const filteredShoeings = shoeings.filter(
     (shoeing: any) =>
       shoeing["Horse Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -206,17 +228,17 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                       </span>
                     </td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                      <Button onClick={() => onEdit(shoeing)} className="mr-2">
+                        <Edit className="h-4 w-4" />
+                        Edit
+                      </Button>
                       {shoeing.status === "pending" && (
                         <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-indigo-600 hover:text-indigo-900"
-                          onClick={() => onEdit(shoeing)}
+                          variant="destructive"
+                          onClick={() => handleDelete(shoeing.id)}
                         >
-                          Edit
-                          <span className="sr-only">
-                            , {shoeing["Horse Name"]}
-                          </span>
+                          <Trash className="h-4 w-4" />
+                          Delete
                         </Button>
                       )}
                     </td>
@@ -434,8 +456,10 @@ export default function ShoeingForm() {
   >(undefined);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
+    console.log("Starting onSubmit with values:", values);
     try {
       if (!user) {
+        console.log("No user found, aborting submission");
         toast.error("You must be logged in to submit a shoeing record.");
         return;
       }
@@ -444,6 +468,7 @@ export default function ShoeingForm() {
         (horse) => horse.id === values.horseName
       );
       if (!selectedHorse) {
+        console.log("Selected horse not found, aborting submission");
         throw new Error("Selected horse not found");
       }
 
@@ -519,8 +544,11 @@ export default function ShoeingForm() {
         "Cost of Hind Add-Ons": hindAddOnsCost,
         "Total Cost": totalCost,
         Description: description,
-        // ... other fields ...
+        status: "pending",
+        user_id: user.id,
       };
+
+      console.log("Prepared shoeingData:", shoeingData);
 
       let data, error;
 
@@ -535,10 +563,21 @@ export default function ShoeingForm() {
           .eq("id", editingShoeing.id)
           .select());
       } else {
-        // ... handle insert case ...
+        console.log("Inserting new shoeing record");
+        ({ data, error } = await supabase
+          .from("shoeings")
+          .insert([shoeingData])
+          .select());
       }
 
+      console.log("Supabase operation result - data:", data, "error:", error);
+
       if (error) throw error;
+
+      if (!data || data.length === 0) {
+        console.log("No data returned from Supabase operation");
+        throw new Error("No data returned from database operation");
+      }
 
       console.log("Shoeing record saved successfully:", data);
       toast.success(
