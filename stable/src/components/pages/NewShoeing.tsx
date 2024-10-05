@@ -98,6 +98,8 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
   const [shoeings, setShoeings] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const { user } = useAuth();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [shoeingToDelete, setShoeingToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -121,15 +123,18 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (
-      window.confirm("Are you sure you want to delete this shoeing record?")
-    ) {
+  const openDeleteConfirm = (id: string) => {
+    setShoeingToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (shoeingToDelete) {
       try {
         const { error } = await supabase
           .from("shoeings")
           .delete()
-          .eq("id", id)
+          .eq("id", shoeingToDelete)
           .eq("status", "pending");
 
         if (error) throw error;
@@ -141,6 +146,8 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
         toast.error("Failed to delete shoeing record");
       }
     }
+    setDeleteConfirmOpen(false);
+    setShoeingToDelete(null);
   };
 
   const filteredShoeings = shoeings.filter(
@@ -228,23 +235,26 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                       </span>
                     </td>
                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <Button
-                        onClick={() => onEdit(shoeing)}
-                        className="mr-2 "
-                        variant="outline"
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                      {shoeing.status === "pending" && (
+                      <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
                         <Button
-                          variant="destructive"
-                          onClick={() => handleDelete(shoeing.id)}
+                          onClick={() => onEdit(shoeing)}
+                          className="w-full sm:w-auto"
+                          variant="outline"
                         >
-                          <Trash className="h-4 w-4 mr-2" />
-                          Delete
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit
                         </Button>
-                      )}
+                        {shoeing.status === "pending" && (
+                          <Button
+                            variant="destructive"
+                            onClick={() => openDeleteConfirm(shoeing.id)}
+                            className="w-full sm:w-auto"
+                          >
+                            <Trash className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -253,6 +263,30 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
           </div>
         </CardContent>
       </Card>
+      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px] mx-auto rounded-lg sm:rounded-lg p-4 sm:p-6 w-[calc(100%-2rem)] sm:w-full">
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete this shoeing record?</p>
+          <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteConfirmOpen(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteConfirm}
+              className="w-full sm:w-auto"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
