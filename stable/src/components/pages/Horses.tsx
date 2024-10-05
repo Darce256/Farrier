@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -46,6 +46,10 @@ import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import toast from "react-hot-toast";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useQuery } from "react-query";
+import React from "react";
+import { FixedSizeList as List } from "react-window";
+import AutoSizer from "react-virtualized-auto-sizer";
 
 interface Shoeing {
   id: string;
@@ -70,9 +74,6 @@ export default function Horses() {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
-  const [horses, setHorses] = useState<Horse[]>([]);
-  const [filteredHorses, setFilteredHorses] = useState<Horse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isFiltering, setIsFiltering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -92,70 +93,85 @@ export default function Horses() {
   const [showAlertsOnly, setShowAlertsOnly] = useState(false);
   const [contentVisible, setContentVisible] = useState(false);
 
+  const {
+    data: fetchedHorses,
+    isLoading,
+    error: queryError,
+  } = useQuery("horses", getHorses);
+
   useEffect(() => {
-    async function fetchHorses() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const fetchedHorses = await getHorses();
-        const sortedHorses = fetchedHorses.sort((a, b) =>
-          (a.Name || "").localeCompare(b.Name || "")
-        );
-        setHorses(sortedHorses);
-      } catch (err) {
-        console.error("Error in fetchHorses:", err);
-        setError("Failed to fetch horses. Please try again later.");
-      } finally {
-        setIsLoading(false);
+    console.log("Fetched horses:", fetchedHorses);
+    console.log("Is loading:", isLoading);
+    console.log("Error:", queryError);
+  }, [fetchedHorses, isLoading, queryError]);
+
+  const sortedHorses = useMemo(
+    () =>
+      fetchedHorses?.sort((a, b) =>
+        (a.Name || "").localeCompare(b.Name || "")
+      ) || [],
+    [fetchedHorses]
+  );
+
+  const uniqueBarnTrainers = useMemo(
+    () =>
+      [
+        ...new Set(
+          sortedHorses.map((horse) => horse["Barn / Trainer"] || "Unknown")
+        ),
+      ]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b)),
+    [sortedHorses]
+  );
+
+  const filteredHorses = useMemo(() => {
+    return sortedHorses.filter((horse) => {
+      if (!horse.Name && !horse["Barn / Trainer"]) {
+        return false;
       }
-    }
-    fetchHorses();
-  }, []);
+
+      const matchesBarnTrainer =
+        !filterBarnTrainer || horse["Barn / Trainer"] === filterBarnTrainer;
+
+      const matchesAlert =
+        !showAlertsOnly || (horse.alert && horse.alert.trim() !== "");
+
+      if (debouncedSearchQuery) {
+        const lowerSearchQuery = debouncedSearchQuery.toLowerCase();
+        return (
+          matchesBarnTrainer &&
+          matchesAlert &&
+          (horse.Name?.toLowerCase().includes(lowerSearchQuery) ||
+            horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery))
+        );
+      }
+
+      return matchesBarnTrainer && matchesAlert;
+    });
+  }, [sortedHorses, debouncedSearchQuery, filterBarnTrainer, showAlertsOnly]);
 
   useEffect(() => {
-    setIsFiltering(true);
-    setContentVisible(false);
+    console.log("Filtered horses:", filteredHorses);
+  }, [filteredHorses]);
 
-    const filterTimer = setTimeout(() => {
-      const filtered = horses.filter((horse) => {
-        if (!horse.Name && !horse["Barn / Trainer"]) {
-          return false;
-        }
+  useEffect(() => {
+    if (queryError) {
+      console.error("Error in fetchHorses:", queryError);
+      setError("Failed to fetch horses. Please try again later.");
+    }
+  }, [queryError]);
 
-        const matchesBarnTrainer =
-          !filterBarnTrainer || horse["Barn / Trainer"] === filterBarnTrainer;
-
-        const matchesAlert =
-          !showAlertsOnly || (horse.alert && horse.alert.trim() !== "");
-
-        if (debouncedSearchQuery) {
-          const lowerSearchQuery = debouncedSearchQuery.toLowerCase();
-          return (
-            matchesBarnTrainer &&
-            matchesAlert &&
-            (horse.Name?.toLowerCase().includes(lowerSearchQuery) ||
-              horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery))
-          );
-        }
-
-        return matchesBarnTrainer && matchesAlert;
-      });
-
-      setFilteredHorses(filtered);
-      setIsFiltering(false);
-
-      // Delay setting content visibility
-      setTimeout(() => setContentVisible(true), 50);
-    }, 300);
-
-    return () => clearTimeout(filterTimer);
-  }, [horses, debouncedSearchQuery, filterBarnTrainer, showAlertsOnly]);
-
-  const uniqueBarnTrainers = [
-    ...new Set(horses.map((horse) => horse["Barn / Trainer"] || "Unknown")),
-  ]
-    .filter(Boolean)
-    .sort((a, b) => a.localeCompare(b));
+  useEffect(() => {
+    if (!isLoading && filteredHorses.length > 0) {
+      console.log("Setting content visible");
+      const timer = setTimeout(() => setContentVisible(true), 300);
+      return () => clearTimeout(timer);
+    } else {
+      console.log("Setting content invisible");
+      setContentVisible(false);
+    }
+  }, [isLoading, filteredHorses]);
 
   const clearFilters = () => {
     setFilterBarnTrainer(null);
@@ -301,6 +317,26 @@ export default function Horses() {
     navigate(`/horses/${horse.id}`);
   };
 
+  const CARD_HEIGHT = 250; // Adjust based on your card's actual height
+  const ROW_HEIGHT = CARD_HEIGHT + 16; // Add some margin
+
+  const HorseCardRow = useCallback(
+    ({ index, style }: { index: number; style: React.CSSProperties }) => {
+      const horse = filteredHorses[index];
+      return (
+        <div style={style}>
+          <HorseCard
+            key={horse.id}
+            horse={horse}
+            onSelect={() => handleViewDetails(horse)}
+            onViewHorse={() => handleViewHorse(horse)}
+          />
+        </div>
+      );
+    },
+    [filteredHorses, handleViewDetails, handleViewHorse]
+  );
+
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center gap-2 align-middle mb-6">
@@ -376,7 +412,7 @@ export default function Horses() {
       </div>
 
       <div className="relative">
-        {(isLoading || isFiltering || !contentVisible) && (
+        {(isLoading || !contentVisible) && (
           <div className="absolute inset-0 z-10">
             <HorsesSkeleton viewMode={isDesktop ? viewMode : "card"} />
           </div>
@@ -389,27 +425,34 @@ export default function Horses() {
         >
           {error ? (
             <div className="text-red-500 text-center">{error}</div>
-          ) : showNoHorsesFound ? (
+          ) : filteredHorses.length === 0 ? (
             <div className="text-center">No horses found.</div>
-          ) : !isDesktop || viewMode === "card" ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
-              {filteredHorses.map((horse) => (
-                <HorseCard
-                  key={horse.id}
-                  horse={horse}
-                  onSelect={() => handleViewDetails(horse)}
-                  onViewHorse={() => handleViewHorse(horse)}
-                />
-              ))}
-            </div>
           ) : (
-            <div className="overflow-x-auto">
-              <HorseTable
-                horses={filteredHorses}
-                onSelect={(horse) => handleViewDetails(horse)}
-                onViewHorse={(horse) => handleViewHorse(horse)}
-              />
-            </div>
+            <>
+              <div className="text-center mb-4">
+                Displaying {filteredHorses.length} horses
+              </div>
+              {!isDesktop || viewMode === "card" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
+                  {filteredHorses.map((horse) => (
+                    <HorseCard
+                      key={horse.id}
+                      horse={horse}
+                      onSelect={() => handleViewDetails(horse)}
+                      onViewHorse={() => handleViewHorse(horse)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <HorseTable
+                    horses={filteredHorses}
+                    onSelect={(horse) => handleViewDetails(horse)}
+                    onViewHorse={(horse) => handleViewHorse(horse)}
+                  />
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -443,120 +486,129 @@ function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
   );
 }
 
-function HorseCard({
-  horse,
-  onSelect,
-  onViewHorse,
-}: {
-  horse: Horse;
-  onSelect: () => void;
-  onViewHorse: () => void;
-}) {
-  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
-  const [alertText, setAlertText] = useState(horse.alert || "");
+const HorseCard = React.memo(
+  ({
+    horse,
+    onSelect,
+    onViewHorse,
+  }: {
+    horse: Horse;
+    onSelect: () => void;
+    onViewHorse: () => void;
+  }) => {
+    console.log("Rendering HorseCard:", horse.Name);
+    const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
+    const [alertText, setAlertText] = useState(horse.alert || "");
 
-  const handleFlagClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setAlertText(horse.alert || "");
-    setIsAlertDialogOpen(true);
-  };
+    const handleFlagClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setAlertText(horse.alert || "");
+      setIsAlertDialogOpen(true);
+    };
 
-  const handleAlertSubmit = async () => {
-    try {
-      const { error } = await supabase
-        .from("horses")
-        .update({ alert: alertText })
-        .eq("id", horse.id);
+    const handleAlertSubmit = async () => {
+      try {
+        const { error } = await supabase
+          .from("horses")
+          .update({ alert: alertText })
+          .eq("id", horse.id);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      toast.success(
-        alertText ? "Alert updated successfully" : "Alert removed successfully"
-      );
-      setIsAlertDialogOpen(false);
-    } catch (error) {
-      console.error("Error updating alert:", error);
-      toast.error("Failed to update alert");
-    }
-  };
+        toast.success(
+          alertText
+            ? "Alert updated successfully"
+            : "Alert removed successfully"
+        );
+        setIsAlertDialogOpen(false);
+      } catch (error) {
+        console.error("Error updating alert:", error);
+        toast.error("Failed to update alert");
+      }
+    };
 
-  return (
-    <>
-      <Card className="border-black/20 shadow-lg flex flex-col h-full">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-black text-2xl">
-              {horse.Name || "Unnamed Horse"}
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleFlagClick}
-              className={`${horse.alert ? "text-red-500" : "text-gray-500"}`}
-            >
-              {horse.alert ? (
-                <IoFlagSharp size={20} />
-              ) : (
-                <IoFlagOutline size={20} />
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col justify-between flex-grow pt-0">
-          <div className="mb-4">
-            {horse["Barn / Trainer"] && (
-              <div className="text-sm">
-                <strong className="font-semibold">Barn / Trainer:</strong>
-                <div className="mt-2">
-                  <Badge variant="default" className="text-xs">
-                    {horse["Barn / Trainer"]}
-                  </Badge>
+    return (
+      <>
+        <Card className="border-black/20 shadow-lg flex flex-col h-full">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-black text-2xl">
+                {horse.Name || "Unnamed Horse"}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleFlagClick}
+                className={`${horse.alert ? "text-red-500" : "text-gray-500"}`}
+              >
+                {horse.alert ? (
+                  <IoFlagSharp size={20} />
+                ) : (
+                  <IoFlagOutline size={20} />
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col justify-between flex-grow pt-0">
+            <div className="mb-4">
+              {horse["Barn / Trainer"] && (
+                <div className="text-sm">
+                  <strong className="font-semibold">Barn / Trainer:</strong>
+                  <div className="mt-2">
+                    <Badge variant="default" className="text-xs">
+                      {horse["Barn / Trainer"]}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-          <div className="mt-auto space-y-2">
-            <Button
-              onClick={onSelect}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              View Details
-            </Button>
-            <Button onClick={onViewHorse} variant="outline" className="w-full">
-              View Horse
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              )}
+            </div>
+            <div className="mt-auto space-y-2">
+              <Button
+                onClick={onSelect}
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                View Details
+              </Button>
+              <Button
+                onClick={onViewHorse}
+                variant="outline"
+                className="w-full"
+              >
+                View Horse
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
 
-      <Dialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {horse.alert ? "Update" : "Add"} Alert for {horse.Name}
-            </DialogTitle>
-          </DialogHeader>
-          <Textarea
-            value={alertText}
-            onChange={(e) => setAlertText(e.target.value)}
-            placeholder="Enter alert details..."
-          />
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsAlertDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleAlertSubmit}>
-              {horse.alert ? "Update" : "Save"} Alert
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
+        <Dialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {horse.alert ? "Update" : "Add"} Alert for {horse.Name}
+              </DialogTitle>
+            </DialogHeader>
+            <Textarea
+              value={alertText}
+              onChange={(e) => setAlertText(e.target.value)}
+              placeholder="Enter alert details..."
+            />
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsAlertDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleAlertSubmit}>
+                {horse.alert ? "Update" : "Save"} Alert
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+);
 
 function HorseTable({
   horses,

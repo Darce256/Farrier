@@ -23,6 +23,7 @@ import { NotificationProvider } from "@/components/Contexts/NotificationProvider
 import Calendar from "./components/pages/Calendar";
 import HorseProfile from "./components/pages/HorseProfile";
 import HorseApprovalPanel from "./components/pages/HorseApprovalPanel";
+import { QueryClient, QueryClientProvider } from "react-query";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
@@ -37,70 +38,73 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
 };
 
 function App() {
+  const queryClient = new QueryClient();
   return (
     <>
       <AuthProvider>
-        <NotificationProvider>
-          <Router>
-            <div className="flex flex-col min-h-screen">
-              <Routes>
-                {/* Public routes */}
-                <Route
-                  path="/"
-                  element={
-                    <>
-                      <Navbar />
-                      <Home />
-                      <Footer />
-                    </>
-                  }
-                />
-                <Route
-                  path="/login"
-                  element={
-                    <>
-                      <Navbar />
-                      <LoginPage />
-                      <Footer />
-                    </>
-                  }
-                />
-                <Route
-                  path="/signup"
-                  element={
-                    <>
-                      <Navbar />
-                      <SignUpPage />
-                      <Footer />
-                    </>
-                  }
-                />
-
-                {/* Protected routes using AuthenticatedLayout */}
-                <Route
-                  element={
-                    <ProtectedRoute>
-                      <AuthenticatedLayout />
-                    </ProtectedRoute>
-                  }
-                >
-                  <Route path="/dashboard" element={<Dashboard />} />
-                  <Route path="/horses" element={<Horses />} />
-                  <Route path="/new-shoeings" element={<NewShoeing />} />
-                  <Route path="/notes" element={<Notes />} />
-                  <Route path="/inbox" element={<Inbox />} />
-                  <Route path="/calendar" element={<Calendar />} />
-                  <Route path="/horses/:id" element={<HorseProfile />} />
+        <QueryClientProvider client={queryClient}>
+          <NotificationProvider>
+            <Router>
+              <div className="flex flex-col min-h-screen">
+                <Routes>
+                  {/* Public routes */}
                   <Route
-                    path="/horse-approval-panel"
-                    element={<HorseApprovalPanel />}
+                    path="/"
+                    element={
+                      <>
+                        <Navbar />
+                        <Home />
+                        <Footer />
+                      </>
+                    }
                   />
-                </Route>
-              </Routes>
-            </div>
-          </Router>
-          <Toaster position="top-right" />
-        </NotificationProvider>
+                  <Route
+                    path="/login"
+                    element={
+                      <>
+                        <Navbar />
+                        <LoginPage />
+                        <Footer />
+                      </>
+                    }
+                  />
+                  <Route
+                    path="/signup"
+                    element={
+                      <>
+                        <Navbar />
+                        <SignUpPage />
+                        <Footer />
+                      </>
+                    }
+                  />
+
+                  {/* Protected routes using AuthenticatedLayout */}
+                  <Route
+                    element={
+                      <ProtectedRoute>
+                        <AuthenticatedLayout />
+                      </ProtectedRoute>
+                    }
+                  >
+                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/horses" element={<Horses />} />
+                    <Route path="/new-shoeings" element={<NewShoeing />} />
+                    <Route path="/notes" element={<Notes />} />
+                    <Route path="/inbox" element={<Inbox />} />
+                    <Route path="/calendar" element={<Calendar />} />
+                    <Route path="/horses/:id" element={<HorseProfile />} />
+                    <Route
+                      path="/horse-approval-panel"
+                      element={<HorseApprovalPanel />}
+                    />
+                  </Route>
+                </Routes>
+              </div>
+            </Router>
+            <Toaster position="top-right" />
+          </NotificationProvider>
+        </QueryClientProvider>
       </AuthProvider>
     </>
   );
