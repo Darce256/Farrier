@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { IoFlagOutline, IoFlagSharp } from "react-icons/io5";
-import { Search, X, ChevronLeft, ChevronRight, Flag } from "lucide-react";
+import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { getHorses, Horse } from "@/lib/horseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,6 +73,7 @@ export default function Horses() {
   const [horses, setHorses] = useState<Horse[]>([]);
   const [filteredHorses, setFilteredHorses] = useState<Horse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFiltering, setIsFiltering] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const [modalState, setModalState] = useState<{
@@ -89,6 +90,7 @@ export default function Horses() {
 
   const [showNoHorsesFound, setShowNoHorsesFound] = useState(false);
   const [showAlertsOnly, setShowAlertsOnly] = useState(false);
+  const [contentVisible, setContentVisible] = useState(false);
 
   useEffect(() => {
     async function fetchHorses() {
@@ -111,43 +113,42 @@ export default function Horses() {
   }, []);
 
   useEffect(() => {
-    if (!isLoading && filteredHorses.length === 0) {
-      const timer = setTimeout(() => {
-        setShowNoHorsesFound(true);
-      }, 500);
+    setIsFiltering(true);
+    setContentVisible(false);
 
-      return () => clearTimeout(timer);
-    } else {
-      setShowNoHorsesFound(false);
-    }
-  }, [isLoading, filteredHorses]);
+    const filterTimer = setTimeout(() => {
+      const filtered = horses.filter((horse) => {
+        if (!horse.Name && !horse["Barn / Trainer"]) {
+          return false;
+        }
 
-  useEffect(() => {
-    const filtered = horses.filter((horse) => {
-      if (!horse.Name && !horse["Barn / Trainer"]) {
-        return false;
-      }
+        const matchesBarnTrainer =
+          !filterBarnTrainer || horse["Barn / Trainer"] === filterBarnTrainer;
 
-      const matchesBarnTrainer =
-        !filterBarnTrainer || horse["Barn / Trainer"] === filterBarnTrainer;
+        const matchesAlert =
+          !showAlertsOnly || (horse.alert && horse.alert.trim() !== "");
 
-      const matchesAlert =
-        !showAlertsOnly || (horse.alert && horse.alert.trim() !== "");
+        if (debouncedSearchQuery) {
+          const lowerSearchQuery = debouncedSearchQuery.toLowerCase();
+          return (
+            matchesBarnTrainer &&
+            matchesAlert &&
+            (horse.Name?.toLowerCase().includes(lowerSearchQuery) ||
+              horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery))
+          );
+        }
 
-      if (debouncedSearchQuery) {
-        const lowerSearchQuery = debouncedSearchQuery.toLowerCase();
-        return (
-          matchesBarnTrainer &&
-          matchesAlert &&
-          (horse.Name?.toLowerCase().includes(lowerSearchQuery) ||
-            horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery))
-        );
-      }
+        return matchesBarnTrainer && matchesAlert;
+      });
 
-      return matchesBarnTrainer && matchesAlert;
-    });
+      setFilteredHorses(filtered);
+      setIsFiltering(false);
 
-    setFilteredHorses(filtered);
+      // Delay setting content visibility
+      setTimeout(() => setContentVisible(true), 50);
+    }, 300);
+
+    return () => clearTimeout(filterTimer);
   }, [horses, debouncedSearchQuery, filterBarnTrainer, showAlertsOnly]);
 
   const uniqueBarnTrainers = [
@@ -374,32 +375,44 @@ export default function Horses() {
         </div>
       </div>
 
-      {isLoading ? (
-        <HorsesSkeleton viewMode={isDesktop ? viewMode : "card"} />
-      ) : error ? (
-        <div className="text-red-500 text-center">{error}</div>
-      ) : showNoHorsesFound ? (
-        <div className="text-center">No horses found.</div>
-      ) : !isDesktop || viewMode === "card" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
-          {filteredHorses.map((horse) => (
-            <HorseCard
-              key={horse.id}
-              horse={horse}
-              onSelect={() => handleViewDetails(horse)}
-              onViewHorse={() => handleViewHorse(horse)}
-            />
-          ))}
+      <div className="relative">
+        {(isLoading || isFiltering || !contentVisible) && (
+          <div className="absolute inset-0 z-10">
+            <HorsesSkeleton viewMode={isDesktop ? viewMode : "card"} />
+          </div>
+        )}
+
+        <div
+          className={`transition-opacity duration-300 ${
+            contentVisible ? "opacity-100" : "opacity-0"
+          }`}
+        >
+          {error ? (
+            <div className="text-red-500 text-center">{error}</div>
+          ) : showNoHorsesFound ? (
+            <div className="text-center">No horses found.</div>
+          ) : !isDesktop || viewMode === "card" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
+              {filteredHorses.map((horse) => (
+                <HorseCard
+                  key={horse.id}
+                  horse={horse}
+                  onSelect={() => handleViewDetails(horse)}
+                  onViewHorse={() => handleViewHorse(horse)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <HorseTable
+                horses={filteredHorses}
+                onSelect={(horse) => handleViewDetails(horse)}
+                onViewHorse={(horse) => handleViewHorse(horse)}
+              />
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <HorseTable
-            horses={filteredHorses}
-            onSelect={(horse) => handleViewDetails(horse)}
-            onViewHorse={(horse) => handleViewHorse(horse)}
-          />
-        </div>
-      )}
+      </div>
 
       {modalState.isOpen && modalState.horse && (
         <HorseDetailsModal
@@ -415,46 +428,18 @@ export default function Horses() {
 }
 
 function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
-  return viewMode === "card" ? (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-      {[...Array(8)].map((_, index) => (
-        <Card key={index} className="border-black/20 shadow-lg animate-pulse">
-          <CardHeader>
-            <div className="h-8 bg-gray-200 rounded w-3/4"></div>
-          </CardHeader>
-          <CardContent>
-            <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-            <div className="h-8 bg-gray-200 rounded w-full mt-4"></div>
-          </CardContent>
-        </Card>
-      ))}
+  return (
+    <div className="w-full h-full">
+      {viewMode === "card" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => (
+            <Skeleton key={i} className="h-[200px] w-full" />
+          ))}
+        </div>
+      ) : (
+        <Skeleton className="h-[400px] w-full" />
+      )}
     </div>
-  ) : (
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-primary text-primary-foreground">
-          <TableHead className="">Name</TableHead>
-          <TableHead className="">Barn / Trainer</TableHead>
-          <TableHead className="">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {[...Array(5)].map((_, index) => (
-          <TableRow key={index}>
-            <TableCell>
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            </TableCell>
-            <TableCell>
-              <div className="h-4 bg-gray-200 rounded w-full"></div>
-            </TableCell>
-            <TableCell>
-              <div className="h-8 bg-gray-200 rounded w-24"></div>
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
   );
 }
 
