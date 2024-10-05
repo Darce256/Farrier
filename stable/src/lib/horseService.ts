@@ -3,8 +3,9 @@ import { supabase } from "./supabaseClient";
 export interface Horse {
   id: string;
   Name: string;
-  Customers: string;
   "Barn / Trainer": string;
+  status: "approved" | "pending" | "rejected";
+  Customers: string;
   "need double check": string | null;
   "Owner Email": string | null;
   History: string | null;
@@ -23,6 +24,7 @@ export async function getHorses(): Promise<Horse[]> {
     const { data, error, count } = await supabase
       .from("horses")
       .select("*", { count: "exact" })
+      .eq("status", "accepted")
       .range(page * pageSize, (page + 1) * pageSize - 1);
 
     if (error) {
