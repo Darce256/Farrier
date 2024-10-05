@@ -10,7 +10,14 @@ import {
 } from "@/components/ui/accordion";
 import { Horse } from "@/lib/horseService";
 import { supabase } from "@/lib/supabaseClient";
-import { House, AlertCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  House,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Flag,
+} from "lucide-react";
 
 interface Shoeing {
   id: string;
@@ -154,7 +161,7 @@ export default function HorseProfile() {
     <div className="container mx-auto p-4">
       <Card className="w-full rounded-lg shadow-md border border-gray-200">
         <CardHeader className="bg-primary p-6 rounded-t-lg">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between gap-4">
             <div className="grid gap-1">
               <h2 className="text-2xl font-bold text-white">{horse.Name}</h2>
               <div className="flex items-center text-white">
@@ -162,13 +169,14 @@ export default function HorseProfile() {
                 <p>{horse["Barn / Trainer"]}</p>
               </div>
             </div>
+            {horse.alert && <Flag className="text-red-500 w-6 h-6" />}
           </div>
         </CardHeader>
         <CardContent className="p-6 sm:p-8">
-          {hasAlert && (
-            <div className="flex items-center text-red-500 mb-4">
-              <AlertCircle className="w-4 h-4 mr-2" />
-              <span>Alert: Critical Information</span>
+          {horse.alert && (
+            <div className="flex items-center bg-red-100 text-red-700 p-4 rounded-md mb-4">
+              <AlertCircle className="w-5 h-5 mr-2 flex-shrink-0" />
+              <span>{horse.alert}</span>
             </div>
           )}
           <Tabs defaultValue="shoeing" className="w-full">

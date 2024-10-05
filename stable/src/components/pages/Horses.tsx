@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -24,7 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { IoFlagOutline, IoFlagSharp } from "react-icons/io5";
+import { Search, X, ChevronLeft, ChevronRight, Flag } from "lucide-react";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { getHorses, Horse } from "@/lib/horseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -41,6 +43,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { createPortal } from "react-dom";
 import { useDebounce } from "use-debounce";
 import { useNavigate } from "react-router-dom";
+import { Textarea } from "@/components/ui/textarea";
+import toast from "react-hot-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Shoeing {
   id: string;
@@ -83,6 +88,7 @@ export default function Horses() {
   });
 
   const [showNoHorsesFound, setShowNoHorsesFound] = useState(false);
+  const [showAlertsOnly, setShowAlertsOnly] = useState(false);
 
   useEffect(() => {
     async function fetchHorses() {
@@ -125,20 +131,24 @@ export default function Horses() {
       const matchesBarnTrainer =
         !filterBarnTrainer || horse["Barn / Trainer"] === filterBarnTrainer;
 
+      const matchesAlert =
+        !showAlertsOnly || (horse.alert && horse.alert.trim() !== "");
+
       if (debouncedSearchQuery) {
         const lowerSearchQuery = debouncedSearchQuery.toLowerCase();
         return (
           matchesBarnTrainer &&
+          matchesAlert &&
           (horse.Name?.toLowerCase().includes(lowerSearchQuery) ||
             horse["Barn / Trainer"]?.toLowerCase().includes(lowerSearchQuery))
         );
       }
 
-      return matchesBarnTrainer;
+      return matchesBarnTrainer && matchesAlert;
     });
 
     setFilteredHorses(filtered);
-  }, [horses, debouncedSearchQuery, filterBarnTrainer]);
+  }, [horses, debouncedSearchQuery, filterBarnTrainer, showAlertsOnly]);
 
   const uniqueBarnTrainers = [
     ...new Set(horses.map((horse) => horse["Barn / Trainer"] || "Unknown")),
@@ -149,6 +159,7 @@ export default function Horses() {
   const clearFilters = () => {
     setFilterBarnTrainer(null);
     setSearchQuery("");
+    setShowAlertsOnly(false);
   };
 
   const openModal = (horse: Horse) => {
@@ -333,6 +344,18 @@ export default function Horses() {
               </Button>
             )}
           </div>
+          <div className="flex items-center">
+            <Checkbox
+              id="alertFilter"
+              checked={showAlertsOnly}
+              onCheckedChange={(checked) =>
+                setShowAlertsOnly(checked as boolean)
+              }
+            />
+            <label htmlFor="alertFilter" className="ml-2 text-sm font-medium">
+              Show horses with alerts only
+            </label>
+          </div>
         </div>
         <div className="flex gap-2">
           {isDesktop && (
@@ -444,39 +467,109 @@ function HorseCard({
   onSelect: () => void;
   onViewHorse: () => void;
 }) {
+  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
+  const [alertText, setAlertText] = useState(horse.alert || "");
+
+  const handleFlagClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAlertText(horse.alert || "");
+    setIsAlertDialogOpen(true);
+  };
+
+  const handleAlertSubmit = async () => {
+    try {
+      const { error } = await supabase
+        .from("horses")
+        .update({ alert: alertText })
+        .eq("id", horse.id);
+
+      if (error) throw error;
+
+      toast.success(
+        alertText ? "Alert updated successfully" : "Alert removed successfully"
+      );
+      setIsAlertDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating alert:", error);
+      toast.error("Failed to update alert");
+    }
+  };
+
   return (
-    <Card className="border-black/20 shadow-lg flex flex-col h-full">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-black text-2xl">
-          {horse.Name || "Unnamed Horse"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col justify-between flex-grow pt-0">
-        <div className="mb-4">
-          {horse["Barn / Trainer"] && (
-            <div className="text-sm">
-              <strong className="font-semibold">Barn / Trainer:</strong>
-              <div className="mt-2">
-                <Badge variant="default" className="text-xs">
-                  {horse["Barn / Trainer"]}
-                </Badge>
+    <>
+      <Card className="border-black/20 shadow-lg flex flex-col h-full">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-black text-2xl">
+              {horse.Name || "Unnamed Horse"}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleFlagClick}
+              className={`${horse.alert ? "text-red-500" : "text-gray-500"}`}
+            >
+              {horse.alert ? (
+                <IoFlagSharp size={20} />
+              ) : (
+                <IoFlagOutline size={20} />
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col justify-between flex-grow pt-0">
+          <div className="mb-4">
+            {horse["Barn / Trainer"] && (
+              <div className="text-sm">
+                <strong className="font-semibold">Barn / Trainer:</strong>
+                <div className="mt-2">
+                  <Badge variant="default" className="text-xs">
+                    {horse["Barn / Trainer"]}
+                  </Badge>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-        <div className="mt-auto space-y-2">
-          <Button
-            onClick={onSelect}
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            View Details
-          </Button>
-          <Button onClick={onViewHorse} variant="outline" className="w-full">
-            View Horse
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+            )}
+          </div>
+          <div className="mt-auto space-y-2">
+            <Button
+              onClick={onSelect}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              View Details
+            </Button>
+            <Button onClick={onViewHorse} variant="outline" className="w-full">
+              View Horse
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Dialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {horse.alert ? "Update" : "Add"} Alert for {horse.Name}
+            </DialogTitle>
+          </DialogHeader>
+          <Textarea
+            value={alertText}
+            onChange={(e) => setAlertText(e.target.value)}
+            placeholder="Enter alert details..."
+          />
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsAlertDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAlertSubmit}>
+              {horse.alert ? "Update" : "Save"} Alert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
