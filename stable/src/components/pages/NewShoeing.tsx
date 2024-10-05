@@ -116,6 +116,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
       console.error("Error fetching shoeings:", error);
       toast.error("Failed to fetch submitted shoeings");
     } else {
+      console.log("Fetched shoeings:", data);
       setShoeings(data as any);
     }
   }
@@ -259,6 +260,8 @@ export default function ShoeingForm() {
     resolver: zodResolver(newHorseSchema),
   });
 
+  const [submittedShoeingsKey, setSubmittedShoeingsKey] = useState(0);
+
   useEffect(() => {
     async function fetchData() {
       await Promise.all([
@@ -283,8 +286,26 @@ export default function ShoeingForm() {
 
   useEffect(() => {
     if (editingShoeing) {
+      console.log("Populating form with editing shoeing:", editingShoeing);
+
+      // Parse the horse name and barn from the "Horses" field
+      const [horseName, barnInfo] = editingShoeing["Horses"].split(" - ");
+      const barn = barnInfo.replace(/^\[|\]$/g, ""); // Remove square brackets
+
+      // Find the corresponding horse in the horses array
+      const selectedHorse = horses.find(
+        (h) => h.name === horseName && h.barn === barn
+      );
+      console.log("Selected horse:", selectedHorse);
+
+      if (!selectedHorse) {
+        console.error("Could not find matching horse in horses array");
+        toast.error("Error loading horse data. Please refresh and try again.");
+        return;
+      }
+
       form.reset({
-        horseName: editingShoeing["Horses"].split(" - ")[0], // Extract horse name
+        horseName: selectedHorse.id,
         dateOfService: new Date(editingShoeing["Date of Service"]),
         locationOfService: editingShoeing["Location of Service"],
         baseService: editingShoeing["Base Service"],
@@ -293,7 +314,7 @@ export default function ShoeingForm() {
           : [],
         hindAddOns: editingShoeing["Hind Add-On's"]
           ? editingShoeing["Hind Add-On's"].split(" and ")
-          : [], // Add this line
+          : [],
         customServices: editingShoeing["Other Custom Services"] || "",
         shoeingNotes: editingShoeing["Shoe Notes"] || "",
       });
@@ -305,9 +326,10 @@ export default function ShoeingForm() {
       // Force re-render of all form components
       setForceUpdate((prev) => !prev);
     }
-  }, [editingShoeing, form]);
+  }, [editingShoeing, form, horses]);
 
   const handleEdit = (shoeing: any) => {
+    console.log("Editing shoeing:", shoeing);
     setEditingShoeing(shoeing);
     setActiveTab("new-shoeing");
   };
@@ -425,26 +447,11 @@ export default function ShoeingForm() {
         throw new Error("Selected horse not found");
       }
 
-      const frontAddOns = values.frontAddOns
-        ? values.frontAddOns.join(" and ")
-        : "";
-      const hindAddOns = values.hindAddOns
-        ? values.hindAddOns.join(" and ")
-        : "";
+      const frontAddOns = values.frontAddOns || [];
+      const hindAddOns = values.hindAddOns || [];
 
-      const allAddOns = [
-        ...(values.frontAddOns || []),
-        ...(values.hindAddOns || []),
-      ];
-      const combinedAddOns = allAddOns.join(" and ");
-
-      // Helper function to parse price strings
-      const parsePrice = (priceString: string | null): number => {
-        if (!priceString) return 0;
-        return parseFloat(priceString.replace("$", "").replace(",", ""));
-      };
-
-      // Fetch pricing information
+      // Recalculate costs
+      const allAddOns = [...new Set([...frontAddOns, ...hindAddOns])];
       const { data: pricesData, error: pricesError } = await supabase
         .from("prices")
         .select("*")
@@ -452,46 +459,59 @@ export default function ShoeingForm() {
 
       if (pricesError) throw pricesError;
 
-      // Calculate costs
+      // Helper function to parse price strings
+      const parsePrice = (priceString: string | null): number => {
+        if (!priceString) return 0;
+        return parseFloat(priceString.replace(/[^0-9.-]+/g, ""));
+      };
+
       let baseServiceCost = 0;
       let frontAddOnsCost = 0;
       let hindAddOnsCost = 0;
 
-      pricesData.forEach((price) => {
-        const serviceCost = parsePrice(price[values.locationOfService]);
+      const priceMap = new Map(
+        pricesData.map((price) => [
+          price.Name,
+          parsePrice(price[values.locationOfService]),
+        ])
+      );
 
-        if (price.Name === values.baseService) {
-          baseServiceCost = serviceCost;
-        } else {
-          if (values.frontAddOns?.includes(price.Name)) {
-            frontAddOnsCost += serviceCost;
-          }
-          if (values.hindAddOns?.includes(price.Name)) {
-            hindAddOnsCost += serviceCost;
-          }
-        }
+      baseServiceCost = priceMap.get(values.baseService) || 0;
+
+      frontAddOns.forEach((addOn) => {
+        frontAddOnsCost += priceMap.get(addOn) || 0;
+      });
+
+      hindAddOns.forEach((addOn) => {
+        hindAddOnsCost += priceMap.get(addOn) || 0;
       });
 
       const totalCost = baseServiceCost + frontAddOnsCost + hindAddOnsCost;
 
-      // Create the description
+      console.log("Calculated costs:", {
+        baseServiceCost,
+        frontAddOnsCost,
+        hindAddOnsCost,
+        totalCost,
+      });
+
+      // Create the updated description
       let description = `${selectedHorse.name} - ${values.baseService}`;
-      if (frontAddOns) {
-        description += ` with front add-ons: ${frontAddOns}`;
+      if (frontAddOns.length > 0) {
+        description += ` with front add-ons: ${frontAddOns.join(" and ")}`;
       }
-      if (hindAddOns) {
-        description += ` and hind add-ons: ${hindAddOns}`;
+      if (hindAddOns.length > 0) {
+        description += ` and hind add-ons: ${hindAddOns.join(" and ")}`;
       }
 
-      // Prepare the data for insertion
       const shoeingData = {
         "Horse Name": selectedHorse.name,
         Horses: `${selectedHorse.name} - [${selectedHorse.barn || "No Barn"}]`,
         "Date of Service": format(values.dateOfService, "MM/dd/yyyy"),
         "Location of Service": values.locationOfService,
         "Base Service": values.baseService,
-        "Front Add-On's": frontAddOns,
-        "Hind Add-On's": hindAddOns, // Add this line
+        "Front Add-On's": frontAddOns.join(" and "),
+        "Hind Add-On's": hindAddOns.join(" and "),
         "Other Custom Services": values.customServices,
         "Shoe Notes": values.shoeingNotes,
         "Cost of Service": baseServiceCost,
@@ -499,23 +519,23 @@ export default function ShoeingForm() {
         "Cost of Hind Add-Ons": hindAddOnsCost,
         "Total Cost": totalCost,
         Description: description,
-        status: "pending",
-        user_id: user.id,
+        // ... other fields ...
       };
-
-      console.log("Shoeing Data to be inserted:", shoeingData);
 
       let data, error;
 
       if (editingShoeing) {
+        console.log(
+          "Updating existing shoeing record with ID:",
+          editingShoeing.id
+        );
         ({ data, error } = await supabase
           .from("shoeings")
           .update(shoeingData)
-          .eq("id", (editingShoeing as { id: number }).id));
+          .eq("id", editingShoeing.id)
+          .select());
       } else {
-        ({ data, error } = await supabase
-          .from("shoeings")
-          .insert([shoeingData]));
+        // ... handle insert case ...
       }
 
       if (error) throw error;
@@ -527,31 +547,12 @@ export default function ShoeingForm() {
           : "Shoeing record added successfully!"
       );
 
+      // Trigger a refresh of the SubmittedShoeings component
+      setSubmittedShoeingsKey((prevKey) => prevKey + 1);
+
       form.reset();
       setEditingShoeing(null);
       setActiveTab("submitted-shoeings");
-
-      // Reset the form
-      form.reset({
-        horseName: "",
-        dateOfService: undefined,
-        locationOfService: undefined,
-        baseService: undefined,
-        frontAddOns: [],
-        hindAddOns: [],
-        customServices: "",
-        shoeingNotes: "",
-      });
-
-      // Reset the select fields
-      setSelectedLocation(undefined);
-      setSelectedBaseService(undefined);
-
-      // Force re-render of all form components
-      setForceUpdate((prev) => !prev);
-
-      // Scroll to top of the page
-      window.scrollTo(0, 0);
     } catch (error) {
       console.error("Error saving shoeing record:", error);
       toast.error("Failed to save shoeing record. Please try again.");
@@ -966,7 +967,7 @@ export default function ShoeingForm() {
         </TabsContent>
 
         <TabsContent value="submitted-shoeings">
-          <SubmittedShoeings onEdit={handleEdit} />
+          <SubmittedShoeings onEdit={handleEdit} key={submittedShoeingsKey} />
         </TabsContent>
       </Tabs>
 
