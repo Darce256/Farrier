@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/dialog"; // Shadcn UI Dialog components
 import toast, { Toaster } from "react-hot-toast";
 import { MultiSelect } from "@/components/ui/multi-select";
+import { useAuth } from "@/components/Contexts/AuthProvider"; // Adjust the import path as necessary
 
 const formSchema = z.object({
   horseName: z.string({
@@ -106,6 +107,8 @@ export default function ShoeingForm() {
   const newHorseForm = useForm<NewHorseFormValues>({
     resolver: zodResolver(newHorseSchema),
   });
+
+  const { user } = useAuth(); // Use the existing useAuth hook
 
   useEffect(() => {
     async function fetchData() {
@@ -230,6 +233,11 @@ export default function ShoeingForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
+      if (!user) {
+        toast.error("You must be logged in to submit a shoeing record.");
+        return;
+      }
+
       const selectedHorse = horses.find(
         (horse) => horse.id === values.horseName
       );
@@ -304,6 +312,7 @@ export default function ShoeingForm() {
         "Total Cost": totalCost,
         Description: description,
         status: "pending",
+        user_id: user.id,
       };
 
       console.log("Shoeing Data to be inserted:", shoeingData);
