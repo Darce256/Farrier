@@ -92,6 +92,7 @@ export default function Calendar() {
   const [locationColors, setLocationColors] = useState<Record<number, string>>(
     {}
   );
+  const [showCheckboxes, setShowCheckboxes] = useState(false);
   const { user } = useAuth();
 
   const fetchShoeings = async (startDate: Date, endDate: Date) => {
@@ -369,6 +370,29 @@ export default function Calendar() {
     );
   };
 
+  const toggleDuplication = () => {
+    if (showCheckboxes) {
+      // If checkboxes are shown, open the duplicate dialog
+      if (selectedShoeings.length > 0) {
+        setIsDuplicateDialogOpen(true);
+      } else {
+        toast.error("Please select at least one shoeing to duplicate.");
+      }
+    } else {
+      // If checkboxes are not shown, show them
+      setShowCheckboxes(true);
+    }
+  };
+
+  const cancelDuplication = () => {
+    resetDuplicationState();
+  };
+
+  const resetDuplicationState = () => {
+    setShowCheckboxes(false);
+    setSelectedShoeings([]);
+  };
+
   const handleDuplicateShoeings = async () => {
     if (!duplicateDate || selectedShoeings.length === 0 || !user) return;
 
@@ -438,7 +462,7 @@ export default function Calendar() {
       toast.error(`Failed to duplicate ${errorCount} shoeing(s).`);
     }
 
-    setSelectedShoeings([]);
+    resetDuplicationState();
     setIsDuplicateDialogOpen(false);
     setDuplicateDate(undefined);
 
@@ -452,115 +476,96 @@ export default function Calendar() {
 
     return (
       <div className="col-span-7 bg-white border border-gray-200 rounded-md h-full flex flex-col">
-        <h3
-          className={`text-base sm:text-lg font-semibold p-2 sm:p-4 ${
-            isToday(date) ? "text-primary" : ""
-          }`}
-        >
-          {date.toLocaleDateString(undefined, {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </h3>
+        <div className="flex justify-between items-center p-2 sm:p-4">
+          <h3
+            className={`text-base sm:text-lg font-semibold ${
+              isToday(date) ? "text-primary" : ""
+            }`}
+          >
+            {date.toLocaleDateString(undefined, {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </h3>
+          <div className="flex space-x-2">
+            {showCheckboxes && (
+              <Button onClick={cancelDuplication} variant="outline">
+                Cancel
+              </Button>
+            )}
+            <Button onClick={toggleDuplication}>
+              {showCheckboxes ? "Confirm Duplication" : "Duplicate Shoeings"}
+            </Button>
+          </div>
+        </div>
         <div className="flex-grow overflow-y-auto no-scrollbar p-2 sm:p-4">
           <div className="space-y-2 h-[calc(100vh-12rem)] overflow-y-auto no-scrollbar">
             {shoeingsForDate.length > 0 ? (
-              <>
-                <Accordion type="single" collapsible className="w-full">
-                  {shoeingsForDate.map((shoeing, index) => {
-                    const bgColor = getLocationColor(
-                      shoeing["Location of Service"]
-                    );
-                    const [horseName, barnTrainer] =
-                      shoeing.Horses.split(" - ");
-                    return (
-                      <AccordionItem
-                        key={shoeing.id}
-                        value={`item-${index}`}
-                        style={{ backgroundColor: bgColor }}
-                        className="rounded-md mb-2"
-                      >
-                        <div className="flex items-center">
-                          <Checkbox
-                            checked={selectedShoeings.includes(shoeing.id)}
-                            onCheckedChange={() =>
-                              handleShoeingSelection(shoeing.id)
-                            }
-                            className="ml-2 mr-2"
-                          />
-                          <AccordionTrigger className="font-semibold text-lg flex-grow">
-                            <div className="flex flex-col items-start w-full text-left">
-                              <span className="text-lg">{horseName}</span>
-                              <div className="flex items-center text-sm font-normal">
-                                <House className="w-3 h-3 mr-1 flex-shrink-0" />
-                                <span className="truncate">
-                                  {barnTrainer?.replace(/[\[\]]/g, "").trim() ||
-                                    ""}
-                                </span>
-                              </div>
-                              <span className="text-xs mt-1">
-                                {shoeing["Location of Service"]}
+              <Accordion type="single" collapsible className="w-full">
+                {shoeingsForDate.map((shoeing, index) => {
+                  const bgColor = getLocationColor(
+                    shoeing["Location of Service"]
+                  );
+                  const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
+                  return (
+                    <AccordionItem
+                      key={shoeing.id}
+                      value={`item-${index}`}
+                      style={{ backgroundColor: bgColor }}
+                      className="rounded-md mb-2"
+                    >
+                      <AccordionTrigger className="w-full">
+                        <div className="flex items-center w-full">
+                          {showCheckboxes && (
+                            <Checkbox
+                              checked={selectedShoeings.includes(shoeing.id)}
+                              onCheckedChange={() =>
+                                handleShoeingSelection(shoeing.id)
+                              }
+                              className="mr-0 flex-shrink-0 ml-2 text-white border-black bg-transparent "
+                            />
+                          )}
+                          <div className="flex-grow text-left p-2">
+                            <span className="text-lg font-semibold pl-2">
+                              {horseName}
+                            </span>
+                            <div className="flex items-center text-sm pl-2">
+                              <House className="w-3 h-3 mr-1 flex-shrink-0" />
+                              <span className="truncate">
+                                {barnTrainer?.replace(/[\[\]]/g, "").trim() ||
+                                  ""}
                               </span>
                             </div>
-                          </AccordionTrigger>
+                            <span className="text-xs mt-1 block pl-2">
+                              {shoeing["Location of Service"]}
+                            </span>
+                          </div>
                         </div>
-                        <AccordionContent className="px-4 py-2">
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 py-2">
+                        <p>
+                          <strong>Base Service:</strong>{" "}
+                          {shoeing["Base Service"]}
+                        </p>
+                        {shoeing["Front Add-On's"] && (
                           <p>
-                            <strong>Base Service:</strong>{" "}
-                            {shoeing["Base Service"]}
+                            <strong>Front Add-On's:</strong>{" "}
+                            {shoeing["Front Add-On's"]}
                           </p>
-                          {shoeing["Front Add-On's"] && (
-                            <p>
-                              <strong>Front Add-On's:</strong>{" "}
-                              {shoeing["Front Add-On's"]}
-                            </p>
-                          )}
-                          {shoeing["Other Custom Services"] && (
-                            <p>
-                              <strong>Other Custom Services:</strong>{" "}
-                              {shoeing["Other Custom Services"]}
-                            </p>
-                          )}
-                        </AccordionContent>
-                      </AccordionItem>
-                    );
-                  })}
-                </Accordion>
-                {selectedShoeings.length > 0 && (
-                  <Dialog
-                    open={isDuplicateDialogOpen}
-                    onOpenChange={setIsDuplicateDialogOpen}
-                  >
-                    <DialogTrigger asChild>
-                      <Button className="mt-4">
-                        Duplicate Selected ({selectedShoeings.length})
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Duplicate Shoeings</DialogTitle>
-                      </DialogHeader>
-                      <div className="py-4">
-                        <CalendarPicker
-                          mode="single"
-                          selected={duplicateDate}
-                          onSelect={setDuplicateDate}
-                          disabled={(date) => date <= new Date()}
-                          initialFocus
-                        />
-                      </div>
-                      <Button
-                        onClick={handleDuplicateShoeings}
-                        disabled={!duplicateDate}
-                      >
-                        Duplicate
-                      </Button>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </>
+                        )}
+                        {shoeing["Other Custom Services"] && (
+                          <p>
+                            <strong>Other Custom Services:</strong>{" "}
+                            {shoeing["Other Custom Services"]}
+                          </p>
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
             ) : (
               <p>No shoeings for this day.</p>
             )}
@@ -677,6 +682,28 @@ export default function Calendar() {
           </div>
         </div>
       </CardContent>
+      <Dialog
+        open={isDuplicateDialogOpen}
+        onOpenChange={setIsDuplicateDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicate Shoeings</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <CalendarPicker
+              mode="single"
+              selected={duplicateDate}
+              onSelect={setDuplicateDate}
+              disabled={(date) => date <= new Date()}
+              initialFocus
+            />
+          </div>
+          <Button onClick={handleDuplicateShoeings} disabled={!duplicateDate}>
+            Duplicate
+          </Button>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
