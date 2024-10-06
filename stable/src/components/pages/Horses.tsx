@@ -74,9 +74,7 @@ export default function Horses() {
   );
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery] = useDebounce(searchQuery, 300);
-  const [isFiltering, setIsFiltering] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [modalState, setModalState] = useState<{
     isOpen: boolean;
     horse: Horse | null;
@@ -89,7 +87,6 @@ export default function Horses() {
     lightboxIndex: null,
   });
 
-  const [showNoHorsesFound, setShowNoHorsesFound] = useState(false);
   const [showAlertsOnly, setShowAlertsOnly] = useState(false);
   const [contentVisible, setContentVisible] = useState(false);
 
@@ -330,30 +327,51 @@ export default function Horses() {
     navigate(`/horses/${horse.id}`);
   };
 
-  const CARD_WIDTH = 300; // Adjust based on your card's actual width
-  const CARD_HEIGHT = 250; // Adjust based on your card's actual height
-  const GRID_GAP = 16; // Gap between cards
+  const isTablet = useMediaQuery("(min-width: 640px)");
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+  const MIN_CARD_WIDTH = 250;
+  const MAX_CARD_WIDTH = 300;
+  const CARD_ASPECT_RATIO = 0.95; // Adjust if needed
+  const GRID_GAP = 16;
+
+  const getColumnCount = (width: number) => {
+    const maxColumns = Math.floor(width / (MIN_CARD_WIDTH + GRID_GAP));
+    return Math.max(1, Math.min(maxColumns, 4)); // Limit to max 4 columns
+  };
 
   const HorseCardCell = useCallback(
     ({
       columnIndex,
       rowIndex,
       style,
+      data,
     }: {
       columnIndex: number;
       rowIndex: number;
       style: React.CSSProperties;
+      data: {
+        horses: Horse[];
+        columnCount: number;
+        cardWidth: number;
+      };
     }) => {
-      const index = rowIndex * 4 + columnIndex;
-      if (index >= filteredHorses.length) return null;
-      const horse = filteredHorses[index];
+      const { horses, columnCount, cardWidth } = data;
+      const index = rowIndex * columnCount + columnIndex;
+      if (index >= horses.length) return null;
+      const horse = horses[index];
+
+      const cardHeight = cardWidth * CARD_ASPECT_RATIO;
+
       return (
         <div
           style={{
             ...style,
-            width: CARD_WIDTH,
-            height: CARD_HEIGHT,
+            width: cardWidth,
+            height: cardHeight,
             padding: GRID_GAP / 2,
+            left: columnCount === 1 ? "50%" : style.left,
+            transform: columnCount === 1 ? "translateX(-50%)" : "none",
           }}
         >
           <HorseCard
@@ -366,7 +384,7 @@ export default function Horses() {
         </div>
       );
     },
-    [filteredHorses, handleViewDetails, handleViewHorse, handleAlertUpdate]
+    [handleViewDetails, handleViewHorse, handleAlertUpdate]
   );
 
   return (
@@ -465,19 +483,32 @@ export default function Horses() {
                 <div className="h-full">
                   <AutoSizer>
                     {({ height, width }) => {
-                      const columnCount = 4;
+                      const columnCount = getColumnCount(width);
+                      const cardWidth = Math.min(
+                        MAX_CARD_WIDTH,
+                        Math.max(
+                          MIN_CARD_WIDTH,
+                          (width - (columnCount + 1) * GRID_GAP) / columnCount
+                        )
+                      );
+                      const cardHeight = cardWidth * CARD_ASPECT_RATIO;
                       const rowCount = Math.ceil(
                         filteredHorses.length / columnCount
                       );
+
                       return (
                         <Grid
                           height={height}
                           width={width}
                           columnCount={columnCount}
-                          columnWidth={width / columnCount}
+                          columnWidth={cardWidth + GRID_GAP}
                           rowCount={rowCount}
-                          rowHeight={CARD_HEIGHT + GRID_GAP}
-                          itemData={filteredHorses}
+                          rowHeight={cardHeight + GRID_GAP}
+                          itemData={{
+                            horses: filteredHorses,
+                            columnCount,
+                            cardWidth,
+                          }}
                         >
                           {HorseCardCell}
                         </Grid>
@@ -528,18 +559,15 @@ function HorsesSkeleton({ viewMode }: { viewMode: "card" | "table" }) {
   );
 }
 
+interface HorseCardProps {
+  horse: Horse;
+  onSelect: () => void;
+  onViewHorse: () => void;
+  onAlertUpdate: (horseId: string, newAlertText: string) => void;
+}
+
 const HorseCard = React.memo(
-  ({
-    horse,
-    onSelect,
-    onViewHorse,
-    onAlertUpdate,
-  }: {
-    horse: Horse;
-    onSelect: () => void;
-    onViewHorse: () => void;
-    onAlertUpdate: (horseId: string, newAlertText: string) => void;
-  }) => {
+  ({ horse, onSelect, onViewHorse, onAlertUpdate }: HorseCardProps) => {
     console.log("Rendering HorseCard:", horse.Name);
     const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
     const [alertText, setAlertText] = useState(horse.alert || "");
@@ -573,84 +601,56 @@ const HorseCard = React.memo(
     };
 
     return (
-      <>
-        <Card className="border-black/20 shadow-lg flex flex-col h-full">
-          <CardHeader className="pb-2">
-            <div className="flex justify-between items-center">
-              <CardTitle className="text-black text-2xl">
-                {horse.Name || "Unnamed Horse"}
-              </CardTitle>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleFlagClick}
-                className={`${horse.alert ? "text-red-500" : "text-gray-500"}`}
-              >
-                {horse.alert ? (
-                  <IoFlagSharp size={20} />
-                ) : (
-                  <IoFlagOutline size={20} />
-                )}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="flex flex-col justify-between flex-grow pt-0">
-            <div className="mb-4">
-              {horse["Barn / Trainer"] && (
-                <div className="text-sm">
-                  <strong className="font-semibold">Barn / Trainer:</strong>
-                  <div className="mt-2">
-                    <Badge variant="default" className="text-xs">
-                      {horse["Barn / Trainer"]}
-                    </Badge>
-                  </div>
-                </div>
+      <Card className="border-black/20 shadow-lg flex flex-col h-full">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-black text-base sm:text-lg md:text-xl truncate">
+              {horse.Name || "Unnamed Horse"}
+            </CardTitle>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleFlagClick}
+              className={`${horse.alert ? "text-red-500" : "text-gray-500"}`}
+            >
+              {horse.alert ? (
+                <IoFlagSharp size={20} />
+              ) : (
+                <IoFlagOutline size={20} />
               )}
-            </div>
-            <div className="mt-auto space-y-2">
-              <Button
-                onClick={onSelect}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                View Details
-              </Button>
-              <Button
-                onClick={onViewHorse}
-                variant="outline"
-                className="w-full"
-              >
-                View Horse
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Dialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>
-                {horse.alert ? "Update" : "Add"} Alert for {horse.Name}
-              </DialogTitle>
-            </DialogHeader>
-            <Textarea
-              value={alertText}
-              onChange={(e) => setAlertText(e.target.value)}
-              placeholder="Enter alert details..."
-            />
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsAlertDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button onClick={handleAlertSubmit}>
-                {horse.alert ? "Update" : "Save"} Alert
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </>
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="flex flex-col justify-between flex-grow pt-0">
+          <div className="mb-4">
+            {horse["Barn / Trainer"] && (
+              <div className="text-sm">
+                <strong className="font-semibold">Barn / Trainer:</strong>
+                <div className="mt-2">
+                  <Badge variant="default" className="text-xs">
+                    {horse["Barn / Trainer"]}
+                  </Badge>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="mt-auto space-y-2">
+            <Button
+              onClick={onSelect}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm"
+            >
+              View Details
+            </Button>
+            <Button
+              onClick={onViewHorse}
+              variant="outline"
+              className="w-full text-xs sm:text-sm"
+            >
+              View Horse
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 );
