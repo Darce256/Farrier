@@ -46,7 +46,7 @@ import { useNavigate } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import toast from "react-hot-toast";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useQuery } from "react-query";
+import { useQuery, useQueryClient } from "react-query";
 import React from "react";
 import { FixedSizeGrid as Grid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
@@ -98,6 +98,20 @@ export default function Horses() {
     isLoading,
     error: queryError,
   } = useQuery("horses", getHorses);
+
+  const queryClient = useQueryClient();
+
+  const handleAlertUpdate = useCallback(
+    (horseId: string, newAlertText: string) => {
+      queryClient.setQueryData<Horse[]>("horses", (oldData: any) => {
+        if (!oldData) return oldData;
+        return oldData.map((horse: Horse) =>
+          horse.id === horseId ? { ...horse, alert: newAlertText } : horse
+        );
+      });
+    },
+    [queryClient]
+  );
 
   useEffect(() => {
     console.log("Fetched horses:", fetchedHorses);
@@ -347,11 +361,12 @@ export default function Horses() {
             horse={horse}
             onSelect={() => handleViewDetails(horse)}
             onViewHorse={() => handleViewHorse(horse)}
+            onAlertUpdate={handleAlertUpdate}
           />
         </div>
       );
     },
-    [filteredHorses, handleViewDetails, handleViewHorse]
+    [filteredHorses, handleViewDetails, handleViewHorse, handleAlertUpdate]
   );
 
   return (
@@ -518,10 +533,12 @@ const HorseCard = React.memo(
     horse,
     onSelect,
     onViewHorse,
+    onAlertUpdate,
   }: {
     horse: Horse;
     onSelect: () => void;
     onViewHorse: () => void;
+    onAlertUpdate: (horseId: string, newAlertText: string) => void;
   }) => {
     console.log("Rendering HorseCard:", horse.Name);
     const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
@@ -542,6 +559,7 @@ const HorseCard = React.memo(
 
         if (error) throw error;
 
+        onAlertUpdate(horse.id, alertText);
         toast.success(
           alertText
             ? "Alert updated successfully"
