@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom"; // Add useLocation
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { LiaHorseHeadSolid } from "react-icons/lia";
@@ -25,6 +25,7 @@ import {
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation(); // Add this line
 
   const navItems = [
     { name: "Dashboard", icon: StoreIcon, href: "/dashboard" },
@@ -41,6 +42,9 @@ export default function Sidebar() {
     href: "/settings",
   };
 
+  // Function to determine if a nav item is active
+  const isActive = (href: string) => location.pathname === href;
+
   return (
     <>
       {/* Desktop Sidebar */}
@@ -52,7 +56,11 @@ export default function Sidebar() {
                 <TooltipTrigger asChild>
                   <Link
                     to={item.href}
-                    className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                      isActive(item.href)
+                        ? "bg-primary text-white"
+                        : "bg-accent text-accent-foreground hover:text-foreground"
+                    } md:h-8 md:w-8`}
                   >
                     <item.icon className="h-5 w-5" />
                     <span className="sr-only">{item.name}</span>
