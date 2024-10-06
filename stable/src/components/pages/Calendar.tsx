@@ -33,6 +33,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import toast from "react-hot-toast";
+import { useAuth } from "@/components/Contexts/AuthProvider"; // Adjust the import path as necessary
+
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
   "January",
@@ -90,6 +92,7 @@ export default function Calendar() {
   const [locationColors, setLocationColors] = useState<Record<number, string>>(
     {}
   );
+  const { user } = useAuth();
 
   const fetchShoeings = async (startDate: Date, endDate: Date) => {
     console.log("Fetching shoeings for date range:", startDate, endDate);
@@ -367,11 +370,12 @@ export default function Calendar() {
   };
 
   const handleDuplicateShoeings = async () => {
-    if (!duplicateDate || selectedShoeings.length === 0) return;
+    if (!duplicateDate || selectedShoeings.length === 0 || !user) return;
 
     console.log("Starting duplication process");
     console.log("Selected shoeings:", selectedShoeings);
     console.log("Duplicate date:", duplicateDate);
+    console.log("Current user ID:", user.id);
 
     let successCount = 0;
     let errorCount = 0;
@@ -386,11 +390,11 @@ export default function Calendar() {
       const newShoeingDate = format(duplicateDate, "M/d/yyyy");
       console.log("New shoeing date:", newShoeingDate);
 
-      // Create a new object without the 'id' field and set 'Invoice' to null
       const {
         id,
         Invoice,
         "1. Invoice": firstInvoice,
+        user_id,
         ...newShoeingWithoutId
       } = shoeing as any;
 
@@ -401,6 +405,7 @@ export default function Calendar() {
         Invoice: null,
         "1. Invoice": null,
         "Date Sent": null,
+        user_id: user.id, // Set the user_id to the current user's ID
       };
 
       console.log("Attempting to insert new shoeing:", newShoeing);
