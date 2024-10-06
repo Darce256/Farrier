@@ -601,56 +601,80 @@ const HorseCard = React.memo(
     };
 
     return (
-      <Card className="border-black/20 shadow-lg flex flex-col h-full">
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-black text-base sm:text-lg md:text-xl truncate">
-              {horse.Name || "Unnamed Horse"}
-            </CardTitle>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleFlagClick}
-              className={`${horse.alert ? "text-red-500" : "text-gray-500"}`}
-            >
-              {horse.alert ? (
-                <IoFlagSharp size={20} />
-              ) : (
-                <IoFlagOutline size={20} />
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="flex flex-col justify-between flex-grow pt-0">
-          <div className="mb-4">
-            {horse["Barn / Trainer"] && (
-              <div className="text-sm">
-                <strong className="font-semibold">Barn / Trainer:</strong>
-                <div className="mt-2">
-                  <Badge variant="default" className="text-xs">
-                    {horse["Barn / Trainer"]}
-                  </Badge>
+      <>
+        <Card className="border-black/20 shadow-lg flex flex-col h-full">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-black text-base sm:text-lg md:text-xl truncate">
+                {horse.Name || "Unnamed Horse"}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleFlagClick}
+                className={`${horse.alert ? "text-red-500" : "text-gray-500"}`}
+              >
+                {horse.alert ? (
+                  <IoFlagSharp size={20} />
+                ) : (
+                  <IoFlagOutline size={20} />
+                )}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col justify-between flex-grow pt-0">
+            <div className="mb-4">
+              {horse["Barn / Trainer"] && (
+                <div className="text-sm">
+                  <strong className="font-semibold">Barn / Trainer:</strong>
+                  <div className="mt-2">
+                    <Badge variant="default" className="text-xs">
+                      {horse["Barn / Trainer"]}
+                    </Badge>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
-          <div className="mt-auto space-y-2">
-            <Button
-              onClick={onSelect}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm"
-            >
-              View Details
-            </Button>
-            <Button
-              onClick={onViewHorse}
-              variant="outline"
-              className="w-full text-xs sm:text-sm"
-            >
-              View Horse
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+              )}
+            </div>
+            <div className="mt-auto space-y-2">
+              <Button
+                onClick={onSelect}
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm"
+              >
+                View Details
+              </Button>
+              <Button
+                onClick={onViewHorse}
+                variant="outline"
+                className="w-full text-xs sm:text-sm"
+              >
+                View Horse
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <Dialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Set Alert for {horse.Name}</DialogTitle>
+            </DialogHeader>
+            <Textarea
+              value={alertText}
+              onChange={(e) => setAlertText(e.target.value)}
+              placeholder="Enter alert message..."
+              className="min-h-[100px]"
+            />
+            <DialogFooter>
+              <Button
+                onClick={() => setIsAlertDialogOpen(false)}
+                variant="outline"
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleAlertSubmit}>Save Alert</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </>
     );
   }
 );

@@ -1,6 +1,7 @@
 import { supabase } from "./supabaseClient";
 
 export interface Horse {
+  alert: any;
   id: string;
   Name: string;
   "Barn / Trainer": string;
