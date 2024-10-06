@@ -293,9 +293,7 @@ export default function AuthenticatedHeader() {
                 </span>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Settings</DropdownMenuItem>
-            <DropdownMenuItem>Support</DropdownMenuItem>
+
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout}>Logout</DropdownMenuItem>
           </DropdownMenuContent>
