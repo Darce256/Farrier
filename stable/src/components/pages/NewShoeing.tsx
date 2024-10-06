@@ -176,93 +176,137 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
           size={20}
         />
       </div>
-      <Card className="shadow-sm">
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-full divide-y divide-gray-300">
-              <thead>
-                <tr>
-                  <th
-                    scope="col"
-                    className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+      <div className="space-y-4 sm:hidden">
+        {filteredShoeings.map((shoeing: any) => (
+          <Card key={shoeing.id} className="mx-4">
+            <CardContent className="pt-4">
+              <div className="flex justify-between items-start mb-2">
+                <div>
+                  <p className="text-lg font-bold text-black mb-1">
+                    {shoeing["Horse Name"]}
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    {new Date(shoeing["Date of Service"]).toLocaleDateString()}
+                  </p>
+                </div>
+                <span
+                  className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                    shoeing.status === "completed"
+                      ? "bg-green-100 text-green-800"
+                      : shoeing.status === "cancelled"
+                      ? "bg-red-100 text-red-800"
+                      : "bg-yellow-100 text-yellow-800"
+                  }`}
+                >
+                  {shoeing.status.charAt(0).toUpperCase() +
+                    shoeing.status.slice(1)}
+                </span>
+              </div>
+              <p className="text-sm">{shoeing["Base Service"]}</p>
+              <p className="text-sm">{shoeing["Location of Service"]}</p>
+              <div className="mt-4 flex justify-end space-x-2">
+                <Button
+                  onClick={() => onEdit(shoeing)}
+                  className="w-1/2"
+                  variant="outline"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Button>
+                {shoeing.status === "pending" && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => openDeleteConfirm(shoeing.id)}
+                    className="w-1/2"
                   >
-                    Date
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+                    <Trash className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+      <div className="hidden sm:block overflow-x-auto">
+        <table className="w-full min-w-full divide-y divide-gray-300">
+          <thead className="bg-gray-50">
+            <tr>
+              <th
+                scope="col"
+                className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6"
+              >
+                Date
+              </th>
+              <th
+                scope="col"
+                className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+              >
+                Details
+              </th>
+              <th
+                scope="col"
+                className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+              >
+                Status
+              </th>
+              <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
+                <span className="sr-only">Actions</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200 bg-white">
+            {filteredShoeings.map((shoeing: any) => (
+              <tr key={shoeing.id}>
+                <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                  {new Date(shoeing["Date of Service"]).toLocaleDateString()}
+                </td>
+                <td className="px-3 py-4 text-sm text-gray-500">
+                  <div className="font-medium">{shoeing["Horse Name"]}</div>
+                  <div>{shoeing["Base Service"]}</div>
+                  <div>{shoeing["Location of Service"]}</div>
+                </td>
+                <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                  <span
+                    className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                      shoeing.status === "completed"
+                        ? "bg-green-100 text-green-800"
+                        : shoeing.status === "cancelled"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
                   >
-                    Details
-                  </th>
-                  <th
-                    scope="col"
-                    className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
-                  >
-                    Status
-                  </th>
-                  <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                    <span className="sr-only">Edit</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {filteredShoeings.map((shoeing: any) => (
-                  <tr key={shoeing.id}>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                      {new Date(
-                        shoeing["Date of Service"]
-                      ).toLocaleDateString()}
-                    </td>
-                    <td className="px-3 py-4 text-sm text-black">
-                      <div className="font-medium font-semibold">
-                        {shoeing["Horse Name"]}
-                      </div>
-                      <div>{shoeing["Base Service"]}</div>
-                      <div>{shoeing["Location of Service"]}</div>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                      <span
-                        className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                          shoeing.status === "completed"
-                            ? "bg-green-100 text-green-800"
-                            : shoeing.status === "cancelled"
-                            ? "bg-red-100 text-red-800"
-                            : "bg-yellow-100 text-yellow-800"
-                        }`}
+                    {shoeing.status.charAt(0).toUpperCase() +
+                      shoeing.status.slice(1)}
+                  </span>
+                </td>
+                <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                  <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
+                    <Button
+                      onClick={() => onEdit(shoeing)}
+                      className="w-full sm:w-auto"
+                      variant="outline"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Button>
+                    {shoeing.status === "pending" && (
+                      <Button
+                        variant="destructive"
+                        onClick={() => openDeleteConfirm(shoeing.id)}
+                        className="w-full sm:w-auto"
                       >
-                        {shoeing.status.charAt(0).toUpperCase() +
-                          shoeing.status.slice(1)}
-                      </span>
-                    </td>
-                    <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                      <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
-                        <Button
-                          onClick={() => onEdit(shoeing)}
-                          className="w-full sm:w-auto"
-                          variant="outline"
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Edit
-                        </Button>
-                        {shoeing.status === "pending" && (
-                          <Button
-                            variant="destructive"
-                            onClick={() => openDeleteConfirm(shoeing.id)}
-                            className="w-full sm:w-auto"
-                          >
-                            <Trash className="h-4 w-4 mr-2" />
-                            Delete
-                          </Button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
+                        <Trash className="h-4 w-4 mr-2" />
+                        Delete
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-[425px] mx-auto rounded-lg sm:rounded-lg p-4 sm:p-6 w-[calc(100%-2rem)] sm:w-full">
           <DialogHeader>
@@ -752,13 +796,18 @@ export default function ShoeingForm() {
   return (
     <div className="container mx-auto px-0 sm:px-6 lg:px-8">
       <div className="flex items-center gap-2 align-middle mb-6">
-        <TbHorseshoe className="text-4xl " />
-        <h1 className="text-4xl font-bold  text-black">Shoeings</h1>
+        <TbHorseshoe className="text-4xl" />
+        <h1 className="text-4xl font-bold text-black">Shoeings</h1>
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="mb-4 px-4 sm:px-1 bg-primary text-white">
-          <TabsTrigger value="new-shoeing">New Shoeing</TabsTrigger>
-          <TabsTrigger value="submitted-shoeings">
+        <TabsList className="mb-4 w-full justify-center sm:justify-start bg-primary text-white">
+          <TabsTrigger value="new-shoeing" className="flex-1 sm:flex-initial">
+            New Shoeing
+          </TabsTrigger>
+          <TabsTrigger
+            value="submitted-shoeings"
+            className="flex-1 sm:flex-initial"
+          >
             My Submitted Shoeings
           </TabsTrigger>
         </TabsList>
