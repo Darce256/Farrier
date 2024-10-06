@@ -9,7 +9,7 @@ export default function AuthenticatedLayout() {
       <Sidebar />
       <div className="flex-1 flex flex-col sm:ml-14">
         <AuthenticatedHeader />
-        <main className="flex-1 p-4 sm:p-6 md:p-8 mt-16 sm:mt-0">
+        <main className="flex-1 p-4 sm:p-6 md:p-8 mt-2 sm:mt-0">
           <Outlet />
         </main>
         <Footer />

@@ -388,10 +388,10 @@ export default function Horses() {
   );
 
   return (
-    <div className="container mx-auto px-4 h-full flex flex-col">
-      <div className="flex items-center gap-2 align-middle mb-6">
-        <LiaHorseHeadSolid className="text-4xl " />
-        <h1 className="text-4xl font-bold  text-black">Horses</h1>
+    <div className="container mx-auto px-4 h-full flex flex-col pt-0 sm:pt-2">
+      <div className="flex items-center gap-2 align-middle mb-4 sm:mb-6">
+        <LiaHorseHeadSolid className="text-3xl sm:text-4xl" />
+        <h1 className="text-3xl sm:text-4xl font-bold text-black">Horses</h1>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 mb-4">
