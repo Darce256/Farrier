@@ -429,7 +429,7 @@ export default function Calendar() {
         Invoice: null,
         "1. Invoice": null,
         "Date Sent": null,
-        user_id: user.id, // Set the user_id to the current user's ID
+        user_id: user.id,
       };
 
       console.log("Attempting to insert new shoeing:", newShoeing);
@@ -442,11 +442,9 @@ export default function Calendar() {
       if (error) {
         console.error("Error duplicating shoeing:", error);
         errorCount++;
-        toast.error(`Failed to duplicate shoeing: ${error.message}`);
       } else {
         console.log("Shoeing duplicated successfully:", data);
         successCount++;
-        toast.success(`Shoeing duplicated successfully: ${data[0].id}`);
       }
     }
 
@@ -455,7 +453,7 @@ export default function Calendar() {
     );
 
     if (successCount > 0) {
-      toast.success(`Successfully duplicated ${successCount} shoeing(s).`);
+      toast.success(`Shoeing Duplication(s) Successful!`);
     }
 
     if (errorCount > 0) {
