@@ -3,6 +3,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Calendar as _CalendarIcon,
+  House,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -194,6 +195,7 @@ export default function Calendar() {
 
   const renderShoeing = (shoeing: Shoeing) => {
     const bgColor = getLocationColor(shoeing["Location of Service"]);
+    const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
 
     return (
       <div
@@ -207,10 +209,16 @@ export default function Calendar() {
         }}
         className="text-[10px] sm:text-xs overflow-hidden"
       >
-        <span className="font-semibold block">{shoeing.Horses}</span>
+        <span className="font-semibold block">{horseName}</span>
         <span className="text-[8px] sm:text-xs">
           {shoeing["Location of Service"]}
         </span>
+        <div className="flex items-center mt-1">
+          <House className="w-3 h-3 mr-1" />
+          <span className="text-[8px] sm:text-xs">
+            {barnTrainer?.replace(/[\[\]]/g, "").trim() || ""}
+          </span>
+        </div>
       </div>
     );
   };
@@ -321,6 +329,7 @@ export default function Calendar() {
                   const bgColor = getLocationColor(
                     shoeing["Location of Service"]
                   );
+                  const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
                   return (
                     <AccordionItem
                       key={shoeing.id}
@@ -328,12 +337,21 @@ export default function Calendar() {
                       style={{ backgroundColor: bgColor }}
                       className="rounded-md mb-2"
                     >
-                      <AccordionTrigger className="font-semibold text-lg  pl-2 flex justify-between items-center">
-                        <span>
-                          {shoeing.Horses} - {shoeing["Location of Service"]}
-                        </span>
+                      <AccordionTrigger className="font-semibold text-lg">
+                        <div className="flex flex-col items-start w-full text-left">
+                          <span className="text-lg pl-4">{horseName}</span>
+                          <span className="text-sm  pl-4">
+                            {shoeing["Location of Service"]}
+                          </span>
+                          <div className="flex mt-1 items-center text-sm font-normal pl-4">
+                            <House className="w-3 h-3 mr-1 flex-shrink-0 " />
+                            <span className="truncate">
+                              {barnTrainer?.replace(/[\[\]]/g, "").trim() || ""}
+                            </span>
+                          </div>
+                        </div>
                       </AccordionTrigger>
-                      <AccordionContent className="pl-2">
+                      <AccordionContent className="px-4 py-2">
                         <p>
                           <strong>Base Service:</strong>{" "}
                           {shoeing["Base Service"]}
