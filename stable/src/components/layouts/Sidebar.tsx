@@ -8,13 +8,7 @@ import { FaRegStickyNote } from "react-icons/fa";
 import { IoCalendarNumberOutline } from "react-icons/io5";
 import { MdMailOutline } from "react-icons/md"; // Add this import
 
-import {
-  MenuIcon,
-  StoreIcon,
-  InfoIcon,
-  SettingsIcon,
-  Bell,
-} from "lucide-react";
+import { MenuIcon, StoreIcon } from "lucide-react";
 
 import {
   Tooltip,
@@ -35,12 +29,6 @@ export default function Sidebar() {
     { name: "Calendar", icon: IoCalendarNumberOutline, href: "/calendar" },
     { name: "Inbox", icon: MdMailOutline, href: "/inbox" }, // Updated icon
   ];
-
-  const settingsItem = {
-    name: "Settings",
-    icon: SettingsIcon,
-    href: "/settings",
-  };
 
   // Function to determine if a nav item is active
   const isActive = (href: string) => location.pathname === href;
@@ -72,24 +60,6 @@ export default function Sidebar() {
               </Tooltip>
             ))}
             <div className="flex-grow" />
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  to={settingsItem.href}
-                  className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
-                    isActive(settingsItem.href)
-                      ? "bg-primary text-white"
-                      : "bg-accent text-accent-foreground hover:text-foreground"
-                  } md:h-8 md:w-8`}
-                >
-                  <settingsItem.icon className="h-5 w-5" />
-                  <span className="sr-only">{settingsItem.name}</span>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="z-50">
-                <p>{settingsItem.name}</p>
-              </TooltipContent>
-            </Tooltip>
           </TooltipProvider>
         </nav>
       </aside>
@@ -109,7 +79,7 @@ export default function Sidebar() {
           </SheetTrigger>
           <SheetContent side="left" className="w-[250px] sm:max-w-xs">
             <nav className="grid gap-2 text-lg font-medium">
-              {[...navItems, settingsItem].map((item) => (
+              {[...navItems].map((item) => (
                 <Link
                   key={item.name}
                   to={item.href}

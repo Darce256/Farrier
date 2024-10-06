@@ -9,20 +9,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { useAuth } from "@/components/Contexts/AuthProvider";
-import {
-  MenuIcon,
-  StoreIcon,
-  UsersIcon,
-  InfoIcon,
-  SettingsIcon,
-  BellIcon,
-  EyeIcon,
-  EyeOffIcon,
-} from "lucide-react";
-import { LiaHorseHeadSolid } from "react-icons/lia";
-import { TbHorseshoe } from "react-icons/tb";
+import { BellIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+
 import { supabase } from "@/lib/supabaseClient";
 import {
   Breadcrumb,
@@ -32,6 +21,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "../ui/breadcrumb";
+import { capitalize } from "lodash";
+import React from "react";
 
 interface Notification {
   id: string;
@@ -63,7 +54,6 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
 
 export default function AuthenticatedHeader() {
   const { user, logout } = useAuth();
-  const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -161,57 +151,62 @@ export default function AuthenticatedHeader() {
     return initials.toUpperCase();
   };
 
-  const navItems = [
-    { name: "Dashboard", icon: StoreIcon, href: "/dashboard" },
-    { name: "Horses", icon: LiaHorseHeadSolid, href: "/horses" },
-    { name: "New Shoeings", icon: TbHorseshoe, href: "/new-shoeings" },
-    { name: "Customers", icon: UsersIcon, href: "/customers" },
-    { name: "Analytics", icon: InfoIcon, href: "/analytics" },
-    { name: "Settings", icon: SettingsIcon, href: "/settings" },
-  ];
-
-  const getCurrentPageName = () => {
-    const currentPath = location.pathname;
-    const currentItem = navItems.find((item) => item.href === currentPath);
-    return currentItem ? currentItem.name : "Overview";
-  };
-
   const handleNotificationClick = (notification: Notification) => {
     setIsDropdownOpen(false);
     navigate(`/inbox?notificationId=${notification.id}`);
   };
 
-  return (
-    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">
-      <div className="flex items-center gap-4">
-        <Breadcrumb className="hidden md:flex">
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink asChild>
-                <Link to="/dashboard">Dashboard</Link>
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            {location.pathname.startsWith("/horses") && (
-              <>
+  const getBreadcrumbs = () => {
+    const pathSegments = location.pathname
+      .split("/")
+      .filter((segment) => segment);
+
+    return (
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link to="/dashboard">Dashboard</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          {pathSegments.map((segment, index) => {
+            const url = `/${pathSegments.slice(0, index + 1).join("/")}`;
+            const isLast = index === pathSegments.length - 1;
+
+            if (segment === "dashboard") return null;
+
+            let displayName = capitalize(segment);
+
+            // Special case for "new-shoeings"
+            if (segment === "new-shoeings") {
+              displayName = "Shoeings";
+            }
+
+            return (
+              <React.Fragment key={segment}>
                 <BreadcrumbSeparator />
                 <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link to="/horses">Horses</Link>
-                  </BreadcrumbLink>
+                  {isLast ? (
+                    <BreadcrumbPage>
+                      {id && horseName ? horseName : displayName}
+                    </BreadcrumbPage>
+                  ) : (
+                    <BreadcrumbLink asChild>
+                      <Link to={url}>{displayName}</Link>
+                    </BreadcrumbLink>
+                  )}
                 </BreadcrumbItem>
-                {id && horseName && (
-                  <>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>{horseName}</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </>
-                )}
-              </>
-            )}
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
+              </React.Fragment>
+            );
+          })}
+        </BreadcrumbList>
+      </Breadcrumb>
+    );
+  };
+
+  return (
+    <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">
+      <div className="flex items-center gap-4">{getBreadcrumbs()}</div>
 
       <div className="flex items-center gap-4">
         <div className="relative" ref={dropdownRef}>
