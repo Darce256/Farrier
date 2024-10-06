@@ -11,6 +11,7 @@ interface User {
 // Define the shape of the context
 interface AuthContextType {
   user: User | null;
+  loading: boolean; // Add this line
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
@@ -24,6 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true); // Add this line
 
   // Check for existing session on mount
   useEffect(() => {
@@ -31,6 +33,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   const checkUserSession = async () => {
+    setLoading(true); // Add this line
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -46,6 +49,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setUser({ id: user.id, name: data.name, email: data.email });
       }
     }
+    setLoading(false); // Add this line
   };
 
   const login = async (email: string, password: string) => {
@@ -91,6 +95,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const value = {
     user,
+    loading, // Add this line
     login,
     logout,
     signup,

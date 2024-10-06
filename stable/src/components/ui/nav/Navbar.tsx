@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Menu, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,16 @@ import { useAuth } from "@/components/Contexts/AuthProvider";
 export default function NavBar() {
   const [isOpen, setIsOpen] = React.useState(false);
   const { user } = useAuth();
+  const location = useLocation();
 
-  // If the user is authenticated, don't render the navbar
-  if (user) {
+  // List of public routes where the navbar should always be shown
+  const publicRoutes = ["/", "/login", "/signup"];
+
+  // Check if the current route is a public route
+  const isPublicRoute = publicRoutes.includes(location.pathname);
+
+  // If the user is authenticated and not on a public route, don't render the navbar
+  if (user && !isPublicRoute) {
     return null;
   }
 
