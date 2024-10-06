@@ -76,7 +76,11 @@ export default function Sidebar() {
               <TooltipTrigger asChild>
                 <Link
                   to={settingsItem.href}
-                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent text-accent-foreground transition-colors hover:text-foreground md:h-8 md:w-8"
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                    isActive(settingsItem.href)
+                      ? "bg-primary text-white"
+                      : "bg-accent text-accent-foreground hover:text-foreground"
+                  } md:h-8 md:w-8`}
                 >
                   <settingsItem.icon className="h-5 w-5" />
                   <span className="sr-only">{settingsItem.name}</span>
@@ -104,12 +108,16 @@ export default function Sidebar() {
             </Button>
           </SheetTrigger>
           <SheetContent side="left" className="w-[250px] sm:max-w-xs">
-            <nav className="grid gap-6 text-lg font-medium">
+            <nav className="grid gap-2 text-lg font-medium">
               {[...navItems, settingsItem].map((item) => (
                 <Link
                   key={item.name}
                   to={item.href}
-                  className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+                  className={`flex items-center gap-4 px-2.5 py-2 rounded-lg transition-colors ${
+                    isActive(item.href)
+                      ? "bg-primary text-white"
+                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                  }`}
                   onClick={() => setIsOpen(false)}
                 >
                   <item.icon className="h-5 w-5" />
