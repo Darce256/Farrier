@@ -339,7 +339,8 @@ export default function Horses() {
     const maxColumns = Math.floor(
       (width + GRID_GAP) / (MIN_CARD_WIDTH + GRID_GAP)
     );
-    return Math.max(1, Math.min(maxColumns, 5)); // Increased max columns to 6
+    const isDesktop = width >= 1400;
+    return Math.max(1, Math.min(maxColumns, isDesktop ? 5 : 4));
   };
 
   const HorseCardCell = useCallback(
@@ -356,9 +357,10 @@ export default function Horses() {
         horses: Horse[];
         columnCount: number;
         cardWidth: number;
+        isDesktop: boolean;
       };
     }) => {
-      const { horses, columnCount, cardWidth } = data;
+      const { horses, columnCount, cardWidth, isDesktop } = data;
       const index = rowIndex * columnCount + columnIndex;
       if (index >= horses.length) return null;
       const horse = horses[index];
@@ -483,6 +485,7 @@ export default function Horses() {
                 <div className="h-full">
                   <AutoSizer>
                     {({ height, width }) => {
+                      const isDesktop = width >= 1024; // Assuming 1024px as the desktop breakpoint
                       const columnCount = getColumnCount(width);
                       const cardWidth = Math.min(
                         MAX_CARD_WIDTH,
@@ -508,6 +511,7 @@ export default function Horses() {
                             horses: filteredHorses,
                             columnCount,
                             cardWidth,
+                            isDesktop,
                           }}
                         >
                           {HorseCardCell}
