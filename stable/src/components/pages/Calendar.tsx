@@ -111,6 +111,7 @@ export default function Calendar() {
         .select("*")
         .gte("Date of Service", formattedStartDate)
         .lte("Date of Service", formattedEndDate)
+        .not("status", "eq", "cancelled") // Add this line to exclude cancelled shoeings
         .range(page * pageSize, (page + 1) * pageSize - 1)
         .order("Date of Service", { ascending: true });
 

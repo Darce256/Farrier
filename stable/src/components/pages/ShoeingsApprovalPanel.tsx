@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Check, X, Search } from "lucide-react";
+import { Check, X, Search, ChevronDown, ChevronUp } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface Shoeing {
@@ -12,9 +12,10 @@ interface Shoeing {
   "Horse Name": string;
   Description: string;
   "Location of Service": string;
-  "Base Service": string | null; // Changed from "Cost of Service"
-  "Cost of Front Add-On's": string | null;
-  "Cost of Hind Add-On's": string | null;
+  "Base Service": string | null;
+  "Cost of Service": string | null;
+  "Cost of Front Add-Ons": string | null;
+  "Cost of Hind Add-Ons": string | null;
   "Total Cost": string | null;
   status: string;
 }
@@ -22,6 +23,7 @@ interface Shoeing {
 export default function ShoeingsApprovalPanel() {
   const [shoeings, setShoeings] = useState<Shoeing[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetchPendingShoeings();
@@ -31,7 +33,7 @@ export default function ShoeingsApprovalPanel() {
     const { data, error } = await supabase
       .from("shoeings")
       .select(
-        'id, "Date of Service", "Horse Name", Description, "Location of Service", "Base Service", "Cost of Front Add-Ons", "Cost of Hind Add-Ons", "Total Cost", status'
+        'id, "Date of Service", "Horse Name", Description, "Location of Service", "Base Service", "Cost of Service", "Cost of Front Add-Ons", "Cost of Hind Add-Ons", "Total Cost", status'
       )
       .eq("status", "pending")
       .order("Date of Service", { ascending: false });
@@ -74,6 +76,18 @@ export default function ShoeingsApprovalPanel() {
     }
   };
 
+  const toggleAccordion = (id: string) => {
+    setExpandedCards((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
   const filteredShoeings = shoeings.filter(
     (shoeing) =>
       shoeing["Horse Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -82,6 +96,14 @@ export default function ShoeingsApprovalPanel() {
         .toLowerCase()
         .includes(searchTerm.toLowerCase())
   );
+
+  function formatPrice(price: string | null): string {
+    if (!price || price.trim() === "") {
+      return "$0.00";
+    }
+    // If the price doesn't start with '$', add it
+    return price.startsWith("$") ? price : `$${price}`;
+  }
 
   return (
     <div className="container mx-auto p-4">
@@ -101,7 +123,10 @@ export default function ShoeingsApprovalPanel() {
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredShoeings.map((shoeing: any) => (
-          <Card key={shoeing.id} className="overflow-hidden">
+          <Card
+            key={shoeing.id}
+            className="grid grid-rows-[auto_1fr_auto] h-full"
+          >
             <CardContent className="p-4">
               <h2 className="text-xl font-semibold mb-2">
                 {shoeing["Horse Name"]}
@@ -116,44 +141,61 @@ export default function ShoeingsApprovalPanel() {
                 <strong>Description:</strong> {shoeing.Description}
               </p>
               <div className="mb-2">
-                <p>
-                  <strong>Base Price:</strong> $
-                  {parseFloat(shoeing["Cost of Service"] || "0").toFixed(2)}
-                </p>
-                <p>
-                  <strong>Front Add-Ons:</strong> $
-                  {parseFloat(shoeing["Cost of Front Add-Ons"] || "0").toFixed(
-                    2
+                <div
+                  className="flex justify-between items-center cursor-pointer"
+                  onClick={() => toggleAccordion(shoeing.id)}
+                >
+                  <p className="font-semibold">
+                    <strong>Total:</strong> {formatPrice(shoeing["Total Cost"])}
+                  </p>
+                  {expandedCards.has(shoeing.id) ? (
+                    <ChevronUp size={20} />
+                  ) : (
+                    <ChevronDown size={20} />
                   )}
-                </p>
-                <p>
-                  <strong>Hind Add-Ons:</strong> $
-                  {parseFloat(shoeing["Cost of Hind Add-On's"] || "0").toFixed(
-                    2
-                  )}
-                </p>
-                <p className="font-semibold">
-                  <strong>Total:</strong> $
-                  {parseFloat(shoeing["Total Cost"] || "0").toFixed(2)}
-                </p>
+                </div>
+                {expandedCards.has(shoeing.id) && (
+                  <div className="mt-2 pl-4 border-l-2 border-gray-200">
+                    <p>
+                      <strong>Base Service:</strong>{" "}
+                      {shoeing["Base Service"] || "N/A"}
+                    </p>
+                    <p>
+                      <strong>Base Price:</strong>{" "}
+                      {formatPrice(shoeing["Cost of Service"])}
+                    </p>
+                    <p>
+                      <strong>Front Add-Ons:</strong>{" "}
+                      {formatPrice(shoeing["Cost of Front Add-Ons"])}
+                    </p>
+                    <p>
+                      <strong>Hind Add-Ons:</strong>{" "}
+                      {formatPrice(shoeing["Cost of Hind Add-Ons"])}
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="flex space-x-2 mt-4">
+            </CardContent>
+            <div className="self-end p-4">
+              <div className="flex space-x-2">
                 <Button
                   onClick={() => handleReject(shoeing.id)}
-                  className="bg-white hover:bg-white  text-black hover:text-black flex-grow border border-black"
+                  className="bg-red-500 text-white flex-grow border"
+                  variant="destructive"
                   size="sm"
                 >
                   <X className="w-4 h-4 mr-1" /> Reject
                 </Button>
                 <Button
                   onClick={() => handleAccept(shoeing.id)}
-                  className="bg-primary  text-white flex-grow"
+                  className="bg-green-500 text-white flex-grow hover:bg-green-600"
+                  variant="default"
                   size="sm"
                 >
                   <Check className="w-4 h-4 mr-1" /> Accept
                 </Button>
               </div>
-            </CardContent>
+            </div>
           </Card>
         ))}
       </div>
