@@ -332,12 +332,14 @@ export default function Horses() {
 
   const MIN_CARD_WIDTH = 250;
   const MAX_CARD_WIDTH = 300;
-  const CARD_ASPECT_RATIO = 0.95; // Adjust if needed
-  const GRID_GAP = 16;
+  const CARD_ASPECT_RATIO = 0.95;
+  const GRID_GAP = 10;
 
   const getColumnCount = (width: number) => {
-    const maxColumns = Math.floor(width / (MIN_CARD_WIDTH + GRID_GAP));
-    return Math.max(1, Math.min(maxColumns, 4)); // Limit to max 4 columns
+    const maxColumns = Math.floor(
+      (width + GRID_GAP) / (MIN_CARD_WIDTH + GRID_GAP)
+    );
+    return Math.max(1, Math.min(maxColumns, 5)); // Increased max columns to 6
   };
 
   const HorseCardCell = useCallback(
@@ -388,12 +390,11 @@ export default function Horses() {
   );
 
   return (
-    <div className="container mx-auto px-4 h-full flex flex-col pt-0 sm:pt-2">
+    <div className="container mx-auto px-2 sm:px-4 h-full flex flex-col pt-0 sm:pt-2 max-w-[1600px]">
       <div className="flex items-center gap-2 align-middle mb-4 sm:mb-6">
         <LiaHorseHeadSolid className="text-3xl sm:text-4xl" />
         <h1 className="text-3xl sm:text-4xl font-bold text-black">Horses</h1>
       </div>
-
       <div className="flex flex-col md:flex-row gap-4 mb-4">
         <div className="flex-grow flex flex-col md:flex-row gap-2 md:gap-4">
           <Select
@@ -460,7 +461,6 @@ export default function Horses() {
           </Button>
         </div>
       </div>
-
       <div className="flex-grow relative overflow-hidden">
         {(isLoading || !contentVisible) && (
           <div className="absolute inset-0 z-10">
@@ -488,7 +488,7 @@ export default function Horses() {
                         MAX_CARD_WIDTH,
                         Math.max(
                           MIN_CARD_WIDTH,
-                          (width - (columnCount + 1) * GRID_GAP) / columnCount
+                          (width + GRID_GAP) / columnCount - GRID_GAP
                         )
                       );
                       const cardHeight = cardWidth * CARD_ASPECT_RATIO;
@@ -529,7 +529,6 @@ export default function Horses() {
           )}
         </div>
       </div>
-
       {modalState.isOpen && modalState.horse && (
         <HorseDetailsModal
           horse={modalState.horse}
@@ -537,7 +536,6 @@ export default function Horses() {
           onClose={closeModal}
         />
       )}
-
       {renderLightbox()}
     </div>
   );
