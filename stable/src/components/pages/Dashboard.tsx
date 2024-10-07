@@ -16,8 +16,29 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function Dashboard() {
+  const [pendingShoeingsCount, setPendingShoeingsCount] = useState(0);
+
+  useEffect(() => {
+    fetchPendingShoeingsCount();
+  }, []);
+
+  async function fetchPendingShoeingsCount() {
+    const { count, error } = await supabase
+      .from("shoeings")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending");
+
+    if (error) {
+      console.error("Error fetching pending shoeings count:", error);
+    } else {
+      setPendingShoeingsCount(count || 0);
+    }
+  }
+
   return (
     <div className="grid flex-1 items-start gap-4 md:gap-8">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -66,7 +87,9 @@ export default function Dashboard() {
         <Card x-chunk="dashboard-01-chunk-3">
           <CardHeader className="pb-2">
             <CardDescription>Shoeing Approvals</CardDescription>
-            <CardTitle className="text-4xl">Pending</CardTitle>
+            <CardTitle className="text-4xl">
+              {pendingShoeingsCount} Pending
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
