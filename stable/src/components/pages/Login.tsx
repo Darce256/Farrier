@@ -19,13 +19,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { login } = useAuth(); // Use the login function from AuthProvider
+  const { login, user } = useAuth(); // Also get the user object
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login(email, password); // Use the login function from AuthProvider
-      navigate("/dashboard"); // Redirect to Dashboard
+      const user = await login(email, password);
+      if (user?.isAdmin) {
+        navigate("/dashboard");
+      } else {
+        navigate("/horses");
+      }
     } catch (error: any) {
       setError(error.message);
     }

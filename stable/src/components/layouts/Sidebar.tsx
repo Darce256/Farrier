@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom"; // Add useLocation
+import { Link, useLocation } from "react-router-dom";
 import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
 import { FaRegStickyNote } from "react-icons/fa";
 import { IoCalendarNumberOutline } from "react-icons/io5";
-import { MdMailOutline } from "react-icons/md"; // Add this import
+import { MdMailOutline } from "react-icons/md";
 
 import { MenuIcon, StoreIcon } from "lucide-react";
 
@@ -17,20 +17,26 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import { useAuth } from "@/components/Contexts/AuthProvider";
+
 export default function Sidebar() {
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const location = useLocation(); // Add this line
+  const location = useLocation();
 
   const navItems = [
-    { name: "Dashboard", icon: StoreIcon, href: "/dashboard" },
+    { name: "Dashboard", icon: StoreIcon, href: "/dashboard", adminOnly: true },
     { name: "Horses", icon: LiaHorseHeadSolid, href: "/horses" },
     { name: "New Shoeings", icon: TbHorseshoe, href: "/new-shoeings" },
     { name: "Notes", icon: FaRegStickyNote, href: "/notes" },
     { name: "Calendar", icon: IoCalendarNumberOutline, href: "/calendar" },
-    { name: "Inbox", icon: MdMailOutline, href: "/inbox" }, // Updated icon
+    { name: "Inbox", icon: MdMailOutline, href: "/inbox" },
   ];
 
-  // Function to determine if a nav item is active
+  const filteredNavItems = navItems.filter(
+    (item) => !item.adminOnly || user?.isAdmin
+  );
+
   const isActive = (href: string) => location.pathname === href;
 
   return (
@@ -39,7 +45,7 @@ export default function Sidebar() {
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-14 flex-col border-r bg-background sm:flex">
         <nav className="flex flex-col items-center gap-4 px-2 py-5 h-full">
           <TooltipProvider>
-            {navItems.map((item) => (
+            {filteredNavItems.map((item) => (
               <Tooltip key={item.name}>
                 <TooltipTrigger asChild>
                   <Link
@@ -79,7 +85,7 @@ export default function Sidebar() {
           </SheetTrigger>
           <SheetContent side="left" className="w-[250px] sm:max-w-xs">
             <nav className="grid gap-2 text-lg font-medium">
-              {[...navItems].map((item) => (
+              {filteredNavItems.map((item) => (
                 <Link
                   key={item.name}
                   to={item.href}

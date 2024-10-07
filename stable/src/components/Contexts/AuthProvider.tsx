@@ -5,14 +5,14 @@ interface User {
   id: string;
   name: string;
   email: string;
-  image?: string;
+  isAdmin: boolean;
 }
 
 // Define the shape of the context
 interface AuthContextType {
   user: User | null;
   loading: boolean; // Add this line
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User | null>;
   logout: () => Promise<void>;
   signup: (name: string, email: string, password: string) => Promise<void>;
 }
@@ -41,32 +41,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const { user } = session;
       const { data } = await supabase
         .from("profiles")
-        .select("name, email")
+        .select("name, email, is_admin")
         .eq("id", user.id)
         .single();
 
       if (data) {
-        setUser({ id: user.id, name: data.name, email: data.email });
+        setUser({
+          id: user.id,
+          name: data.name,
+          email: data.email,
+          isAdmin: data.is_admin,
+        });
       }
     }
     setLoading(false); // Add this line
   };
 
-  const login = async (email: string, password: string) => {
+  const login = async (
+    email: string,
+    password: string
+  ): Promise<User | null> => {
     const {
       data: { user },
       error,
     } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
-    const { data } = await supabase
-      .from("profiles")
-      .select("name, email")
-      .eq("id", user?.id)
-      .single();
-    if (data && user) {
-      setUser({ id: user.id, name: data.name, email: data.email });
+    if (user) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("name, email, is_admin")
+        .eq("id", user.id)
+        .single();
+
+      if (data) {
+        const newUser = {
+          id: user.id,
+          name: data.name,
+          email: data.email,
+          isAdmin: data.is_admin,
+        };
+        setUser(newUser);
+        return newUser;
+      }
     }
+    return null;
   };
 
   const logout = async () => {
@@ -89,7 +108,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (profileError) throw profileError;
 
     if (user) {
-      setUser({ id: user.id, name, email });
+      setUser({ id: user.id, name, email, isAdmin: false });
     }
   };
 

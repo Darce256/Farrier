@@ -26,21 +26,7 @@ import ShoeingApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { Spinner } from "./components/ui/spinner";
 import ShoeingsApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
-
-// Protected Route component
-const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { user, loading } = useAuth();
-
-  if (loading) {
-    return <Spinner />;
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
+import ProtectedRoute from "@/lib/ProtectedRoute";
 
 function AppRoutes() {
   return (
