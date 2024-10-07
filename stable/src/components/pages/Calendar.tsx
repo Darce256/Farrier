@@ -684,7 +684,7 @@ export default function Calendar() {
         open={isDuplicateDialogOpen}
         onOpenChange={setIsDuplicateDialogOpen}
       >
-        <DialogContent className="sm:max-w-[425px] w-full p-2 ">
+        <DialogContent className="sm:max-w-[425px] w-[calc(100%-3rem)] mr-12 rounded-lg overflow-hidden">
           <DialogHeader className="p-4 pb-2">
             <DialogTitle>Duplicate Shoeings</DialogTitle>
           </DialogHeader>
@@ -710,7 +710,7 @@ export default function Calendar() {
           <Button
             onClick={handleDuplicateShoeings}
             disabled={!duplicateDate}
-            className="w-full rounded-none rounded-b-lg"
+            className="w-full"
           >
             Duplicate
           </Button>
