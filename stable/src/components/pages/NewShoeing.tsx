@@ -55,6 +55,14 @@ import {
 } from "@/components/ui/table";
 import { Edit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { IoFlagOutline, IoFlagSharp } from "react-icons/io5";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { AlertCircle } from "lucide-react";
 
 const formSchema = z.object({
   horseName: z.string({
@@ -77,6 +85,7 @@ type Horse = {
   id: string;
   name: string | null; // Allow name to be null for filtering
   barn: string | null; // Allow barn to be null for conditional display
+  alert?: string | null;
 };
 
 // Update the schema to include customerName and phone number validation
@@ -464,7 +473,7 @@ export default function ShoeingForm() {
     while (fetchMore) {
       const { data, error } = await supabase
         .from("horses")
-        .select('id, "Name", "Barn / Trainer"')
+        .select('id, "Name", "Barn / Trainer", alert')
         .range(from, to);
 
       if (error) {
@@ -481,13 +490,13 @@ export default function ShoeingForm() {
       }
     }
 
-    // Filter out horses with null names, map the data to include the barn property, and sort alphabetically
     const formattedData = allHorses
       .filter((horse) => horse.Name !== null)
       .map((horse) => ({
         id: horse.id,
         name: horse.Name,
         barn: horse["Barn / Trainer"],
+        alert: horse.alert,
       }))
       .sort((a, b) => a.name!.localeCompare(b.name!));
     setHorses(formattedData);
@@ -826,101 +835,121 @@ export default function ShoeingForm() {
                         control={form.control}
                         name="horseName"
                         render={({ field }) => {
+                          const selectedHorse = horses.find(
+                            (horse) => horse.id === field.value
+                          );
                           return (
                             <FormItem>
                               <FormLabel>Horse Name*</FormLabel>
                               {loading ? (
                                 <Skeleton className="h-10 w-full" />
                               ) : (
-                                <Select
-                                  open={isDropdownOpen}
-                                  onOpenChange={setIsDropdownOpen}
-                                  value={field.value}
-                                  onValueChange={(value) => {
-                                    if (
-                                      isNewHorseAdded.current &&
-                                      value === ""
-                                    ) {
-                                      isNewHorseAdded.current = false;
-                                      return;
-                                    }
-                                    field.onChange(value);
-                                  }}
-                                >
-                                  <FormControl>
-                                    <SelectTrigger ref={selectRef}>
-                                      <SelectValue placeholder="Select a Horse">
-                                        {field.value ? (
-                                          <>
-                                            <span className="font-bold">
-                                              {
-                                                horses.find(
-                                                  (horse) =>
-                                                    horse.id === field.value
-                                                )?.name
-                                              }
-                                            </span>
-                                            <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-                                              {horses.find(
-                                                (horse) =>
-                                                  horse.id === field.value
-                                              )?.barn || "No Barn Available"}
-                                            </span>
-                                          </>
-                                        ) : (
-                                          "Select a Horse"
-                                        )}
-                                      </SelectValue>
-                                    </SelectTrigger>
-                                  </FormControl>
-                                  <SelectContent>
-                                    <div className="p-2 flex items-center space-x-2">
-                                      <div className="relative flex-grow">
-                                        <Input
-                                          type="text"
-                                          placeholder="Search horses..."
-                                          value={searchQuery}
-                                          onChange={(e) =>
-                                            setSearchQuery(e.target.value)
-                                          }
-                                          className="pr-8"
-                                        />
-                                        <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                      </div>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="whitespace-nowrap bg-primary text-white hover:bg-primary hover:text-white"
-                                        onClick={() => setIsModalOpen(true)}
-                                      >
-                                        <PlusCircle className="h-4 w-4 mr-2" />
-                                        Add New Horse
-                                      </Button>
-                                    </div>
-                                    <List
-                                      height={200}
-                                      itemCount={filteredHorses.length}
-                                      itemSize={35}
-                                      width="100%"
-                                    >
-                                      {({ index, style }) => (
-                                        <SelectItem
-                                          key={filteredHorses[index].id}
-                                          value={filteredHorses[index].id}
-                                          style={style}
+                                <>
+                                  <Select
+                                    open={isDropdownOpen}
+                                    onOpenChange={setIsDropdownOpen}
+                                    value={field.value}
+                                    onValueChange={(value) => {
+                                      if (
+                                        isNewHorseAdded.current &&
+                                        value === ""
+                                      ) {
+                                        isNewHorseAdded.current = false;
+                                        return;
+                                      }
+                                      field.onChange(value);
+                                    }}
+                                  >
+                                    <FormControl>
+                                      <SelectTrigger ref={selectRef}>
+                                        <SelectValue placeholder="Select a Horse">
+                                          {field.value ? (
+                                            <div className="flex items-center">
+                                              <span className="font-bold">
+                                                {selectedHorse?.name}
+                                              </span>
+                                              <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                                {selectedHorse?.barn ||
+                                                  "No Barn Available"}
+                                              </span>
+                                              {selectedHorse?.alert && (
+                                                <IoFlagSharp
+                                                  className="text-red-500"
+                                                  size={20}
+                                                />
+                                              )}
+                                            </div>
+                                          ) : (
+                                            "Select a Horse"
+                                          )}
+                                        </SelectValue>
+                                      </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                      <div className="p-2 flex items-center space-x-2">
+                                        <div className="relative flex-grow">
+                                          <Input
+                                            type="text"
+                                            placeholder="Search horses..."
+                                            value={searchQuery}
+                                            onChange={(e) =>
+                                              setSearchQuery(e.target.value)
+                                            }
+                                            className="pr-8"
+                                          />
+                                          <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                        </div>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="whitespace-nowrap bg-primary text-white hover:bg-primary hover:text-white"
+                                          onClick={() => setIsModalOpen(true)}
                                         >
-                                          <span className="font-bold">
-                                            {filteredHorses[index].name}
-                                          </span>
-                                          <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-                                            {filteredHorses[index].barn ||
-                                              "No Barn Available"}
-                                          </span>
-                                        </SelectItem>
-                                      )}
-                                    </List>
-                                  </SelectContent>
-                                </Select>
+                                          <PlusCircle className="h-4 w-4 mr-2" />
+                                          Add New Horse
+                                        </Button>
+                                      </div>
+                                      <List
+                                        height={200}
+                                        itemCount={filteredHorses.length}
+                                        itemSize={35}
+                                        width="100%"
+                                      >
+                                        {({ index, style }) => (
+                                          <SelectItem
+                                            key={filteredHorses[index].id}
+                                            value={filteredHorses[index].id}
+                                            style={style}
+                                          >
+                                            <div className="flex items-center">
+                                              <span className="font-bold">
+                                                {filteredHorses[index].name}
+                                              </span>
+                                              <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                                {filteredHorses[index].barn ||
+                                                  "No Barn Available"}
+                                              </span>
+                                              {filteredHorses[index].alert && (
+                                                <IoFlagSharp
+                                                  className="text-red-500"
+                                                  size={20}
+                                                />
+                                              )}
+                                            </div>
+                                          </SelectItem>
+                                        )}
+                                      </List>
+                                    </SelectContent>
+                                  </Select>
+                                  {selectedHorse?.alert && (
+                                    <div className="flex items-center bg-red-100 text-red-700 p-2 rounded-md mt-2">
+                                      <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                                      <span className="text-sm">
+                                        {selectedHorse.alert}
+                                      </span>
+                                    </div>
+                                  )}
+                                </>
                               )}
                               <FormMessage />
                             </FormItem>

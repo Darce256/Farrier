@@ -327,7 +327,6 @@ export default function Horses() {
     navigate(`/horses/${horse.id}`);
   };
 
-  const isTablet = useMediaQuery("(min-width: 640px)");
   const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const MIN_CARD_WIDTH = 250;
@@ -360,7 +359,7 @@ export default function Horses() {
         isDesktop: boolean;
       };
     }) => {
-      const { horses, columnCount, cardWidth, isDesktop } = data;
+      const { horses, columnCount, cardWidth } = data;
       const index = rowIndex * columnCount + columnIndex;
       if (index >= horses.length) return null;
       const horse = horses[index];
