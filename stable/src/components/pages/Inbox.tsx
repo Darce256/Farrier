@@ -8,13 +8,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Trash2 } from "lucide-react"; // Import Trash2 icon
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import { MdMailOutline } from "react-icons/md";
 import { useNotifications } from "@/components/Contexts/NotificationProvider";
 import { getRelativeTimeString } from "@/lib/dateUtils";
+import toast from "react-hot-toast";
 
 interface Notification {
   id: string;
@@ -42,7 +43,7 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
   };
 
   return (
-    <div className="bg-primary rounded-full p-2 text-primary-foreground text-sm font-semibold">
+    <div className="flex-shrink-0 w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-semibold">
       {getInitials(creator?.name)}
     </div>
   );
@@ -89,6 +90,7 @@ export default function Inbox() {
       `
         )
         .eq("mentioned_user_id", user.id)
+        .eq("deleted", false) // Only fetch non-deleted notifications
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -113,6 +115,28 @@ export default function Inbox() {
           n.id === notificationId ? { ...n, read: true } : n
         )
       );
+    }
+  };
+
+  const deleteNotification = async (notificationId: string) => {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ deleted: true })
+      .eq("id", notificationId);
+
+    if (error) {
+      console.error("Error deleting notification:", error);
+      toast.error("Failed to delete notification");
+    } else {
+      setNotifications((prevNotifications) =>
+        prevNotifications.filter((n) => n.id !== notificationId)
+      );
+      toast.success("Notification deleted successfully");
+      if (selectedNotification?.id === notificationId) {
+        setSelectedNotification(null);
+        setShowDetail(false);
+        setSearchParams({});
+      }
     }
   };
 
@@ -167,24 +191,40 @@ export default function Inbox() {
                             ? "bg-accent"
                             : ""
                         } ${!notification.read ? "font-bold" : ""}`}
-                        onClick={() => handleNotificationClick(notification)}
                       >
-                        <Avatar creator={notification.creator} />
-                        <div className="space-y-1 flex-grow">
-                          <p className="text-sm font-medium leading-none">
-                            {notification.title}
-                          </p>
-                          <p
-                            className="text-sm text-muted-foreground"
-                            dangerouslySetInnerHTML={{
-                              __html: notification.message,
+                        <div
+                          className="flex items-start space-x-3 flex-grow min-w-0"
+                          onClick={() => handleNotificationClick(notification)}
+                        >
+                          <Avatar creator={notification.creator} />
+                          <div className="space-y-1 flex-grow min-w-0">
+                            <p className="text-sm font-medium leading-none truncate">
+                              {notification.title}
+                            </p>
+                            <p
+                              className="text-sm text-muted-foreground line-clamp-2"
+                              dangerouslySetInnerHTML={{
+                                __html: notification.message,
+                              }}
+                            ></p>
+                            <p className="text-xs text-muted-foreground">
+                              {getRelativeTimeString(
+                                new Date(notification.created_at)
+                              )}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex-shrink-0">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteNotification(notification.id);
                             }}
-                          ></p>
-                          <p className="text-xs text-muted-foreground">
-                            {getRelativeTimeString(
-                              new Date(notification.created_at)
-                            )}
-                          </p>
+                          >
+                            <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                          </Button>
                         </div>
                       </div>
                     ))}

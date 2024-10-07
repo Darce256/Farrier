@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Check, X, Search, ChevronDown, ChevronUp } from "lucide-react";
 import toast from "react-hot-toast";
+import { useAuth } from "@/components/Contexts/AuthProvider"; // Update this import
 
 interface Shoeing {
   id: string;
@@ -24,6 +25,7 @@ export default function ShoeingsApprovalPanel() {
   const [shoeings, setShoeings] = useState<Shoeing[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+  const { user } = useAuth(); // Use the useAuth hook to get the current user
 
   useEffect(() => {
     fetchPendingShoeings();
@@ -62,17 +64,43 @@ export default function ShoeingsApprovalPanel() {
   };
 
   const handleReject = async (id: string) => {
-    const { error } = await supabase
-      .from("shoeings")
-      .update({ status: "cancelled" })
-      .eq("id", id);
+    try {
+      // Start a transaction
+      const { data: shoeing, error: fetchError } = await supabase
+        .from("shoeings")
+        .select('user_id, "Horse Name"')
+        .eq("id", id)
+        .single();
 
-    if (error) {
-      console.error("Error rejecting shoeing:", error);
-      toast.error("Failed to reject shoeing");
-    } else {
+      if (fetchError) throw fetchError;
+
+      const { error: updateError } = await supabase
+        .from("shoeings")
+        .update({ status: "cancelled" })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      // Create a notification for the user who created the shoeing
+      if (shoeing.user_id) {
+        const { error: notificationError } = await supabase
+          .from("notifications")
+          .insert({
+            mentioned_user_id: shoeing.user_id,
+            message: `Your shoeing request for ${shoeing["Horse Name"]} has been rejected.`,
+            type: "shoeing_rejected",
+            related_id: id,
+            creator_id: user?.id, // The current user (admin) who rejected the shoeing
+          });
+
+        if (notificationError) throw notificationError;
+      }
+
       toast.success("Shoeing rejected successfully");
       fetchPendingShoeings();
+    } catch (error) {
+      console.error("Error rejecting shoeing:", error);
+      toast.error("Failed to reject shoeing");
     }
   };
 
