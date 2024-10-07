@@ -19,6 +19,8 @@ interface Shoeing {
   "Cost of Hind Add-Ons": string | null;
   "Total Cost": string | null;
   status: string;
+  "Other Custom Services": string | null; // Add this line
+  "Shoe Notes": string | null; // Add this line
 }
 
 export default function ShoeingsApprovalPanel() {
@@ -35,7 +37,7 @@ export default function ShoeingsApprovalPanel() {
     const { data, error } = await supabase
       .from("shoeings")
       .select(
-        'id, "Date of Service", "Horse Name", Description, "Location of Service", "Base Service", "Cost of Service", "Cost of Front Add-Ons", "Cost of Hind Add-Ons", "Total Cost", status'
+        'id, "Date of Service", "Horse Name", Description, "Location of Service", "Base Service", "Cost of Service", "Cost of Front Add-Ons", "Cost of Hind Add-Ons", "Total Cost", status, "Other Custom Services", "Shoe Notes"'
       )
       .eq("status", "pending")
       .order("Date of Service", { ascending: false });
@@ -168,6 +170,11 @@ export default function ShoeingsApprovalPanel() {
               <p className="mb-2">
                 <strong>Description:</strong> {shoeing.Description}
               </p>
+              {shoeing["Shoe Notes"] && (
+                <p className="mb-2">
+                  <strong>Notes:</strong> {shoeing["Shoe Notes"]}
+                </p>
+              )}
               <div className="mb-2">
                 <div
                   className="flex justify-between items-center cursor-pointer"
@@ -200,6 +207,12 @@ export default function ShoeingsApprovalPanel() {
                       <strong>Hind Add-Ons:</strong>{" "}
                       {formatPrice(shoeing["Cost of Hind Add-Ons"])}
                     </p>
+                    {shoeing["Other Custom Services"] && (
+                      <p>
+                        <strong>Custom Services:</strong>{" "}
+                        {shoeing["Other Custom Services"]}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
