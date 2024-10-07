@@ -50,7 +50,8 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
 };
 
 export default function Inbox() {
-  const { notifications, setNotifications } = useNotifications(); // Use the NotificationProvider
+  const { notifications, setNotifications, deleteNotification } =
+    useNotifications();
   const [selectedNotification, setSelectedNotification] =
     useState<Notification | null>(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -67,7 +68,7 @@ export default function Inbox() {
     if (notificationId) {
       const notification = notifications.find((n) => n.id === notificationId);
       if (notification) {
-        setSelectedNotification(notification as Notification);
+        setSelectedNotification(notification as any);
         setShowDetail(true);
         markAsRead(notificationId);
       }
@@ -110,33 +111,20 @@ export default function Inbox() {
     if (error) {
       console.error("Error marking notification as read:", error);
     } else {
-      setNotifications((prevNotifications) =>
-        prevNotifications.map((n) =>
+      setNotifications((prevNotifications: any) =>
+        prevNotifications.map((n: any) =>
           n.id === notificationId ? { ...n, read: true } : n
         )
       );
     }
   };
 
-  const deleteNotification = async (notificationId: string) => {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ deleted: true })
-      .eq("id", notificationId);
-
-    if (error) {
-      console.error("Error deleting notification:", error);
-      toast.error("Failed to delete notification");
-    } else {
-      setNotifications((prevNotifications) =>
-        prevNotifications.filter((n) => n.id !== notificationId)
-      );
-      toast.success("Notification deleted successfully");
-      if (selectedNotification?.id === notificationId) {
-        setSelectedNotification(null);
-        setShowDetail(false);
-        setSearchParams({});
-      }
+  const handleDeleteNotification = async (notificationId: string) => {
+    await deleteNotification(notificationId);
+    if (selectedNotification?.id === notificationId) {
+      setSelectedNotification(null);
+      setShowDetail(false);
+      setSearchParams({});
     }
   };
 
@@ -220,7 +208,7 @@ export default function Inbox() {
                             size="icon"
                             onClick={(e) => {
                               e.stopPropagation();
-                              deleteNotification(notification.id);
+                              handleDeleteNotification(notification.id);
                             }}
                           >
                             <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />

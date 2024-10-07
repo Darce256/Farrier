@@ -839,7 +839,7 @@ export default function ShoeingForm() {
             value="submitted-shoeings"
             className="flex-1 sm:flex-initial"
           >
-            My Submitted Shoeings
+            Waiting to Invoice
           </TabsTrigger>
         </TabsList>
 

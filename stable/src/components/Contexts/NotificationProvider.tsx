@@ -13,6 +13,7 @@ interface Notification {
   message: string;
   created_at: string;
   read: boolean;
+  deleted: boolean; // Add this field
   creator: {
     name: string;
   };
@@ -21,7 +22,9 @@ interface Notification {
 interface NotificationContextType {
   notifications: Notification[];
   setNotifications: React.Dispatch<React.SetStateAction<Notification[]>>;
-  fetchNotifications: () => Promise<void>; // Add this line
+  fetchNotifications: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
+  markAsRead: (id: string, isRead: boolean) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(
@@ -45,6 +48,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         `
         )
         .eq("mentioned_user_id", user.id)
+        .eq("deleted", false) // Only fetch non-deleted notifications
         .order("created_at", { ascending: false });
 
       if (error) {
@@ -55,6 +59,40 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [user]);
 
+  const deleteNotification = async (id: string) => {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ deleted: true })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting notification:", error);
+    } else {
+      setNotifications((prevNotifications) =>
+        prevNotifications.filter((notification) => notification.id !== id)
+      );
+    }
+  };
+
+  const markAsRead = async (id: string, isRead: boolean) => {
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read: isRead })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error marking notification as read:", error);
+    } else {
+      setNotifications((prevNotifications) =>
+        prevNotifications.map((notification) =>
+          notification.id === id
+            ? { ...notification, read: isRead }
+            : notification
+        )
+      );
+    }
+  };
+
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
@@ -64,7 +102,13 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
   return (
     <NotificationContext.Provider
-      value={{ notifications, setNotifications, fetchNotifications }}
+      value={{
+        notifications,
+        setNotifications,
+        fetchNotifications,
+        deleteNotification,
+        markAsRead,
+      }}
     >
       {children}
     </NotificationContext.Provider>

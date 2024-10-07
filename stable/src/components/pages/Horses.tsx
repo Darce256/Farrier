@@ -603,7 +603,11 @@ const HorseCard = React.memo(
 
     return (
       <>
-        <Card className="border-black/20 shadow-lg flex flex-col h-full">
+        <Card
+          className={`border-black/20 shadow-lg flex flex-col h-full ${
+            horse.alert ? "border-red-500 border-2" : ""
+          }`}
+        >
           <CardHeader className="pb-2">
             <div className="flex justify-between items-center">
               <CardTitle className="text-black text-base sm:text-lg md:text-xl truncate">

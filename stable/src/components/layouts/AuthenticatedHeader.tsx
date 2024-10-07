@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import { BellIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { useNotifications } from "@/components/Contexts/NotificationProvider";
 
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -54,7 +55,8 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
 
 export default function AuthenticatedHeader() {
   const { user, logout } = useAuth();
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const { notifications, deleteNotification, markAsRead, fetchNotifications } =
+    useNotifications();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const location = useLocation();
@@ -62,26 +64,6 @@ export default function AuthenticatedHeader() {
   const { id } = useParams<{ id: string }>();
   const [horseName, setHorseName] = useState<string | null>(null);
 
-  const fetchNotifications = async () => {
-    if (user) {
-      const { data, error } = await supabase
-        .from("notifications")
-        .select(
-          `
-          *,
-          creator:profiles!notifications_creator_id_fkey(name)
-        `
-        )
-        .eq("mentioned_user_id", user.id)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("Error fetching notifications:", error);
-      } else if (data) {
-        setNotifications(data as Notification[]);
-      }
-    }
-  };
   useEffect(() => {
     if (id) {
       const fetchHorseName = async () => {
@@ -103,20 +85,7 @@ export default function AuthenticatedHeader() {
     notificationId: string,
     currentStatus: boolean
   ) => {
-    const { error } = await supabase
-      .from("notifications")
-      .update({ read: !currentStatus })
-      .eq("id", notificationId);
-
-    if (!error) {
-      setNotifications((prevNotifications: Notification[]) =>
-        prevNotifications.map((notification: Notification) =>
-          notification.id === notificationId
-            ? { ...notification, read: !currentStatus }
-            : notification
-        )
-      );
-    }
+    await markAsRead(notificationId, !currentStatus);
   };
 
   useEffect(() => {
@@ -222,52 +191,60 @@ export default function AuthenticatedHeader() {
               </span>
             )}
           </Button>
-          {isDropdownOpen && notifications.length > 0 && (
+          {isDropdownOpen && (
             <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
               <div className="p-4 h-64 flex flex-col">
                 <h3 className="text-lg font-semibold mb-2">Notifications</h3>
-                <ul className="overflow-y-auto flex-grow">
-                  {notifications.map((notification: Notification) => (
-                    <li
-                      key={notification.id}
-                      className="py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150"
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Avatar creator={notification.creator} />
-                        <div className="flex-grow min-w-0">
-                          <span
-                            className="block truncate"
-                            dangerouslySetInnerHTML={{
-                              __html: notification.message,
+                {notifications.length > 0 ? (
+                  <ul className="overflow-y-auto flex-grow">
+                    {notifications.map((notification: Notification) => (
+                      <li
+                        key={notification.id}
+                        className="py-2 border-b last:border-b-0 hover:bg-gray-100 cursor-pointer transition-colors duration-150"
+                        onClick={() => handleNotificationClick(notification)}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Avatar creator={notification.creator} />
+                          <div className="flex-grow min-w-0">
+                            <span
+                              className="block truncate"
+                              dangerouslySetInnerHTML={{
+                                __html: notification.message,
+                              }}
+                            ></span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(
+                                notification.created_at
+                              ).toLocaleString()}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="flex-shrink-0"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleReadStatus(
+                                notification.id,
+                                notification.read
+                              );
                             }}
-                          ></span>
-                          <span className="text-xs text-gray-500">
-                            {new Date(notification.created_at).toLocaleString()}
-                          </span>
+                          >
+                            {notification.read ? (
+                              <EyeOffIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                            ) : (
+                              <EyeIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
+                            )}
+                          </Button>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="flex-shrink-0"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleReadStatus(
-                              notification.id,
-                              notification.read
-                            );
-                          }}
-                        >
-                          {notification.read ? (
-                            <EyeOffIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-                          ) : (
-                            <EyeIcon className="h-4 w-4 text-gray-500 hover:text-gray-700" />
-                          )}
-                        </Button>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-500">No Notifications Available</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
