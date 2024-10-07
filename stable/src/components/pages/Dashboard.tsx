@@ -65,17 +65,17 @@ export default function Dashboard() {
         </Card>
         <Card x-chunk="dashboard-01-chunk-3">
           <CardHeader className="pb-2">
-            <CardDescription>Horse Approvals</CardDescription>
+            <CardDescription>Shoeing Approvals</CardDescription>
             <CardTitle className="text-4xl">Pending</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-xs text-muted-foreground">
-              Review and approve new horse submissions.
+              Review and approve new shoeing submissions.
             </div>
           </CardContent>
           <CardFooter>
-            <Link to={"/horse-approval-panel"} className="">
-              Go to Approvals
+            <Link to={"/shoeings-approval-panel"} className="text-primary">
+              Go to Shoeing Approvals
             </Link>
           </CardFooter>
         </Card>

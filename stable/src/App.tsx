@@ -22,9 +22,10 @@ import Inbox from "./components/pages/Inbox";
 import { NotificationProvider } from "@/components/Contexts/NotificationProvider";
 import Calendar from "./components/pages/Calendar";
 import HorseProfile from "./components/pages/HorseProfile";
-import HorseApprovalPanel from "./components/pages/HorseApprovalPanel";
+import ShoeingApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
 import { QueryClient, QueryClientProvider } from "react-query";
 import { Spinner } from "./components/ui/spinner";
+import ShoeingsApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
 
 // Protected Route component
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
@@ -94,8 +95,8 @@ function AppRoutes() {
             <Route path="/calendar" element={<Calendar />} />
             <Route path="/horses/:id" element={<HorseProfile />} />
             <Route
-              path="/horse-approval-panel"
-              element={<HorseApprovalPanel />}
+              path="/shoeings-approval-panel"
+              element={<ShoeingsApprovalPanel />}
             />
           </Route>
         </Routes>
