@@ -226,7 +226,9 @@ export default function ShoeingsApprovalPanel() {
         "Cost of Hind Add-Ons": formatPriceToNumber(
           shoeing["Cost of Hind Add-Ons"]
         ),
-        "Total Cost": formatPriceToNumber(shoeing["Total Cost"]),
+        Amount: formatPriceToNumber(shoeing["Total Cost"]), // Renamed from "Total Cost"
+        type: "SalesItemLineDetail", // Added new field
+        SalesItemLineDetail: {},
       }));
 
       // Data to send to Make

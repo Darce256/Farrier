@@ -50,6 +50,7 @@ import { useQuery, useQueryClient } from "react-query";
 import React from "react";
 import { FixedSizeGrid as Grid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
+import { AlertCircle } from "lucide-react";
 
 interface Shoeing {
   id: string;
@@ -90,22 +91,29 @@ export default function Horses() {
   const [showAlertsOnly, setShowAlertsOnly] = useState(false);
   const [contentVisible, setContentVisible] = useState(false);
 
+  const queryClient = useQueryClient();
+
   const {
     data: fetchedHorses,
     isLoading,
     error: queryError,
-  } = useQuery("horses", getHorses);
-
-  const queryClient = useQueryClient();
+  } = useQuery("horses", getHorses, {
+    refetchOnWindowFocus: false,
+    staleTime: 300000, // 5 minutes
+  });
 
   const handleAlertUpdate = useCallback(
-    (horseId: string, newAlertText: string) => {
+    async (horseId: string, newAlertText: string) => {
+      // Update local state
       queryClient.setQueryData<Horse[]>("horses", (oldData: any) => {
         if (!oldData) return oldData;
         return oldData.map((horse: Horse) =>
           horse.id === horseId ? { ...horse, alert: newAlertText } : horse
         );
       });
+
+      // Invalidate and refetch
+      await queryClient.invalidateQueries("horses");
     },
     [queryClient]
   );
@@ -581,14 +589,17 @@ const HorseCard = React.memo(
 
     const handleAlertSubmit = async () => {
       try {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("horses")
           .update({ alert: alertText })
-          .eq("id", horse.id);
+          .eq("id", horse.id)
+          .select();
 
         if (error) throw error;
 
-        onAlertUpdate(horse.id, alertText);
+        console.log("Supabase update response:", data);
+
+        await onAlertUpdate(horse.id, alertText);
         toast.success(
           alertText
             ? "Alert updated successfully"
@@ -599,6 +610,11 @@ const HorseCard = React.memo(
         console.error("Error updating alert:", error);
         toast.error("Failed to update alert");
       }
+    };
+
+    const handleRemoveAlert = async () => {
+      setAlertText("");
+      await handleAlertSubmit();
     };
 
     return (
@@ -639,6 +655,14 @@ const HorseCard = React.memo(
                   </div>
                 </div>
               )}
+              {horse.alert && (
+                <div className="flex items-center bg-red-100 text-red-700 p-2 rounded-md mt-2 text-xs">
+                  <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
+                  <span className="truncate" title={horse.alert}>
+                    {horse.alert}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="mt-auto space-y-2">
               <Button
@@ -670,10 +694,11 @@ const HorseCard = React.memo(
             />
             <DialogFooter>
               <Button
-                onClick={() => setIsAlertDialogOpen(false)}
+                onClick={handleRemoveAlert}
                 variant="outline"
+                className="bg-red-100 text-red-600 hover:bg-red-200"
               >
-                Cancel
+                Remove Alert
               </Button>
               <Button onClick={handleAlertSubmit}>Save Alert</Button>
             </DialogFooter>
