@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
+import toast from "react-hot-toast";
 
 export default function QuickBooksCallback() {
   const navigate = useNavigate();
@@ -72,18 +73,17 @@ export default function QuickBooksCallback() {
           }
 
           console.log("QuickBooks tokens stored successfully");
-          navigate("/", {
-            state: { success: "QuickBooks connected successfully" },
-          });
+          toast.success("QuickBooks connected successfully");
+          navigate("/shoeings-approval-panel", { replace: true });
         } catch (error) {
           console.error("Error processing QuickBooks connection:", error);
-          navigate("/", {
-            state: { error: error.message || "Failed to connect QuickBooks" },
-          });
+          toast.error(error.message || "Failed to connect QuickBooks");
+          navigate("/", { replace: true });
         }
       } else {
         console.error("Missing code or realmId in URL parameters");
-        navigate("/", { state: { error: "Invalid QuickBooks response" } });
+        toast.error("Invalid QuickBooks response");
+        navigate("/", { replace: true });
       }
     };
 
