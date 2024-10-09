@@ -28,6 +28,7 @@ interface Shoeing {
   status: string;
   "Other Custom Services": string | null;
   "Shoe Notes": string | null;
+  "QB Customers": string | null;
 }
 
 interface Horse {
@@ -227,8 +228,9 @@ export default function ShoeingsApprovalPanel() {
           shoeing["Cost of Hind Add-Ons"]
         ),
         Amount: formatPriceToNumber(shoeing["Total Cost"]), // Renamed from "Total Cost"
-        type: "SalesItemLineDetail", // Added new field
+        type: "SalesItemLineDetail",
         SalesItemLineDetail: {},
+        "QB Customers": shoeing["QB Customers"],
       }));
 
       // Data to send to Make
