@@ -53,13 +53,19 @@ export default function QuickBooksCallback() {
           // Store tokens in Supabase
           const { error: storeError } = await supabase
             .from("quickbooks_tokens")
-            .upsert({
-              user_id: userData.user?.id,
-              access_token,
-              refresh_token,
-              expires_at: expiresAt.toISOString(),
-              realm_id: realmId,
-            });
+            .upsert(
+              {
+                user_id: userData.user?.id,
+                access_token,
+                refresh_token,
+                expires_at: expiresAt.toISOString(),
+                realm_id: realmId,
+              },
+              {
+                onConflict: "user_id,realm_id",
+                ignoreDuplicates: false,
+              }
+            );
 
           if (storeError) {
             throw storeError;
