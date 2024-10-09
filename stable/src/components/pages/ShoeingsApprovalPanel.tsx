@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Check, X, Search, ChevronDown, ChevronUp } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider"; // Update this import
+import axios from "axios"; // Make sure to install axios if you haven't already
 
 interface Shoeing {
   id: string;
@@ -51,17 +52,47 @@ export default function ShoeingsApprovalPanel() {
   }
 
   const handleAccept = async (id: string) => {
-    const { error } = await supabase
-      .from("shoeings")
-      .update({ status: "completed" })
-      .eq("id", id);
+    try {
+      // Update the shoeing status in Supabase
+      const { error } = await supabase
+        .from("shoeings")
+        .update({ status: "completed" })
+        .eq("id", id);
 
-    if (error) {
+      if (error) throw error;
+
+      // Fetch the shoeing details
+      const { data: shoeing, error: fetchError } = await supabase
+        .from("shoeings")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      // Format price fields
+      const formattedShoeing = {
+        ...shoeing,
+        "Cost of Service": formatPriceToNumber(shoeing["Cost of Service"]),
+        "Cost of Front Add-Ons": formatPriceToNumber(
+          shoeing["Cost of Front Add-Ons"]
+        ),
+        "Cost of Hind Add-Ons": formatPriceToNumber(
+          shoeing["Cost of Hind Add-Ons"]
+        ),
+        "Total Cost": formatPriceToNumber(shoeing["Total Cost"]),
+      };
+
+      // Call the webhook
+      const webhookUrl =
+        "https://hook.us1.make.com/798unwi7mntog9f1du94m0qwsstofx9u";
+      await axios.post(webhookUrl, formattedShoeing);
+
+      toast.success("Shoeing accepted and invoice creation initiated");
+      fetchPendingShoeings();
+    } catch (error) {
       console.error("Error accepting shoeing:", error);
       toast.error("Failed to accept shoeing");
-    } else {
-      toast.success("Shoeing accepted successfully");
-      fetchPendingShoeings();
     }
   };
 
@@ -133,6 +164,12 @@ export default function ShoeingsApprovalPanel() {
     }
     // If the price doesn't start with '$', add it
     return price.startsWith("$") ? price : `$${price}`;
+  }
+
+  // Helper function to format price strings to numbers
+  function formatPriceToNumber(price: string | null): number {
+    if (!price) return 0;
+    return parseFloat(price.replace(/[^0-9.-]+/g, ""));
   }
 
   return (
