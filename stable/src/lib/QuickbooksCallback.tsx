@@ -1,11 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
-import axios from "axios";
-
-const QUICKBOOKS_CLIENT_ID = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID;
-const QUICKBOOKS_CLIENT_SECRET = import.meta.env.VITE_QUICKBOOKS_CLIENT_SECRET;
-const QUICKBOOKS_REDIRECT_URI = import.meta.env.VITE_QUICKBOOKS_REDIRECT_URI;
 
 export default function QuickBooksCallback() {
   const navigate = useNavigate();
@@ -14,46 +9,76 @@ export default function QuickBooksCallback() {
     const exchangeCodeForTokens = async () => {
       const urlParams = new URLSearchParams(window.location.search);
       const code = urlParams.get("code");
-      const realmId = urlParams.get("realmId"); // This is the QuickBooks company ID
+      const realmId = urlParams.get("realmId");
 
-      if (code) {
+      if (code && realmId) {
         try {
-          const response = await axios.post(
-            "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
-            `grant_type=authorization_code&code=${code}&redirect_uri=${QUICKBOOKS_REDIRECT_URI}`,
+          const { data, error } = await supabase.functions.invoke(
+            "exchange-quickbooks-token",
             {
-              headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                Authorization:
-                  "Basic " +
-                  btoa(`${QUICKBOOKS_CLIENT_ID}:${QUICKBOOKS_CLIENT_SECRET}`),
-              },
+              body: JSON.stringify({ code, realmId }),
             }
           );
 
-          const { access_token, refresh_token, expires_in } = response.data;
+          if (error) throw error;
+
+          console.log("Received data from Edge Function:", data);
+
+          if (data.error) {
+            throw new Error(
+              `QuickBooks API Error: ${data.error} - ${data.error_description}`
+            );
+          }
+
+          const { access_token, refresh_token, expires_in } = data.data;
+
+          if (!access_token || !refresh_token || !expires_in) {
+            throw new Error("Missing required token data");
+          }
+
+          // Calculate expires_at
+          const expiresInMs = parseInt(expires_in, 10) * 1000;
+          if (isNaN(expiresInMs)) {
+            throw new Error("Invalid expires_in value");
+          }
+          const expiresAt = new Date(Date.now() + expiresInMs);
+
+          console.log("Calculated expiresAt:", expiresAt);
+
+          // Get current user
+          const { data: userData, error: userError } =
+            await supabase.auth.getUser();
+          if (userError) throw userError;
 
           // Store tokens in Supabase
-          const { error } = await supabase.from("quickbooks_tokens").upsert({
-            user_id: (await supabase.auth.getUser()).data.user?.id,
-            access_token,
-            refresh_token,
-            expires_at: new Date(Date.now() + expires_in * 1000).toISOString(),
-            realm_id: realmId,
-          });
+          const { error: storeError } = await supabase
+            .from("quickbooks_tokens")
+            .upsert({
+              user_id: userData.user?.id,
+              access_token,
+              refresh_token,
+              expires_at: expiresAt.toISOString(),
+              realm_id: realmId,
+            });
 
-          if (error) {
-            console.error("Error storing QuickBooks tokens:", error);
-          } else {
-            console.log("QuickBooks tokens stored successfully");
+          if (storeError) {
+            throw storeError;
           }
-        } catch (error) {
-          console.error("Error exchanging code for tokens:", error);
-        }
-      }
 
-      // Redirect back to the main page
-      navigate("/");
+          console.log("QuickBooks tokens stored successfully");
+          navigate("/", {
+            state: { success: "QuickBooks connected successfully" },
+          });
+        } catch (error) {
+          console.error("Error processing QuickBooks connection:", error);
+          navigate("/", {
+            state: { error: error.message || "Failed to connect QuickBooks" },
+          });
+        }
+      } else {
+        console.error("Missing code or realmId in URL parameters");
+        navigate("/", { state: { error: "Invalid QuickBooks response" } });
+      }
     };
 
     exchangeCodeForTokens();

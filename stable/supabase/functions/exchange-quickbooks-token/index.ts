@@ -1,31 +1,46 @@
-// Follow this setup guide to integrate the Deno language server with your editor:
-// https://deno.land/manual/getting_started/setup_your_environment
-// This enables autocomplete, go to definition, etc.
+import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
 
-// Setup type definitions for built-in Supabase Runtime APIs
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+const QUICKBOOKS_CLIENT_ID = Deno.env.get("QUICKBOOKS_CLIENT_ID")!;
+const QUICKBOOKS_CLIENT_SECRET = Deno.env.get("QUICKBOOKS_CLIENT_SECRET")!;
+const QUICKBOOKS_REDIRECT_URI = Deno.env.get("QUICKBOOKS_REDIRECT_URI")!;
 
-console.log("Hello from Functions!");
+serve(async (req) => {
+  // This is needed if you're planning to invoke your function from a browser.
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
-Deno.serve(async (req) => {
-  const { name } = await req.json();
-  const data = {
-    message: `Hello ${name}!`,
-  };
+  try {
+    const { code } = await req.json();
 
-  return new Response(JSON.stringify(data), {
-    headers: { "Content-Type": "application/json" },
-  });
+    const tokenResponse = await fetch(
+      "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          Authorization: `Basic ${btoa(
+            `${QUICKBOOKS_CLIENT_ID}:${QUICKBOOKS_CLIENT_SECRET}`
+          )}`,
+        },
+        body: `grant_type=authorization_code&code=${code}&redirect_uri=${QUICKBOOKS_REDIRECT_URI}`,
+      }
+    );
+
+    const tokenData = await tokenResponse.json();
+
+    return new Response(JSON.stringify({ success: true, data: tokenData }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      }
+    );
+  }
 });
-
-/* To invoke locally:
-
-  1. Run `supabase start` (see: https://supabase.com/docs/reference/cli/supabase-start)
-  2. Make an HTTP request:
-
-  curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/exchange-quickbooks-token' \
-    --header 'Authorization: Bearer ' \
-    --header 'Content-Type: application/json' \
-    --data '{"name":"Functions"}'
-
-*/
