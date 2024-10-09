@@ -27,6 +27,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import { Spinner } from "./components/ui/spinner";
 import ShoeingsApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
 import ProtectedRoute from "@/lib/ProtectedRoute";
+import QuickBooksCallback from "@/lib/QuickbooksCallback";
 
 function AppRoutes() {
   return (
@@ -83,6 +84,10 @@ function AppRoutes() {
             <Route
               path="/shoeings-approval-panel"
               element={<ShoeingsApprovalPanel />}
+            />
+            <Route
+              path="/quickbooks-callback"
+              element={<QuickBooksCallback />}
             />
           </Route>
         </Routes>

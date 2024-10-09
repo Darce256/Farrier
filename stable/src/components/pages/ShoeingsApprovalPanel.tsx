@@ -13,6 +13,12 @@ import { Check, X, Search, ChevronDown, ChevronUp } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import axios from "axios";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Shoeing {
   id: string;
@@ -49,15 +55,43 @@ interface GroupedShoeings {
   [key: string]: Shoeing[];
 }
 
+// Add these constants at the top of your file
+const QUICKBOOKS_CLIENT_ID = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID;
+const QUICKBOOKS_REDIRECT_URI = import.meta.env.VITE_QUICKBOOKS_REDIRECT_URI;
+
 export default function ShoeingsApprovalPanel() {
   const [groupedShoeings, setGroupedShoeings] = useState<GroupedShoeings>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const { user } = useAuth();
+  const [isQuickBooksConnected, setIsQuickBooksConnected] = useState(false);
 
   useEffect(() => {
+    checkQuickBooksConnection();
     fetchPendingShoeings();
   }, []);
+
+  const checkQuickBooksConnection = async () => {
+    // Check if the user has a QuickBooks token stored in Supabase
+    const { data, error } = await supabase
+      .from("quickbooks_tokens")
+      .select("*")
+      .eq("user_id", user?.id)
+      .single();
+
+    if (data && !error) {
+      setIsQuickBooksConnected(true);
+    }
+  };
+
+  const handleQuickBooksConnect = () => {
+    const scopes = encodeURIComponent(
+      "com.intuit.quickbooks.accounting openid profile email phone address"
+    );
+    const state = encodeURIComponent("testState"); // You might want to generate a random state for security
+    const authUri = `https://appcenter.intuit.com/connect/oauth2?client_id=${QUICKBOOKS_CLIENT_ID}&redirect_uri=${QUICKBOOKS_REDIRECT_URI}&response_type=code&scope=${scopes}&state=${state}`;
+    window.location.href = authUri;
+  };
 
   async function fetchPendingShoeings() {
     try {
@@ -229,13 +263,17 @@ export default function ShoeingsApprovalPanel() {
         ),
         Amount: formatPriceToNumber(shoeing["Total Cost"]), // Renamed from "Total Cost"
         type: "SalesItemLineDetail",
-        SalesItemLineDetail: {},
-        "QB Customers": shoeing["QB Customers"],
+        SalesItemLineDetail: {
+          ItemRef: {
+            value: "999",
+          },
+        },
+        "QB Customers": "Video Games by Dan",
       }));
 
       // Data to send to Make
       const dataForMake = {
-        customerEmail: customerEmail,
+        customerEmail: "customerEmail",
         shoeings: formattedShoeings,
       };
 
@@ -337,6 +375,25 @@ export default function ShoeingsApprovalPanel() {
   function formatPriceToNumber(price: string | null): number {
     if (!price) return 0;
     return parseFloat(price.replace(/[^0-9.-]+/g, ""));
+  }
+
+  if (!isQuickBooksConnected) {
+    return (
+      <Dialog open={true}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Connect to QuickBooks</DialogTitle>
+          </DialogHeader>
+          <p>
+            Please connect to QuickBooks before accessing the Shoeing Approval
+            Panel.
+          </p>
+          <Button onClick={handleQuickBooksConnect}>
+            Connect to QuickBooks
+          </Button>
+        </DialogContent>
+      </Dialog>
+    );
   }
 
   return (
