@@ -32,6 +32,7 @@ interface Shoeing {
   id: string;
   "Date of Service": string;
   "Horse Name": string;
+  "Barn / Trainer": string;
   Description: string;
   "Location of Service": string;
   "Base Service": string | null;
@@ -111,11 +112,8 @@ export default function ShoeingsApprovalPanel() {
 
       if (error) throw error;
 
-      console.log("Raw response from Edge Function:", data);
-
       if (data && data.items && data.customers) {
         setQuickBooksData({ items: data.items, customers: data.customers });
-        console.log("QuickBooks data loaded:", data);
       } else {
         throw new Error("Invalid response structure from Edge Function");
       }
@@ -231,38 +229,32 @@ export default function ShoeingsApprovalPanel() {
 
       console.log("Fetched customers:", customers);
 
-      // Create a map of "horse name - barn/trainer" to customer display name
-      const customerMap = new Map();
-      customers.forEach((customer) => {
-        const horses = customer.Horses.split(",").map((horse) => horse.trim());
-        horses.forEach((horse) =>
-          customerMap.set(horse.toLowerCase(), customer["Display Name"])
-        );
-      });
-
-      console.log("Customer map:", Object.fromEntries(customerMap));
-
       // Group shoeings by customer display name
       const grouped = shoeings.reduce(
         (acc: GroupedShoeings, shoeing: Shoeing) => {
-          const horseKey =
-            `${shoeing["Horse Name"]} - ${shoeing["Location of Service"]}`.toLowerCase();
-          const customerDisplayName =
-            customerMap.get(horseKey) ||
-            `Unknown (${shoeing["Horse Name"]} - ${shoeing["Location of Service"]})`;
-          const key = customerDisplayName;
+          const shoeingHorseValue = `${shoeing["Horses"]}`;
+          console.log(`Processing shoeing: ${shoeingHorseValue}`);
 
-          console.log(
-            `Processing shoeing: Horse: ${shoeing["Horse Name"]}, Location: ${shoeing["Location of Service"]}, Display Name: ${customerDisplayName}`
+          let customerDisplayName = "Unknown";
+
+          // Find matching customer
+          const matchingCustomer = customers.find(
+            (customer) =>
+              customer.Horses && customer.Horses.includes(shoeingHorseValue)
           );
+
+          if (matchingCustomer) {
+            customerDisplayName = matchingCustomer["Display Name"];
+          } else {
+            console.log(`No matching customer found for: ${shoeingHorseValue}`);
+          }
+
+          const key = customerDisplayName;
 
           if (!acc[key]) {
             acc[key] = { displayName: customerDisplayName, shoeings: [] };
           }
-          acc[key].shoeings.push({
-            ...shoeing,
-            "Customer Display Name": customerDisplayName,
-          });
+          acc[key].shoeings.push(shoeing);
           return acc;
         },
         {}
