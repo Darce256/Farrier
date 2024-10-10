@@ -471,13 +471,19 @@ export default function ShoeingsApprovalPanel() {
       ) : Object.keys(groupedShoeings).length === 0 ? (
         <p>No pending shoeings found.</p>
       ) : (
-        <Accordion type="single" collapsible className="space-y-4">
+        <Accordion
+          type="single"
+          collapsible
+          className="space-y-4 bg-gray-100 p-4 rounded-md"
+        >
           {Object.entries(groupedShoeings).map(
             ([key, { displayName, shoeings }]) => (
               <AccordionItem key={key} value={key}>
-                <AccordionTrigger className="text-lg font-semibold">
-                  {displayName} ({shoeings.length} shoeing
-                  {shoeings.length > 1 ? "s" : ""})
+                <AccordionTrigger className="text-lg font-semibold flex items-center justify-between w-full">
+                  <span className="flex-grow pr-2 break-words">
+                    {displayName} ({shoeings.length} shoeing
+                    {shoeings.length > 1 ? "s" : ""})
+                  </span>
                 </AccordionTrigger>
                 <AccordionContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
