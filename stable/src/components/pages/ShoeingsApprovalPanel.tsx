@@ -554,25 +554,17 @@ export default function ShoeingsApprovalPanel() {
 function SkeletonLoader() {
   return (
     <div className="container mx-auto p-4">
-      <Skeleton className="w-1/2 h-8 mb-4" /> {/* Title skeleton */}
-      <Skeleton className="w-full h-10 mb-4" /> {/* Search input skeleton */}
+      <Skeleton className="w-1/2 h-8 mb-4 bg-primary" />
       <div className="space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="border rounded-lg p-4">
-            <Skeleton className="w-3/4 h-6 mb-2" /> {/* Accordion title */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3].map((j) => (
-                <Card key={j} className="h-64">
-                  <CardContent className="p-4">
-                    <Skeleton className="w-3/4 h-6 mb-2" />
-                    <Skeleton className="w-1/2 h-4 mb-2" />
-                    <Skeleton className="w-full h-4 mb-2" />
-                    <Skeleton className="w-full h-4 mb-2" />
-                    <Skeleton className="w-3/4 h-4 mb-2" />
-                  </CardContent>
-                </Card>
-              ))}
+          <div key={i} className="border rounded-lg p-0">
+            <div className="flex items-center justify-between mb-2">
+              <Skeleton className="w-3/4 h-6 bg-primary" />{" "}
+              {/* Accordion title */}
+              <Skeleton className="w-6 h-6 bg-primary" /> {/* Chevron icon */}
             </div>
+            <Skeleton className="w-full h-12 mt-2 bg-primary" />{" "}
+            {/* Accept All button and Select customer */}
           </div>
         ))}
       </div>
