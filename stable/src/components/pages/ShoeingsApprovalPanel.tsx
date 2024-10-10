@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Shoeing {
   id: string;
@@ -82,14 +89,40 @@ export default function ShoeingsApprovalPanel() {
   const [quickBooksData, setQuickBooksData] = useState<QuickBooksData | null>(
     null
   );
+  const [selectedCustomers, setSelectedCustomers] = useState<
+    Record<string, string>
+  >({});
 
-  useEffect(() => {
-    checkQuickBooksConnection();
+  const fetchQuickBooksData = useCallback(async () => {
+    if (!user) return;
+    try {
+      console.log("Fetching QuickBooks data...");
+      const { data, error } = await supabase.functions.invoke(
+        "quickbooks-create-invoice",
+        {
+          body: JSON.stringify({ userId: user.id }),
+        }
+      );
+
+      if (error) throw error;
+
+      console.log("Raw response from Edge Function:", data);
+
+      if (data && data.items && data.customers) {
+        setQuickBooksData({ items: data.items, customers: data.customers });
+        console.log("QuickBooks data loaded:", data);
+      } else {
+        throw new Error("Invalid response structure from Edge Function");
+      }
+    } catch (error) {
+      console.error("Error fetching QuickBooks data:", error);
+      toast.error("Failed to fetch QuickBooks data");
+    }
   }, [user]);
 
-  const checkQuickBooksConnection = async () => {
+  const checkQuickBooksConnection = useCallback(async () => {
     if (!user) return;
-
+    setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from("quickbooks_tokens")
@@ -105,7 +138,7 @@ export default function ShoeingsApprovalPanel() {
         if (expiresAt > now) {
           setIsQuickBooksConnected(true);
           await fetchQuickBooksData();
-          await fetchPendingShoeings(); // Add this line
+          await fetchPendingShoeings();
         } else {
           await refreshQuickBooksToken(data.refresh_token);
         }
@@ -118,40 +151,11 @@ export default function ShoeingsApprovalPanel() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user, fetchQuickBooksData]);
 
-  const fetchQuickBooksData = async () => {
-    try {
-      console.log("Fetching QuickBooks data...");
-      const { data, error } = await supabase.functions.invoke(
-        "quickbooks-create-invoice",
-        {
-          body: JSON.stringify({ userId: user?.id }),
-        }
-      );
-
-      if (error) {
-        console.error("Error from Edge Function:", error);
-        throw error;
-      }
-
-      console.log("Raw response from Edge Function:", data);
-
-      if (data && data.items && data.customers) {
-        setQuickBooksData({ items: data.items, customers: data.customers });
-        console.log("QuickBooks data loaded:", data);
-      } else {
-        console.log(
-          "No QuickBooks data found in the response. Response structure:",
-          data
-        );
-        throw new Error("Invalid response structure from Edge Function");
-      }
-    } catch (error) {
-      console.error("Error fetching QuickBooks data:", error);
-      toast.error("Failed to fetch QuickBooks data");
-    }
-  };
+  useEffect(() => {
+    checkQuickBooksConnection();
+  }, [checkQuickBooksConnection]);
 
   const refreshQuickBooksToken = async (refreshToken: string) => {
     try {
@@ -233,6 +237,13 @@ export default function ShoeingsApprovalPanel() {
     console.log("handleAccept called with email:", customerEmail);
     try {
       const shoeings = groupedShoeings[customerEmail];
+      const selectedCustomerId = selectedCustomers[customerEmail];
+
+      if (!selectedCustomerId) {
+        toast.error("Please select a QuickBooks customer before accepting");
+        return;
+      }
+
       console.log("Shoeings to be processed:", shoeings);
 
       if (!quickBooksData) {
@@ -245,6 +256,7 @@ export default function ShoeingsApprovalPanel() {
           body: JSON.stringify({
             userId: user?.id,
             shoeings,
+            customerId: selectedCustomerId,
           }),
         }
       );
@@ -265,6 +277,11 @@ export default function ShoeingsApprovalPanel() {
 
       toast.success("Shoeings accepted and invoice created in QuickBooks");
       fetchPendingShoeings();
+      setSelectedCustomers((prev) => {
+        const newState = { ...prev };
+        delete newState[customerEmail];
+        return newState;
+      });
     } catch (error) {
       console.error("Error in handleAccept:", error);
       toast.error("Failed to accept shoeings and create invoice");
@@ -357,6 +374,10 @@ export default function ShoeingsApprovalPanel() {
     return parseFloat(price.replace(/[^0-9.-]+/g, ""));
   }
 
+  const handleCustomerSelect = (email: string, customerId: string) => {
+    setSelectedCustomers((prev) => ({ ...prev, [email]: customerId }));
+  };
+
   if (isQuickBooksConnected === null || isLoading) {
     return <SkeletonLoader />;
   }
@@ -431,9 +452,32 @@ export default function ShoeingsApprovalPanel() {
                     </Card>
                   ))}
                 </div>
-                <Button onClick={() => handleAccept(email)} className="mt-4">
-                  Accept All
-                </Button>
+                <div className="flex items-center mt-4 space-x-4">
+                  <Button
+                    onClick={() => handleAccept(email)}
+                    disabled={!selectedCustomers[email]}
+                  >
+                    Accept All
+                  </Button>
+                  <Select
+                    value={selectedCustomers[email] || ""}
+                    onValueChange={(value) =>
+                      handleCustomerSelect(email, value)
+                    }
+                    className="bg-white"
+                  >
+                    <SelectTrigger className="w-[200px] bg-white">
+                      <SelectValue placeholder="Select customer" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {quickBooksData?.customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.displayName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </AccordionContent>
             </AccordionItem>
           ))}

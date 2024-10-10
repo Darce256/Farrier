@@ -460,7 +460,7 @@ export default function Horses() {
               onClick={() =>
                 setViewMode(viewMode === "card" ? "table" : "card")
               }
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              className="bg-primary text-primary-foreground hover:bg-foreground/90"
             >
               {viewMode === "card" ? "Table View" : "Card View"}
             </Button>
@@ -667,7 +667,7 @@ const HorseCard = React.memo(
             <div className="mt-auto space-y-2">
               <Button
                 onClick={onSelect}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-xs sm:text-sm"
+                className="w-full bg-primary text-primary-foreground hover:bg-foreground/90 text-xs sm:text-sm"
               >
                 View Details
               </Button>
