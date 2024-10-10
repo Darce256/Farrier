@@ -9,6 +9,7 @@ import {
   AccordionTrigger,
   AccordionContent,
 } from "@/components/ui/accordion";
+import { Skeleton } from "@/components/ui/skeleton"; // Make sure you have this component
 import { Check, X, Search, ChevronDown, ChevronUp } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider";
@@ -64,23 +65,75 @@ export default function ShoeingsApprovalPanel() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
   const { user } = useAuth();
-  const [isQuickBooksConnected, setIsQuickBooksConnected] = useState(false);
+  const [isQuickBooksConnected, setIsQuickBooksConnected] = useState<
+    boolean | null
+  >(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     checkQuickBooksConnection();
     fetchPendingShoeings();
-  }, []);
+  }, [user]);
 
   const checkQuickBooksConnection = async () => {
-    // Check if the user has a QuickBooks token stored in Supabase
-    const { data, error } = await supabase
-      .from("quickbooks_tokens")
-      .select("*")
-      .eq("user_id", user?.id)
-      .single();
+    if (!user) return;
 
-    if (data && !error) {
+    try {
+      const { data, error } = await supabase
+        .from("quickbooks_tokens")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        // Check if the token is expired
+        const expiresAt = new Date(data.expires_at);
+        const now = new Date();
+        if (expiresAt > now) {
+          setIsQuickBooksConnected(true);
+        } else {
+          // Token is expired, attempt to refresh
+          await refreshQuickBooksToken(data.refresh_token);
+        }
+      } else {
+        setIsQuickBooksConnected(false);
+      }
+    } catch (error) {
+      console.error("Error checking QuickBooks connection:", error);
+      setIsQuickBooksConnected(false);
+    }
+  };
+
+  const refreshQuickBooksToken = async (refreshToken: string) => {
+    try {
+      // Call your token refresh function (you might need to implement this)
+      const { data, error } = await supabase.functions.invoke(
+        "refresh-quickbooks-token",
+        {
+          body: JSON.stringify({ refresh_token: refreshToken }),
+        }
+      );
+
+      if (error) throw error;
+
+      // Update the token in the database
+      await supabase
+        .from("quickbooks_tokens")
+        .update({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          expires_at: new Date(
+            Date.now() + data.expires_in * 1000
+          ).toISOString(),
+        })
+        .eq("user_id", user?.id);
+
       setIsQuickBooksConnected(true);
+    } catch (error) {
+      console.error("Error refreshing QuickBooks token:", error);
+      setIsQuickBooksConnected(false);
     }
   };
 
@@ -94,8 +147,8 @@ export default function ShoeingsApprovalPanel() {
   };
 
   async function fetchPendingShoeings() {
+    setIsLoading(true);
     try {
-      console.log("Fetching pending shoeings...");
       const { data: shoeings, error: shoeingsError } = await supabase
         .from("shoeings")
         .select("*")
@@ -103,16 +156,12 @@ export default function ShoeingsApprovalPanel() {
         .order("Date of Service", { ascending: false });
 
       if (shoeingsError) throw shoeingsError;
-      console.log("Fetched shoeings:", shoeings);
-      console.log("Number of pending shoeings:", shoeings?.length || 0);
 
       if (!shoeings || shoeings.length === 0) {
-        console.log("No pending shoeings found");
         setGroupedShoeings({});
         return;
       }
 
-      console.log("Fetching horses...");
       let allHorses: Horse[] = [];
       let count = 0;
       let hasMore = true;
@@ -137,15 +186,11 @@ export default function ShoeingsApprovalPanel() {
         hasMore = totalCount !== null && count < totalCount;
       }
 
-      console.log("Fetched horses:", allHorses);
-
-      console.log("Fetching customers...");
       const { data: customers, error: customersError } = await supabase
         .from("customers")
         .select("*");
 
       if (customersError) throw customersError;
-      console.log("Fetched customers:", customers);
 
       // Create barn/trainer to email map
       const barnTrainerToEmailMap = new Map<string, string>();
@@ -165,10 +210,6 @@ export default function ShoeingsApprovalPanel() {
           });
         }
       });
-      console.log(
-        "Barn/Trainer to Email Map:",
-        Object.fromEntries(barnTrainerToEmailMap)
-      );
 
       // Create horse entry to customer map
       const horseEntryToCustomerMap = new Map<
@@ -186,23 +227,15 @@ export default function ShoeingsApprovalPanel() {
           });
         }
       });
-      console.log(
-        "Horse Entry to Customer Map:",
-        Object.fromEntries(horseEntryToCustomerMap)
-      );
 
       // Group shoeings
       const grouped = shoeings.reduce((acc: GroupedShoeings, shoeing: any) => {
-        console.log("Processing shoeing:", shoeing);
-
         const horseEntry = shoeing.Horses?.trim().toLowerCase();
-        console.log("Horse entry:", horseEntry);
         let customerEmail = horseEntry
           ? horseEntryToCustomerMap.get(horseEntry)?.email
           : undefined;
 
         if (!customerEmail) {
-          console.log("No customer found for horse entry:", horseEntry);
           if (shoeing["Owner Email"]) {
             customerEmail = shoeing["Owner Email"];
           } else if (shoeing["QB Customers"]) {
@@ -216,13 +249,6 @@ export default function ShoeingsApprovalPanel() {
           }
         }
 
-        console.log(
-          "Customer email for",
-          shoeing["Horse Name"],
-          ":",
-          customerEmail
-        );
-
         if (!acc[customerEmail as string]) {
           acc[customerEmail as string] = [];
         }
@@ -230,11 +256,11 @@ export default function ShoeingsApprovalPanel() {
         return acc;
       }, {});
 
-      console.log("Grouped shoeings:", grouped);
       setGroupedShoeings(grouped);
     } catch (error) {
-      console.error("Error fetching data:", error);
       toast.error("Failed to fetch pending shoeings");
+    } finally {
+      setIsLoading(false);
     }
   }
 
@@ -242,6 +268,20 @@ export default function ShoeingsApprovalPanel() {
     try {
       const shoeings = groupedShoeings[customerEmail];
 
+      const { data, error } = await supabase.functions.invoke(
+        "quickbooks-create-invoice",
+        {
+          body: JSON.stringify({
+            shoeings,
+            customerEmail,
+            userId: user?.id,
+          }),
+        }
+      );
+
+      if (error) throw error;
+
+      // Update shoeings status in your database
       for (const shoeing of shoeings) {
         const { error } = await supabase
           .from("shoeings")
@@ -251,42 +291,11 @@ export default function ShoeingsApprovalPanel() {
         if (error) throw error;
       }
 
-      // Format price fields for all shoeings
-      const formattedShoeings = shoeings.map((shoeing) => ({
-        ...shoeing,
-        "Cost of Service": formatPriceToNumber(shoeing["Cost of Service"]),
-        "Cost of Front Add-Ons": formatPriceToNumber(
-          shoeing["Cost of Front Add-Ons"]
-        ),
-        "Cost of Hind Add-Ons": formatPriceToNumber(
-          shoeing["Cost of Hind Add-Ons"]
-        ),
-        Amount: formatPriceToNumber(shoeing["Total Cost"]), // Renamed from "Total Cost"
-        type: "SalesItemLineDetail",
-        SalesItemLineDetail: {
-          ItemRef: {
-            value: "999",
-          },
-        },
-        "QB Customers": "Video Games by Dan",
-      }));
-
-      // Data to send to Make
-      const dataForMake = {
-        customerEmail: "customerEmail",
-        shoeings: formattedShoeings,
-      };
-
-      // Call the webhook with all shoeings for this customer
-      const webhookUrl =
-        "https://hook.us1.make.com/798unwi7mntog9f1du94m0qwsstofx9u";
-      await axios.post(webhookUrl, dataForMake);
-
-      toast.success("Shoeings accepted and invoice creation initiated");
+      toast.success("Shoeings accepted and invoice created in QuickBooks");
       fetchPendingShoeings();
     } catch (error) {
-      console.error("Error accepting shoeings:", error);
-      toast.error("Failed to accept shoeings");
+      console.error("Error in handleAccept:", error);
+      toast.error("Failed to accept shoeings and create invoice");
     }
   };
 
@@ -326,7 +335,6 @@ export default function ShoeingsApprovalPanel() {
       toast.success("Shoeing rejected successfully");
       fetchPendingShoeings();
     } catch (error) {
-      console.error("Error rejecting shoeing:", error);
       toast.error("Failed to reject shoeing");
     }
   };
@@ -377,7 +385,11 @@ export default function ShoeingsApprovalPanel() {
     return parseFloat(price.replace(/[^0-9.-]+/g, ""));
   }
 
-  if (!isQuickBooksConnected) {
+  if (isQuickBooksConnected === null || isLoading) {
+    return <SkeletonLoader />;
+  }
+
+  if (isQuickBooksConnected === false) {
     return (
       <Dialog open={true}>
         <DialogContent>
@@ -522,6 +534,35 @@ export default function ShoeingsApprovalPanel() {
           ))}
         </Accordion>
       )}
+    </div>
+  );
+}
+
+function SkeletonLoader() {
+  return (
+    <div className="container mx-auto p-4">
+      <Skeleton className="w-1/2 h-8 mb-4" /> {/* Title skeleton */}
+      <Skeleton className="w-full h-10 mb-4" /> {/* Search input skeleton */}
+      <div className="space-y-4">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="border rounded-lg p-4">
+            <Skeleton className="w-3/4 h-6 mb-2" /> {/* Accordion title */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((j) => (
+                <Card key={j} className="h-64">
+                  <CardContent className="p-4">
+                    <Skeleton className="w-3/4 h-6 mb-2" />
+                    <Skeleton className="w-1/2 h-4 mb-2" />
+                    <Skeleton className="w-full h-4 mb-2" />
+                    <Skeleton className="w-full h-4 mb-2" />
+                    <Skeleton className="w-3/4 h-4 mb-2" />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
