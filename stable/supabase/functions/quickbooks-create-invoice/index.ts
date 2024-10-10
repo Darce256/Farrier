@@ -107,15 +107,6 @@ serve(async (req) => {
       "https://sandbox-quickbooks.api.intuit.com/v3/company";
     console.log("Using API base URL:", apiBase);
 
-    // Fetch items and customers
-    console.log("Fetching items from QuickBooks...");
-    const itemIds = await fetchItems(apiBase, realm_id, access_token);
-    console.log("Items fetched:", itemIds);
-
-    console.log("Fetching customers from QuickBooks...");
-    const customerList = await fetchCustomers(apiBase, realm_id, access_token);
-    console.log("Customers fetched:", customerList);
-
     let invoiceResponse = null;
     if (shoeings && customerId) {
       console.log("Creating invoice for shoeings:", shoeings);
@@ -127,6 +118,9 @@ serve(async (req) => {
         customerId
       );
     }
+
+    const itemIds = await fetchItems(apiBase, realm_id, access_token);
+    const customerList = await fetchCustomers(apiBase, realm_id, access_token);
 
     const responseObj = {
       items: itemIds,
@@ -208,7 +202,7 @@ async function createInvoice(
       headers: {
         Authorization: `Bearer ${access_token}`,
         "Content-Type": "application/json",
-        Accept: "application/json", // Add this line to request JSON response
+        Accept: "application/json",
       },
       body: JSON.stringify(invoiceData),
     });

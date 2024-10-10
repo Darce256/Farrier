@@ -271,14 +271,14 @@ export default function ShoeingsApprovalPanel() {
 
       console.log("Invoice creation response:", JSON.stringify(data, null, 2));
 
-      if (data.invoice) {
+      if (data.invoice && data.invoice.Invoice) {
         // Update shoeings status in your database
         for (const shoeing of shoeings) {
           const { error: updateError } = await supabase
             .from("shoeings")
             .update({
               status: "completed",
-              Invoice: data.invoice.Id, // Changed from 'invoice_id' to 'Invoice'
+              Invoice: data.invoice.Invoice.Id,
             })
             .eq("id", shoeing.id);
 
@@ -288,8 +288,12 @@ export default function ShoeingsApprovalPanel() {
           }
         }
 
+        const invoiceNumber =
+          data.invoice.Invoice.DocNumber ||
+          data.invoice.Invoice.Id ||
+          "Unknown";
         toast.success(
-          `Shoeings accepted and invoice #${data.invoice.DocNumber} created in QuickBooks`
+          `Shoeings accepted and invoice #${invoiceNumber} created in QuickBooks`
         );
         fetchPendingShoeings();
         setSelectedCustomers((prev) => {
