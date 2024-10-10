@@ -56,6 +56,16 @@ interface GroupedShoeings {
   [key: string]: Shoeing[];
 }
 
+interface QuickBooksData {
+  items: Array<{ id: string; name: string; description: string }>;
+  customers: Array<{
+    id: string;
+    displayName: string;
+    companyName: string;
+    email: string;
+  }>;
+}
+
 // Add these constants at the top of your file
 const QUICKBOOKS_CLIENT_ID = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID;
 const QUICKBOOKS_REDIRECT_URI = import.meta.env.VITE_QUICKBOOKS_REDIRECT_URI;
@@ -69,10 +79,12 @@ export default function ShoeingsApprovalPanel() {
     boolean | null
   >(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [quickBooksData, setQuickBooksData] = useState<QuickBooksData | null>(
+    null
+  );
 
   useEffect(() => {
     checkQuickBooksConnection();
-    fetchPendingShoeings();
   }, [user]);
 
   const checkQuickBooksConnection = async () => {
@@ -88,13 +100,13 @@ export default function ShoeingsApprovalPanel() {
       if (error) throw error;
 
       if (data) {
-        // Check if the token is expired
         const expiresAt = new Date(data.expires_at);
         const now = new Date();
         if (expiresAt > now) {
           setIsQuickBooksConnected(true);
+          await fetchQuickBooksData();
+          await fetchPendingShoeings(); // Add this line
         } else {
-          // Token is expired, attempt to refresh
           await refreshQuickBooksToken(data.refresh_token);
         }
       } else {
@@ -103,6 +115,41 @@ export default function ShoeingsApprovalPanel() {
     } catch (error) {
       console.error("Error checking QuickBooks connection:", error);
       setIsQuickBooksConnected(false);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchQuickBooksData = async () => {
+    try {
+      console.log("Fetching QuickBooks data...");
+      const { data, error } = await supabase.functions.invoke(
+        "quickbooks-create-invoice",
+        {
+          body: JSON.stringify({ userId: user?.id }),
+        }
+      );
+
+      if (error) {
+        console.error("Error from Edge Function:", error);
+        throw error;
+      }
+
+      console.log("Raw response from Edge Function:", data);
+
+      if (data && data.items && data.customers) {
+        setQuickBooksData({ items: data.items, customers: data.customers });
+        console.log("QuickBooks data loaded:", data);
+      } else {
+        console.log(
+          "No QuickBooks data found in the response. Response structure:",
+          data
+        );
+        throw new Error("Invalid response structure from Edge Function");
+      }
+    } catch (error) {
+      console.error("Error fetching QuickBooks data:", error);
+      toast.error("Failed to fetch QuickBooks data");
     }
   };
 
@@ -131,6 +178,7 @@ export default function ShoeingsApprovalPanel() {
         .eq("user_id", user?.id);
 
       setIsQuickBooksConnected(true);
+      await fetchQuickBooksData();
     } catch (error) {
       console.error("Error refreshing QuickBooks token:", error);
       setIsQuickBooksConnected(false);
@@ -162,102 +210,19 @@ export default function ShoeingsApprovalPanel() {
         return;
       }
 
-      let allHorses: Horse[] = [];
-      let count = 0;
-      let hasMore = true;
-
-      while (hasMore) {
-        const {
-          data: horses,
-          error: horsesError,
-          count: totalCount,
-        } = await supabase
-          .from("horses")
-          .select("*", { count: "exact" })
-          .range(count, count + 999);
-
-        if (horsesError) throw horsesError;
-
-        if (horses) {
-          allHorses = [...allHorses, ...horses];
-          count += horses.length;
-        }
-
-        hasMore = totalCount !== null && count < totalCount;
-      }
-
-      const { data: customers, error: customersError } = await supabase
-        .from("customers")
-        .select("*");
-
-      if (customersError) throw customersError;
-
-      // Create barn/trainer to email map
-      const barnTrainerToEmailMap = new Map<string, string>();
-      customers.forEach((customer: any) => {
-        if (customer["Horses"] && customer["Owner Email"]) {
-          const horses = customer["Horses"]
-            .split(",")
-            .map((h: string) => h.trim());
-          horses.forEach((horse: any) => {
-            const barnTrainer = horse.match(/\[(.*?)\]/)?.[1];
-            if (barnTrainer) {
-              barnTrainerToEmailMap.set(
-                barnTrainer.toLowerCase(),
-                customer["Owner Email"]
-              );
-            }
-          });
-        }
-      });
-
-      // Create horse entry to customer map
-      const horseEntryToCustomerMap = new Map<
-        string,
-        { name: string; email: string }
-      >();
-      customers.forEach((customer: Customer) => {
-        if (customer["Horses"] && customer["Owner Email"]) {
-          const horses = customer["Horses"].split(",").map((h) => h.trim());
-          horses.forEach((horse) => {
-            horseEntryToCustomerMap.set(horse.toLowerCase(), {
-              name: customer["Display Name"],
-              email: customer["Owner Email"] || "",
-            });
-          });
-        }
-      });
-
-      // Group shoeings
+      // Group shoeings by customer email
       const grouped = shoeings.reduce((acc: GroupedShoeings, shoeing: any) => {
-        const horseEntry = shoeing.Horses?.trim().toLowerCase();
-        let customerEmail = horseEntry
-          ? horseEntryToCustomerMap.get(horseEntry)?.email
-          : undefined;
-
-        if (!customerEmail) {
-          if (shoeing["Owner Email"]) {
-            customerEmail = shoeing["Owner Email"];
-          } else if (shoeing["QB Customers"]) {
-            const qbCustomers = JSON.parse(shoeing["QB Customers"]);
-            const emails = qbCustomers.match(
-              /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
-            );
-            customerEmail = emails ? emails[0] : "Unknown";
-          } else {
-            customerEmail = "Unknown";
-          }
+        const customerEmail = shoeing["Owner Email"] || "Unknown";
+        if (!acc[customerEmail]) {
+          acc[customerEmail] = [];
         }
-
-        if (!acc[customerEmail as string]) {
-          acc[customerEmail as string] = [];
-        }
-        acc[customerEmail as string].push(shoeing);
+        acc[customerEmail].push(shoeing);
         return acc;
       }, {});
 
       setGroupedShoeings(grouped);
     } catch (error) {
+      console.error("Failed to fetch pending shoeings:", error);
       toast.error("Failed to fetch pending shoeings");
     } finally {
       setIsLoading(false);
@@ -265,21 +230,28 @@ export default function ShoeingsApprovalPanel() {
   }
 
   const handleAccept = async (customerEmail: string) => {
+    console.log("handleAccept called with email:", customerEmail);
     try {
       const shoeings = groupedShoeings[customerEmail];
+      console.log("Shoeings to be processed:", shoeings);
+
+      if (!quickBooksData) {
+        throw new Error("QuickBooks data not loaded");
+      }
 
       const { data, error } = await supabase.functions.invoke(
         "quickbooks-create-invoice",
         {
           body: JSON.stringify({
-            shoeings,
-            customerEmail,
             userId: user?.id,
+            shoeings,
           }),
         }
       );
 
       if (error) throw error;
+
+      console.log("Invoice creation response:", data);
 
       // Update shoeings status in your database
       for (const shoeing of shoeings) {
@@ -411,20 +383,9 @@ export default function ShoeingsApprovalPanel() {
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Shoeing Approval Panel</h1>
-      <div className="mb-4 relative">
-        <Input
-          type="text"
-          placeholder="Search Shoeings..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 w-full"
-        />
-        <Search
-          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-          size={20}
-        />
-      </div>
-      {Object.keys(groupedShoeings).length === 0 ? (
+      {isLoading ? (
+        <p>Loading...</p>
+      ) : Object.keys(groupedShoeings).length === 0 ? (
         <p>No pending shoeings found.</p>
       ) : (
         <Accordion type="single" collapsible className="space-y-4">
@@ -462,73 +423,17 @@ export default function ShoeingsApprovalPanel() {
                             <strong>Notes:</strong> {shoeing["Shoe Notes"]}
                           </p>
                         )}
-                        <div className="mb-2">
-                          <div
-                            className="flex justify-between items-center cursor-pointer"
-                            onClick={() => toggleAccordion(shoeing.id)}
-                          >
-                            <p className="font-semibold">
-                              <strong>Total:</strong>{" "}
-                              {formatPrice(shoeing["Total Cost"])}
-                            </p>
-                            {expandedCards.has(shoeing.id) ? (
-                              <ChevronUp size={20} />
-                            ) : (
-                              <ChevronDown size={20} />
-                            )}
-                          </div>
-                          {expandedCards.has(shoeing.id) && (
-                            <div className="mt-2 pl-4 border-l-2 border-gray-200">
-                              <p>
-                                <strong>Base Service:</strong>{" "}
-                                {shoeing["Base Service"] || "N/A"}
-                              </p>
-                              <p>
-                                <strong>Base Price:</strong>{" "}
-                                {formatPrice(shoeing["Cost of Service"])}
-                              </p>
-                              <p>
-                                <strong>Front Add-Ons:</strong>{" "}
-                                {formatPrice(shoeing["Cost of Front Add-Ons"])}
-                              </p>
-                              <p>
-                                <strong>Hind Add-Ons:</strong>{" "}
-                                {formatPrice(shoeing["Cost of Hind Add-Ons"])}
-                              </p>
-                              {shoeing["Other Custom Services"] && (
-                                <p>
-                                  <strong>Custom Services:</strong>{" "}
-                                  {shoeing["Other Custom Services"]}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
+                        <p className="font-semibold">
+                          <strong>Total:</strong>{" "}
+                          {formatPrice(shoeing["Total Price"])}
+                        </p>
                       </CardContent>
-                      <div className="self-end p-4">
-                        <div className="flex space-x-2">
-                          <Button
-                            onClick={() => handleReject(shoeing.id)}
-                            className="bg-red-500 text-white flex-grow border"
-                            variant="destructive"
-                            size="sm"
-                          >
-                            <X className="w-4 h-4 mr-1" /> Reject
-                          </Button>
-                        </div>
-                      </div>
                     </Card>
                   ))}
                 </div>
-                <div className="mt-4 flex justify-end space-x-2">
-                  <Button
-                    onClick={() => handleAccept(email)}
-                    className="bg-green-500 text-white hover:bg-green-600"
-                    variant="default"
-                  >
-                    <Check className="w-4 h-4 mr-1" /> Accept All
-                  </Button>
-                </div>
+                <Button onClick={() => handleAccept(email)} className="mt-4">
+                  Accept All
+                </Button>
               </AccordionContent>
             </AccordionItem>
           ))}

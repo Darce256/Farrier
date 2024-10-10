@@ -64,7 +64,7 @@ serve(async (req) => {
   }
 
   try {
-    const { userId } = await req.json();
+    const { userId, shoeings } = await req.json();
     console.log("Processing request for user:", userId);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -106,41 +106,27 @@ serve(async (req) => {
       "https://sandbox-quickbooks.api.intuit.com/v3/company";
     console.log("Using API base URL:", apiBase);
 
-    // Fetch items from QuickBooks API
-    const response = await fetch(
-      `${apiBase}/${realm_id}/query?query=select * from Item where Active = true`,
-      {
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-          Accept: "application/json",
-        },
-      }
-    );
+    // Fetch items and customers
+    console.log("Fetching items from QuickBooks...");
+    const itemIds = await fetchItems(apiBase, realm_id, access_token);
+    console.log("Items fetched:", itemIds);
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      console.error("QuickBooks API error response:", errorBody);
-      throw new Error(
-        `QuickBooks API error: ${response.status} ${response.statusText}\n${errorBody}`
-      );
+    console.log("Fetching customers from QuickBooks...");
+    const customerList = await fetchCustomers(apiBase, realm_id, access_token);
+    console.log("Customers fetched:", customerList);
+
+    let invoiceResponse = null;
+    if (shoeings) {
+      console.log("Creating invoice for shoeings:", shoeings);
+      // Add your invoice creation logic here
+      // invoiceResponse = await createInvoice(apiBase, realm_id, access_token, shoeings);
     }
-
-    const data = await response.json();
-    console.log("QuickBooks API response received");
-
-    const items = data.QueryResponse.Item;
-
-    const itemIds = items.map((item: any) => ({
-      id: item.Id,
-      name: item.Name,
-      description: item.Description,
-    }));
-
-    console.log(`Retrieved ${itemIds.length} items`);
 
     const responseObj = {
       items: itemIds,
-      message: "Items retrieved successfully",
+      customers: customerList,
+      message: "Items and customers retrieved successfully",
+      invoice: invoiceResponse,
     };
 
     console.log("Sending response:", JSON.stringify(responseObj));
@@ -159,3 +145,63 @@ serve(async (req) => {
     });
   }
 });
+
+// Helper functions to fetch items and customers
+async function fetchItems(apiBase, realm_id, access_token) {
+  console.log("Fetching items...");
+  const response = await fetch(
+    `${apiBase}/${realm_id}/query?query=select * from Item where Active = true`,
+    {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error("QuickBooks API error response for items:", errorBody);
+    throw new Error(
+      `QuickBooks API error for items: ${response.status} ${response.statusText}\n${errorBody}`
+    );
+  }
+
+  const data = await response.json();
+  console.log("Items data received:", JSON.stringify(data));
+  return data.QueryResponse.Item.map((item: any) => ({
+    id: item.Id,
+    name: item.Name,
+    description: item.Description,
+  }));
+}
+
+async function fetchCustomers(apiBase, realm_id, access_token) {
+  console.log("Fetching customers...");
+  const response = await fetch(
+    `${apiBase}/${realm_id}/query?query=select * from Customer where Active = true`,
+    {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    console.error("QuickBooks API error response for customers:", errorBody);
+    throw new Error(
+      `QuickBooks API error for customers: ${response.status} ${response.statusText}\n${errorBody}`
+    );
+  }
+
+  const data = await response.json();
+  console.log("Customers data received:", JSON.stringify(data));
+  return data.QueryResponse.Customer.map((customer: any) => ({
+    id: customer.Id,
+    displayName: customer.DisplayName,
+    companyName: customer.CompanyName,
+    email: customer.PrimaryEmailAddr?.Address,
+  }));
+}
