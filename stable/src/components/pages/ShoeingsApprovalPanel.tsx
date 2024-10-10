@@ -220,25 +220,42 @@ export default function ShoeingsApprovalPanel() {
         return;
       }
 
+      console.log("Fetched shoeings:", shoeings);
+
       // Fetch all customers
       const { data: customers, error: customersError } = await supabase
         .from("customers")
-        .select('"Display Name", "Owner Email"');
+        .select('"Display Name", Horses');
 
       if (customersError) throw customersError;
 
-      // Create a map of email to display name
-      const customerMap = new Map(
-        customers.map((c) => [c["Owner Email"], c["Display Name"]])
-      );
+      console.log("Fetched customers:", customers);
+
+      // Create a map of "horse name - barn/trainer" to customer display name
+      const customerMap = new Map();
+      customers.forEach((customer) => {
+        const horses = customer.Horses.split(",").map((horse) => horse.trim());
+        horses.forEach((horse) =>
+          customerMap.set(horse.toLowerCase(), customer["Display Name"])
+        );
+      });
+
+      console.log("Customer map:", Object.fromEntries(customerMap));
 
       // Group shoeings by customer display name
       const grouped = shoeings.reduce(
         (acc: GroupedShoeings, shoeing: Shoeing) => {
-          const customerEmail = shoeing["Owner Email"] || "Unknown";
+          const horseKey =
+            `${shoeing["Horse Name"]} - ${shoeing["Location of Service"]}`.toLowerCase();
           const customerDisplayName =
-            customerMap.get(customerEmail) || customerEmail;
+            customerMap.get(horseKey) ||
+            `Unknown (${shoeing["Horse Name"]} - ${shoeing["Location of Service"]})`;
           const key = customerDisplayName;
+
+          console.log(
+            `Processing shoeing: Horse: ${shoeing["Horse Name"]}, Location: ${shoeing["Location of Service"]}, Display Name: ${customerDisplayName}`
+          );
+
           if (!acc[key]) {
             acc[key] = { displayName: customerDisplayName, shoeings: [] };
           }
@@ -250,6 +267,8 @@ export default function ShoeingsApprovalPanel() {
         },
         {}
       );
+
+      console.log("Grouped shoeings:", grouped);
 
       setGroupedShoeings(grouped);
     } catch (error) {
