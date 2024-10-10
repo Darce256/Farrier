@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { DOMParser } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
 
 async function refreshToken(supabase, userId, refreshToken) {
   console.log("Attempting to refresh token for user:", userId);
@@ -64,7 +65,7 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, shoeings } = await req.json();
+    const { userId, shoeings, customerId } = await req.json();
     console.log("Processing request for user:", userId);
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -116,10 +117,15 @@ serve(async (req) => {
     console.log("Customers fetched:", customerList);
 
     let invoiceResponse = null;
-    if (shoeings) {
+    if (shoeings && customerId) {
       console.log("Creating invoice for shoeings:", shoeings);
-      // Add your invoice creation logic here
-      // invoiceResponse = await createInvoice(apiBase, realm_id, access_token, shoeings);
+      invoiceResponse = await createInvoice(
+        apiBase,
+        realm_id,
+        access_token,
+        shoeings,
+        customerId
+      );
     }
 
     const responseObj = {
@@ -145,6 +151,108 @@ serve(async (req) => {
     });
   }
 });
+
+// Add this new function to create an invoice
+async function createInvoice(
+  apiBase,
+  realm_id,
+  access_token,
+  shoeings,
+  customerId
+) {
+  console.log("Creating invoice...");
+  console.log("Shoeings data:", JSON.stringify(shoeings, null, 2));
+
+  const invoiceLines = shoeings.map((shoeing) => {
+    let amount = 0;
+    if (typeof shoeing["Total Cost"] === "string") {
+      amount = parseFloat(shoeing["Total Cost"].replace(/[^0-9.-]+/g, ""));
+    } else if (typeof shoeing["Total Cost"] === "number") {
+      amount = shoeing["Total Cost"];
+    }
+
+    if (isNaN(amount)) {
+      console.warn(
+        `Invalid Total Cost for shoeing: ${JSON.stringify(shoeing)}`
+      );
+      amount = 0;
+    }
+
+    return {
+      DetailType: "SalesItemLineDetail",
+      Amount: amount,
+      SalesItemLineDetail: {
+        ItemRef: {
+          value: "19",
+          name: "Shoeing",
+        },
+      },
+      Description: `Shoeing for ${
+        shoeing["Horse Name"] || "Unknown Horse"
+      } on ${shoeing["Date of Service"] || "Unknown Date"}`,
+    };
+  });
+
+  const invoiceData = {
+    Line: invoiceLines,
+    CustomerRef: {
+      value: customerId,
+    },
+  };
+
+  console.log("Invoice data to be sent:", JSON.stringify(invoiceData, null, 2));
+
+  try {
+    const response = await fetch(`${apiBase}/${realm_id}/invoice`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        "Content-Type": "application/json",
+        Accept: "application/json", // Add this line to request JSON response
+      },
+      body: JSON.stringify(invoiceData),
+    });
+
+    const responseText = await response.text();
+    console.log("Raw response from QuickBooks API:", responseText);
+
+    if (!response.ok) {
+      console.error(
+        "QuickBooks API error response for invoice creation:",
+        responseText
+      );
+      throw new Error(
+        `QuickBooks API error for invoice creation: ${response.status} ${response.statusText}\n${responseText}`
+      );
+    }
+
+    let data;
+    if (responseText.trim().startsWith("<")) {
+      // Parse XML response
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(responseText, "text/xml");
+      const invoice = xmlDoc.querySelector("Invoice");
+      if (invoice) {
+        data = {
+          Id: invoice.querySelector("Id")?.textContent,
+          DocNumber: invoice.querySelector("DocNumber")?.textContent,
+          TotalAmt: invoice.querySelector("TotalAmt")?.textContent,
+        };
+      } else {
+        throw new Error("Failed to parse XML response from QuickBooks API");
+      }
+    } else {
+      // Parse JSON response
+      data = JSON.parse(responseText);
+    }
+
+    console.log("Invoice created successfully:", JSON.stringify(data, null, 2));
+    return data;
+  } catch (error) {
+    console.error("Error in createInvoice:", error);
+    throw error;
+  }
+}
 
 // Helper functions to fetch items and customers
 async function fetchItems(apiBase, realm_id, access_token) {

@@ -244,7 +244,10 @@ export default function ShoeingsApprovalPanel() {
         return;
       }
 
-      console.log("Shoeings to be processed:", shoeings);
+      console.log(
+        "Shoeings to be processed:",
+        JSON.stringify(shoeings, null, 2)
+      );
 
       if (!quickBooksData) {
         throw new Error("QuickBooks data not loaded");
@@ -261,30 +264,47 @@ export default function ShoeingsApprovalPanel() {
         }
       );
 
-      if (error) throw error;
-
-      console.log("Invoice creation response:", data);
-
-      // Update shoeings status in your database
-      for (const shoeing of shoeings) {
-        const { error } = await supabase
-          .from("shoeings")
-          .update({ status: "completed" })
-          .eq("id", shoeing.id);
-
-        if (error) throw error;
+      if (error) {
+        console.error("Error from Edge Function:", error);
+        throw error;
       }
 
-      toast.success("Shoeings accepted and invoice created in QuickBooks");
-      fetchPendingShoeings();
-      setSelectedCustomers((prev) => {
-        const newState = { ...prev };
-        delete newState[customerEmail];
-        return newState;
-      });
+      console.log("Invoice creation response:", JSON.stringify(data, null, 2));
+
+      if (data.invoice) {
+        // Update shoeings status in your database
+        for (const shoeing of shoeings) {
+          const { error } = await supabase
+            .from("shoeings")
+            .update({
+              status: "completed",
+              invoice_id: data.invoice.Invoice.Id,
+            })
+            .eq("id", shoeing.id);
+
+          if (error) {
+            console.error("Error updating shoeing status:", error);
+            throw error;
+          }
+        }
+
+        toast.success(
+          `Shoeings accepted and invoice #${data.invoice.Invoice.DocNumber} created in QuickBooks`
+        );
+        fetchPendingShoeings();
+        setSelectedCustomers((prev) => {
+          const newState = { ...prev };
+          delete newState[customerEmail];
+          return newState;
+        });
+      } else {
+        throw new Error("Failed to create invoice in QuickBooks");
+      }
     } catch (error) {
       console.error("Error in handleAccept:", error);
-      toast.error("Failed to accept shoeings and create invoice");
+      toast.error(
+        `Failed to accept shoeings and create invoice: ${error.message}`
+      );
     }
   };
 
