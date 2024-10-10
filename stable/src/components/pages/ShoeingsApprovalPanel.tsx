@@ -43,6 +43,11 @@ interface Shoeing {
   "Other Custom Services": string | null;
   "Shoe Notes": string | null;
   "QB Customers": string | null;
+  "Owner Email": string | null;
+  customers: {
+    "Display Name": string;
+    Horses: string;
+  };
 }
 
 interface Horse {
@@ -60,7 +65,7 @@ interface Customer {
 }
 
 interface GroupedShoeings {
-  [key: string]: Shoeing[];
+  [key: string]: { displayName: string; shoeings: Shoeing[] };
 }
 
 interface QuickBooksData {
@@ -201,6 +206,7 @@ export default function ShoeingsApprovalPanel() {
   async function fetchPendingShoeings() {
     setIsLoading(true);
     try {
+      // Fetch pending shoeings
       const { data: shoeings, error: shoeingsError } = await supabase
         .from("shoeings")
         .select("*")
@@ -214,15 +220,36 @@ export default function ShoeingsApprovalPanel() {
         return;
       }
 
-      // Group shoeings by customer email
-      const grouped = shoeings.reduce((acc: GroupedShoeings, shoeing: any) => {
-        const customerEmail = shoeing["Owner Email"] || "Unknown";
-        if (!acc[customerEmail]) {
-          acc[customerEmail] = [];
-        }
-        acc[customerEmail].push(shoeing);
-        return acc;
-      }, {});
+      // Fetch all customers
+      const { data: customers, error: customersError } = await supabase
+        .from("customers")
+        .select('"Display Name", "Owner Email"');
+
+      if (customersError) throw customersError;
+
+      // Create a map of email to display name
+      const customerMap = new Map(
+        customers.map((c) => [c["Owner Email"], c["Display Name"]])
+      );
+
+      // Group shoeings by customer display name
+      const grouped = shoeings.reduce(
+        (acc: GroupedShoeings, shoeing: Shoeing) => {
+          const customerEmail = shoeing["Owner Email"] || "Unknown";
+          const customerDisplayName =
+            customerMap.get(customerEmail) || customerEmail;
+          const key = customerDisplayName;
+          if (!acc[key]) {
+            acc[key] = { displayName: customerDisplayName, shoeings: [] };
+          }
+          acc[key].shoeings.push({
+            ...shoeing,
+            "Customer Display Name": customerDisplayName,
+          });
+          return acc;
+        },
+        {}
+      );
 
       setGroupedShoeings(grouped);
     } catch (error) {
@@ -233,11 +260,11 @@ export default function ShoeingsApprovalPanel() {
     }
   }
 
-  const handleAccept = async (customerEmail: string) => {
-    console.log("handleAccept called with email:", customerEmail);
+  const handleAccept = async (key: string) => {
+    console.log("handleAccept called with key:", key);
     try {
-      const shoeings = groupedShoeings[customerEmail];
-      const selectedCustomerId = selectedCustomers[customerEmail];
+      const shoeings = groupedShoeings[key].shoeings;
+      const selectedCustomerId = selectedCustomers[key];
 
       if (!selectedCustomerId) {
         toast.error("Please select a QuickBooks customer before accepting");
@@ -298,7 +325,7 @@ export default function ShoeingsApprovalPanel() {
         fetchPendingShoeings();
         setSelectedCustomers((prev) => {
           const newState = { ...prev };
-          delete newState[customerEmail];
+          delete newState[key];
           return newState;
         });
       } else {
@@ -365,7 +392,7 @@ export default function ShoeingsApprovalPanel() {
   };
 
   const filteredGroupedShoeings = Object.entries(groupedShoeings).reduce(
-    (acc, [email, shoeings]) => {
+    (acc, [key, { displayName, shoeings }]) => {
       const filteredShoeings = shoeings.filter(
         (shoeing) =>
           shoeing["Horse Name"]
@@ -379,7 +406,7 @@ export default function ShoeingsApprovalPanel() {
             .includes(searchTerm.toLowerCase())
       );
       if (filteredShoeings.length > 0) {
-        acc[email] = filteredShoeings;
+        acc[key] = { displayName, shoeings: filteredShoeings };
       }
       return acc;
     },
@@ -398,8 +425,8 @@ export default function ShoeingsApprovalPanel() {
     return parseFloat(price.replace(/[^0-9.-]+/g, ""));
   }
 
-  const handleCustomerSelect = (email: string, customerId: string) => {
-    setSelectedCustomers((prev) => ({ ...prev, [email]: customerId }));
+  const handleCustomerSelect = (key: string, customerId: string) => {
+    setSelectedCustomers((prev) => ({ ...prev, [key]: customerId }));
   };
 
   if (isQuickBooksConnected === null || isLoading) {
@@ -434,77 +461,79 @@ export default function ShoeingsApprovalPanel() {
         <p>No pending shoeings found.</p>
       ) : (
         <Accordion type="single" collapsible className="space-y-4">
-          {Object.entries(groupedShoeings).map(([email, shoeings]) => (
-            <AccordionItem key={email} value={email}>
-              <AccordionTrigger className="text-lg font-semibold">
-                {email} ({shoeings.length} shoeing
-                {shoeings.length > 1 ? "s" : ""})
-              </AccordionTrigger>
-              <AccordionContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {shoeings.map((shoeing) => (
-                    <Card
-                      key={shoeing.id}
-                      className="grid grid-rows-[auto_1fr_auto] h-full"
-                    >
-                      <CardContent className="p-4">
-                        <h2 className="text-xl font-semibold mb-2">
-                          {shoeing["Horse Name"]}
-                        </h2>
-                        <p className="text-sm text-gray-500 mb-2">
-                          {new Date(
-                            shoeing["Date of Service"]
-                          ).toLocaleDateString()}
-                        </p>
-                        <p className="mb-2">
-                          <strong>Location:</strong>{" "}
-                          {shoeing["Location of Service"]}
-                        </p>
-                        <p className="mb-2">
-                          <strong>Description:</strong> {shoeing.Description}
-                        </p>
-                        {shoeing["Shoe Notes"] && (
-                          <p className="mb-2">
-                            <strong>Notes:</strong> {shoeing["Shoe Notes"]}
+          {Object.entries(groupedShoeings).map(
+            ([key, { displayName, shoeings }]) => (
+              <AccordionItem key={key} value={key}>
+                <AccordionTrigger className="text-lg font-semibold">
+                  {displayName} ({shoeings.length} shoeing
+                  {shoeings.length > 1 ? "s" : ""})
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {shoeings.map((shoeing) => (
+                      <Card
+                        key={shoeing.id}
+                        className="grid grid-rows-[auto_1fr_auto] h-full"
+                      >
+                        <CardContent className="p-4">
+                          <h2 className="text-xl font-semibold mb-2">
+                            {shoeing["Horse Name"]}
+                          </h2>
+                          <p className="text-sm text-gray-500 mb-2">
+                            {new Date(
+                              shoeing["Date of Service"]
+                            ).toLocaleDateString()}
                           </p>
-                        )}
-                        <p className="font-semibold">
-                          <strong>Total:</strong>{" "}
-                          {formatPrice(shoeing["Total Price"])}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-                <div className="flex items-center mt-4 space-x-4">
-                  <Button
-                    onClick={() => handleAccept(email)}
-                    disabled={!selectedCustomers[email]}
-                  >
-                    Accept All
-                  </Button>
-                  <Select
-                    value={selectedCustomers[email] || ""}
-                    onValueChange={(value) =>
-                      handleCustomerSelect(email, value)
-                    }
-                    className="bg-white"
-                  >
-                    <SelectTrigger className="w-[200px] bg-white">
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {quickBooksData?.customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.displayName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </AccordionContent>
-            </AccordionItem>
-          ))}
+                          <p className="mb-2">
+                            <strong>Location:</strong>{" "}
+                            {shoeing["Location of Service"]}
+                          </p>
+                          <p className="mb-2">
+                            <strong>Description:</strong> {shoeing.Description}
+                          </p>
+                          {shoeing["Shoe Notes"] && (
+                            <p className="mb-2">
+                              <strong>Notes:</strong> {shoeing["Shoe Notes"]}
+                            </p>
+                          )}
+                          <p className="font-semibold">
+                            <strong>Total:</strong>{" "}
+                            {formatPrice(shoeing["Total Cost"])}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  <div className="flex items-center mt-4 space-x-4">
+                    <Button
+                      onClick={() => handleAccept(key)}
+                      disabled={!selectedCustomers[key]}
+                    >
+                      Accept All
+                    </Button>
+                    <Select
+                      value={selectedCustomers[key] || ""}
+                      onValueChange={(value) =>
+                        handleCustomerSelect(key, value)
+                      }
+                      className="bg-white"
+                    >
+                      <SelectTrigger className="w-[200px] bg-white">
+                        <SelectValue placeholder="Select customer" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {quickBooksData?.customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.displayName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            )
+          )}
         </Accordion>
       )}
     </div>
