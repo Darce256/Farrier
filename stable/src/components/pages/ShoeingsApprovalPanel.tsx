@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Pencil,
   Loader2,
+  AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider";
@@ -83,6 +84,7 @@ interface Shoeing {
     "Display Name": string;
     Horses: string;
   };
+  alert?: string | null; // Add this line
 }
 
 interface Horse {
@@ -280,6 +282,13 @@ export default function ShoeingsApprovalPanel() {
 
       if (customersError) throw customersError;
 
+      // Fetch all horses
+      const { data: horses, error: horsesError } = await supabase
+        .from("horses")
+        .select('Name, "Barn / Trainer", alert');
+
+      if (horsesError) throw horsesError;
+
       // Group shoeings by customer display name
       const grouped = shoeings.reduce((acc: GroupedShoeings, shoeing: any) => {
         const shoeingHorseValue = `${shoeing["Horses"]}`;
@@ -297,6 +306,16 @@ export default function ShoeingsApprovalPanel() {
         } else {
           console.log(`No matching customer found for: ${shoeingHorseValue}`);
         }
+
+        // Find matching horse and get alert
+        const [horseName, barnTrainer] = shoeing["Horses"].split(" - ");
+        const matchingHorse = horses.find(
+          (horse) =>
+            horse.Name === horseName &&
+            horse["Barn / Trainer"] === barnTrainer.slice(1, -1) // Remove square brackets
+        );
+
+        shoeing.alert = matchingHorse?.alert || null;
 
         const key = customerDisplayName;
 
@@ -603,7 +622,9 @@ export default function ShoeingsApprovalPanel() {
                         {shoeings.map((shoeing) => (
                           <Card
                             key={shoeing.id}
-                            className="grid grid-rows-[auto_1fr_auto] h-full"
+                            className={`grid grid-rows-[auto_1fr_auto] h-full ${
+                              shoeing.alert ? "border-red-500 border-2" : ""
+                            }`}
                           >
                             <CardContent className="p-4">
                               <h2 className="text-xl font-semibold mb-2">
@@ -638,6 +659,17 @@ export default function ShoeingsApprovalPanel() {
                                 <strong>Total:</strong>{" "}
                                 {formatPrice(shoeing["Total Cost"])}
                               </p>
+                              {shoeing.alert && (
+                                <div className="flex items-start bg-red-100 text-red-700 p-2 rounded-md mt-2 text-xs">
+                                  <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+                                  <span
+                                    className="line-clamp-2"
+                                    title={shoeing.alert}
+                                  >
+                                    {shoeing.alert}
+                                  </span>
+                                </div>
+                              )}
                               <Button
                                 variant="outline"
                                 size="sm"
