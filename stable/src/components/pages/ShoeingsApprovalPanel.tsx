@@ -455,7 +455,7 @@ export default function ShoeingsApprovalPanel() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Shoeing Management Panel</h1>
+      <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
       <Tabs defaultValue="approval" className="w-full">
         <TabsList className="mb-4  bg-primary text-white">
           <TabsTrigger value="approval">Shoeing Approval</TabsTrigger>
@@ -509,88 +509,92 @@ export default function ShoeingsApprovalPanel() {
         ) : Object.keys(groupedShoeings).length === 0 ? (
           <p>No pending shoeings found.</p>
         ) : (
-          <Accordion
-            type="single"
-            collapsible
-            className="space-y-4 bg-gray-100 p-4 rounded-md"
-          >
-            {Object.entries(groupedShoeings).map(
-              ([key, { displayName, shoeings }]) => (
-                <AccordionItem key={key} value={key}>
-                  <AccordionTrigger className="text-lg font-semibold flex items-center justify-between w-full">
-                    <span className="flex-grow pr-2 break-words">
-                      {displayName} ({shoeings.length} shoeing
-                      {shoeings.length > 1 ? "s" : ""})
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {shoeings.map((shoeing) => (
-                        <Card
-                          key={shoeing.id}
-                          className="grid grid-rows-[auto_1fr_auto] h-full"
-                        >
-                          <CardContent className="p-4">
-                            <h2 className="text-xl font-semibold mb-2">
-                              {shoeing["Horse Name"]}
-                            </h2>
-                            <p className="text-sm text-gray-500 mb-2">
-                              {new Date(
-                                shoeing["Date of Service"]
-                              ).toLocaleDateString()}
-                            </p>
-                            <p className="mb-2">
-                              <strong>Location:</strong>{" "}
-                              {shoeing["Location of Service"]}
-                            </p>
-                            <p className="mb-2">
-                              <strong>Description:</strong>{" "}
-                              {shoeing.Description}
-                            </p>
-                            {shoeing["Shoe Notes"] && (
-                              <p className="mb-2">
-                                <strong>Notes:</strong> {shoeing["Shoe Notes"]}
+          <>
+            <h1 className="text-2xl font-bold mb-4">Shoeing Management</h1>
+            <Accordion
+              type="single"
+              collapsible
+              className="space-y-4 bg-gray-100 p-4 rounded-md"
+            >
+              {Object.entries(groupedShoeings).map(
+                ([key, { displayName, shoeings }]) => (
+                  <AccordionItem key={key} value={key}>
+                    <AccordionTrigger className="text-lg font-semibold flex items-center justify-between w-full">
+                      <span className="flex-grow pr-2 break-words">
+                        {displayName} ({shoeings.length} shoeing
+                        {shoeings.length > 1 ? "s" : ""})
+                      </span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {shoeings.map((shoeing) => (
+                          <Card
+                            key={shoeing.id}
+                            className="grid grid-rows-[auto_1fr_auto] h-full"
+                          >
+                            <CardContent className="p-4">
+                              <h2 className="text-xl font-semibold mb-2">
+                                {shoeing["Horse Name"]}
+                              </h2>
+                              <p className="text-sm text-gray-500 mb-2">
+                                {new Date(
+                                  shoeing["Date of Service"]
+                                ).toLocaleDateString()}
                               </p>
-                            )}
-                            <p className="font-semibold">
-                              <strong>Total:</strong>{" "}
-                              {formatPrice(shoeing["Total Cost"])}
-                            </p>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                    <div className="flex items-center mt-4 space-x-4">
-                      <Button
-                        onClick={() => handleAccept(key)}
-                        disabled={!selectedCustomers[key]}
-                      >
-                        Accept All
-                      </Button>
-                      <Select
-                        value={selectedCustomers[key] || ""}
-                        onValueChange={(value) =>
-                          handleCustomerSelect(key, value)
-                        }
-                        className="bg-white"
-                      >
-                        <SelectTrigger className="w-[200px] bg-white">
-                          <SelectValue placeholder="Select customer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {quickBooksData?.customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.displayName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              )
-            )}
-          </Accordion>
+                              <p className="mb-2">
+                                <strong>Location:</strong>{" "}
+                                {shoeing["Location of Service"]}
+                              </p>
+                              <p className="mb-2">
+                                <strong>Description:</strong>{" "}
+                                {shoeing.Description}
+                              </p>
+                              {shoeing["Shoe Notes"] && (
+                                <p className="mb-2">
+                                  <strong>Notes:</strong>{" "}
+                                  {shoeing["Shoe Notes"]}
+                                </p>
+                              )}
+                              <p className="font-semibold">
+                                <strong>Total:</strong>{" "}
+                                {formatPrice(shoeing["Total Cost"])}
+                              </p>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                      <div className="flex items-center mt-4 space-x-4">
+                        <Button
+                          onClick={() => handleAccept(key)}
+                          disabled={!selectedCustomers[key]}
+                        >
+                          Accept All
+                        </Button>
+                        <Select
+                          value={selectedCustomers[key] || ""}
+                          onValueChange={(value) =>
+                            handleCustomerSelect(key, value)
+                          }
+                          className="bg-white"
+                        >
+                          <SelectTrigger className="w-[200px] bg-white">
+                            <SelectValue placeholder="Select customer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {quickBooksData?.customers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                )
+              )}
+            </Accordion>
+          </>
         )}
       </>
     );
