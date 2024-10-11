@@ -10,7 +10,15 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { Skeleton } from "@/components/ui/skeleton"; // Make sure you have this component
-import { Check, X, Search, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Check,
+  X,
+  Search,
+  ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import axios from "axios";
@@ -29,6 +37,15 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PermissionsTab } from "@/components/PermissionsTab";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Pagination } from "@/components/ui/pagination";
 
 interface Shoeing {
   id: string;
@@ -79,6 +96,15 @@ interface QuickBooksData {
     companyName: string;
     email: string;
   }>;
+}
+
+interface Invoice {
+  Id: string;
+  DocNumber: string;
+  TxnDate: string;
+  CustomerRef: { name: string; value: string };
+  TotalAmt: number;
+  Balance: number;
 }
 
 // Add these constants at the top of your file
@@ -220,8 +246,6 @@ export default function ShoeingsApprovalPanel() {
         return;
       }
 
-      console.log("Fetched shoeings:", shoeings);
-
       // Fetch all customers
       const { data: customers, error: customersError } = await supabase
         .from("customers")
@@ -229,13 +253,10 @@ export default function ShoeingsApprovalPanel() {
 
       if (customersError) throw customersError;
 
-      console.log("Fetched customers:", customers);
-
       // Group shoeings by customer display name
       const grouped = shoeings.reduce(
         (acc: GroupedShoeings, shoeing: Shoeing) => {
           const shoeingHorseValue = `${shoeing["Horses"]}`;
-          console.log(`Processing shoeing: ${shoeingHorseValue}`);
 
           let customerDisplayName = "Unknown";
 
@@ -262,8 +283,6 @@ export default function ShoeingsApprovalPanel() {
         {}
       );
 
-      console.log("Grouped shoeings:", grouped);
-
       setGroupedShoeings(grouped);
     } catch (error) {
       console.error("Failed to fetch pending shoeings:", error);
@@ -274,7 +293,6 @@ export default function ShoeingsApprovalPanel() {
   }
 
   const handleAccept = async (key: string) => {
-    console.log("handleAccept called with key:", key);
     try {
       const shoeings = groupedShoeings[key].shoeings;
       const selectedCustomerId = selectedCustomers[key];
@@ -283,11 +301,6 @@ export default function ShoeingsApprovalPanel() {
         toast.error("Please select a QuickBooks customer before accepting");
         return;
       }
-
-      console.log(
-        "Shoeings to be processed:",
-        JSON.stringify(shoeings, null, 2)
-      );
 
       if (!quickBooksData) {
         throw new Error("QuickBooks data not loaded");
@@ -308,8 +321,6 @@ export default function ShoeingsApprovalPanel() {
         console.error("Error from Edge Function:", error);
         throw error;
       }
-
-      console.log("Invoice creation response:", JSON.stringify(data, null, 2));
 
       if (data.invoice && data.invoice.Invoice) {
         // Update shoeings status in your database
@@ -446,7 +457,7 @@ export default function ShoeingsApprovalPanel() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Shoeing Management Panel</h1>
       <Tabs defaultValue="approval" className="w-full">
-        <TabsList className="mb-4">
+        <TabsList className="mb-4  bg-primary text-white">
           <TabsTrigger value="approval">Shoeing Approval</TabsTrigger>
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
           <TabsTrigger value="sent-invoices">Sent Invoices</TabsTrigger>
@@ -587,10 +598,118 @@ export default function ShoeingsApprovalPanel() {
 }
 
 function SentInvoicesTab() {
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const { user } = useAuth();
+  const itemsPerPage = 25;
+
+  const hasMorePages = currentPage * itemsPerPage < totalCount;
+
+  const fetchInvoices = useCallback(
+    async (page: number) => {
+      if (!user) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "quickbooks-get-invoices",
+          {
+            body: JSON.stringify({ userId: user.id, page, itemsPerPage }),
+          }
+        );
+
+        if (error) throw error;
+
+        setInvoices(data.invoices);
+        setTotalCount(data.totalCount);
+        console.log(
+          "Fetched invoices:",
+          data.invoices.length,
+          "Total count:",
+          data.totalCount
+        );
+      } catch (err) {
+        console.error("Error fetching invoices:", err);
+        setError("Failed to fetch invoices. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [user]
+  );
+
+  useEffect(() => {
+    fetchInvoices(currentPage);
+  }, [currentPage, fetchInvoices]);
+
+  const handleNextPage = () => {
+    if (hasMorePages) {
+      setCurrentPage((prev) => prev + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage((prev) => prev - 1);
+    }
+  };
+
+  if (loading) return <div>Loading invoices...</div>;
+  if (error) return <div className="text-red-500">{error}</div>;
+
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4">Sent Invoices</h2>
-      <p>Sent invoices content goes here.</p>
+      <h2 className="text-2xl font-bold mb-4">Sent Invoices</h2>
+      <Table className="w-full bg-white text-black rounded-lg p-4">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="font-bold text-black">
+              Invoice Number
+            </TableHead>
+            <TableHead className="font-bold text-black">Date</TableHead>
+            <TableHead className="font-bold text-black">Customer</TableHead>
+            <TableHead className="font-bold text-black">Total Amount</TableHead>
+            <TableHead className="font-bold text-black">Balance</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {invoices.map((invoice) => (
+            <TableRow key={invoice.Id}>
+              <TableCell>{invoice.DocNumber}</TableCell>
+              <TableCell>
+                {new Date(invoice.TxnDate).toLocaleDateString()}
+              </TableCell>
+              <TableCell>{invoice.CustomerRef.name}</TableCell>
+              <TableCell>${invoice.TotalAmt.toFixed(2)}</TableCell>
+              <TableCell>${invoice.Balance.toFixed(2)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <div className="flex justify-between items-center mt-4">
+        <Button
+          onClick={handlePreviousPage}
+          disabled={currentPage === 1}
+          variant="outline"
+        >
+          <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+        </Button>
+        <span>
+          Page {currentPage} of {Math.ceil(totalCount / itemsPerPage)} | Showing{" "}
+          {(currentPage - 1) * itemsPerPage + 1} -{" "}
+          {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
+        </span>
+        <Button
+          onClick={handleNextPage}
+          disabled={!hasMorePages}
+          variant="outline"
+        >
+          Next <ChevronRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
     </div>
   );
 }
