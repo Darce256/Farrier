@@ -340,7 +340,7 @@ export default function Horses() {
   const MIN_CARD_WIDTH = 250;
   const MAX_CARD_WIDTH = 300;
   const CARD_ASPECT_RATIO = 0.95;
-  const GRID_GAP = 10;
+  const GRID_GAP = 20;
 
   const getColumnCount = (width: number) => {
     const maxColumns = Math.floor(
@@ -620,12 +620,12 @@ const HorseCard = React.memo(
     return (
       <>
         <Card
-          className={`border-black/20 shadow-lg flex flex-col h-full ${
+          className={`border-black/20 shadow-lg flex flex-col min-h-[260px] min-w-[200px] h-full ${
             horse.alert ? "border-red-500 border-2" : ""
           }`}
         >
           <CardHeader className="pb-2">
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center ">
               <CardTitle className="text-black text-base sm:text-lg md:text-xl truncate">
                 {horse.Name || "Unnamed Horse"}
               </CardTitle>
@@ -633,7 +633,9 @@ const HorseCard = React.memo(
                 variant="ghost"
                 size="icon"
                 onClick={handleFlagClick}
-                className={`${horse.alert ? "text-red-500" : "text-gray-500"}`}
+                className={`${
+                  horse.alert ? "text-red-500" : "text-gray-500"
+                } flex-shrink-0`}
               >
                 {horse.alert ? (
                   <IoFlagSharp size={20} />
@@ -644,11 +646,11 @@ const HorseCard = React.memo(
             </div>
           </CardHeader>
           <CardContent className="flex flex-col justify-between flex-grow pt-0">
-            <div className="mb-4">
+            <div className="mb-4 flex-grow">
               {horse["Barn / Trainer"] && (
-                <div className="text-sm">
+                <div className="text-sm mb-2">
                   <strong className="font-semibold">Barn / Trainer:</strong>
-                  <div className="mt-2">
+                  <div className="mt-1">
                     <Badge variant="default" className="text-xs">
                       {horse["Barn / Trainer"]}
                     </Badge>
@@ -656,9 +658,9 @@ const HorseCard = React.memo(
                 </div>
               )}
               {horse.alert && (
-                <div className="flex items-center bg-red-100 text-red-700 p-2 rounded-md mt-2 text-xs">
-                  <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0" />
-                  <span className="truncate" title={horse.alert}>
+                <div className="flex items-start bg-red-100 text-red-700 p-2 rounded-md mt-2 text-xs">
+                  <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+                  <span className="line-clamp-2" title={horse.alert}>
                     {horse.alert}
                   </span>
                 </div>
