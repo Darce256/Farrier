@@ -59,6 +59,7 @@ import {
 import { CalendarIcon } from "lucide-react"; // Make sure to import this icon
 import { format } from "date-fns"; // You might need to install this package
 import { cn } from "@/lib/utils";
+import { parse } from "date-fns";
 
 interface Shoeing {
   id: string;
@@ -254,7 +255,7 @@ export default function ShoeingsApprovalPanel() {
   async function fetchPendingShoeings() {
     setIsLoading(true);
     try {
-      // Fetch pending shoeings
+      console.log("Fetching pending shoeings...");
       const { data: shoeings, error: shoeingsError } = await supabase
         .from("shoeings")
         .select("*")
@@ -262,6 +263,8 @@ export default function ShoeingsApprovalPanel() {
         .order("Date of Service", { ascending: false });
 
       if (shoeingsError) throw shoeingsError;
+
+      console.log("Fetched shoeings:", shoeings);
 
       if (!shoeings || shoeings.length === 0) {
         setGroupedShoeings({});
@@ -478,9 +481,11 @@ export default function ShoeingsApprovalPanel() {
 
   const handleSaveEdit = async (updatedShoeing: Shoeing) => {
     try {
+      console.log("Updating shoeing in database:", updatedShoeing);
       const { error } = await supabase
         .from("shoeings")
         .update({
+          "Date of Service": updatedShoeing["Date of Service"],
           Description: updatedShoeing.Description,
           "Location of Service": updatedShoeing["Location of Service"],
           "Total Cost": updatedShoeing["Total Cost"],
@@ -490,9 +495,10 @@ export default function ShoeingsApprovalPanel() {
 
       if (error) throw error;
 
+      console.log("Shoeing updated successfully");
       toast.success("Shoeing updated successfully");
       setEditingShoeing(null);
-      fetchPendingShoeings();
+      fetchPendingShoeings(); // Make sure this function is refreshing the data
     } catch (error) {
       console.error("Error updating shoeing:", error);
       toast.error("Failed to update shoeing");
@@ -829,14 +835,13 @@ function EditShoeingModal({
 }: EditShoeingModalProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [editedShoeing, setEditedShoeing] = useState<any | null>(null);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
 
   useEffect(() => {
     if (shoeing) {
       setEditedShoeing({
         ...shoeing,
-        "Date of Service": shoeing["Date of Service"]
-          ? new Date(shoeing["Date of Service"])
-          : undefined,
+        // No need to convert "Date of Service" to a Date object
       });
       setIsOpen(true);
     } else {
@@ -853,14 +858,49 @@ function EditShoeingModal({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { id, value } = e.target;
+    if (id === "Total Cost") {
+      // Allow empty string, otherwise enforce non-negative whole number
+      if (value === "") {
+        setEditedShoeing((prev: any) => ({
+          ...prev,
+          [id]: "",
+        }));
+      } else {
+        // Remove any non-digit characters and convert to a number
+        const numericValue = parseInt(value.replace(/\D/g, ""), 10);
+        // If it's not a number or is negative, set to 0
+        const validValue =
+          isNaN(numericValue) || numericValue < 0 ? 0 : numericValue;
+        setEditedShoeing((prev: any) => ({
+          ...prev,
+          [id]: validValue,
+        }));
+      }
+    } else {
+      setEditedShoeing((prev: any) => ({
+        ...prev,
+        [id]: value,
+      }));
+    }
+  };
+
+  const handleDateChange = (date: Date | undefined) => {
+    console.log("New date selected:", date);
     setEditedShoeing((prev: any) => {
       if (!prev) return null;
-      return { ...prev, [id]: value };
+      const newShoeing = {
+        ...prev,
+        "Date of Service": date ? format(date, "M/d/yyyy") : undefined,
+      };
+      console.log("Updated shoeing object:", newShoeing);
+      return newShoeing;
     });
+    setIsCalendarOpen(false);
   };
 
   const handleSaveClick = () => {
     if (editedShoeing) {
+      console.log("Saving shoeing:", editedShoeing);
       onSave(editedShoeing);
       handleClose();
     }
@@ -873,21 +913,11 @@ function EditShoeingModal({
     });
   };
 
-  const handleDateChange = (date: Date | undefined) => {
-    setEditedShoeing((prev: any) => {
-      if (!prev) return null;
-      return {
-        ...prev,
-        "Date of Service": date ? date.toISOString() : undefined,
-      };
-    });
-  };
-
   if (!editedShoeing) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="z-50">
         <DialogHeader>
           <DialogTitle>
             Edit Shoeing for {editedShoeing["Horse Name"]}
@@ -898,36 +928,38 @@ function EditShoeingModal({
             <Label htmlFor="Date of Service" className="text-right">
               Service Date
             </Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant={"outline"}
-                  className={cn(
-                    "w-[240px] justify-start text-left font-normal",
-                    !editedShoeing["Date of Service"] && "text-muted-foreground"
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {editedShoeing["Date of Service"] ? (
-                    format(new Date(editedShoeing["Date of Service"]), "PPP")
-                  ) : (
-                    <span>Pick a date</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <Calendar
-                  mode="single"
-                  selected={
-                    editedShoeing["Date of Service"]
-                      ? new Date(editedShoeing["Date of Service"])
-                      : undefined
-                  }
-                  onSelect={handleDateChange}
-                  initialFocus
-                />
-              </PopoverContent>
-            </Popover>
+            <div className="relative">
+              <Button
+                variant={"outline"}
+                className="w-[240px] justify-start text-left font-normal"
+                onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {editedShoeing["Date of Service"] ? (
+                  editedShoeing["Date of Service"]
+                ) : (
+                  <span>Pick a date</span>
+                )}
+              </Button>
+              {isCalendarOpen && (
+                <div className="absolute top-full left-0 z-[9999] bg-white shadow-lg rounded-md overflow-hidden mt-1">
+                  <Calendar
+                    mode="single"
+                    selected={
+                      editedShoeing["Date of Service"]
+                        ? parse(
+                            editedShoeing["Date of Service"],
+                            "M/d/yyyy",
+                            new Date()
+                          )
+                        : undefined
+                    }
+                    onSelect={handleDateChange}
+                    initialFocus
+                  />
+                </div>
+              )}
+            </div>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="Description" className="text-right">
@@ -969,7 +1001,10 @@ function EditShoeingModal({
             </Label>
             <Input
               id="Total Cost"
-              value={editedShoeing["Total Cost"] || ""}
+              type="text" // Changed to "text" to allow empty input
+              inputMode="numeric" // Brings up numeric keyboard on mobile
+              pattern="[0-9]*" // Allows only numbers
+              value={editedShoeing["Total Cost"] ?? ""} // Use empty string if null or undefined
               onChange={handleInputChange}
               className="col-span-3"
             />
