@@ -175,7 +175,9 @@ export default function AuthenticatedHeader() {
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-4 border-b border-b-gray-400 bg-white px-4 sm:px-6">
-      <div className="flex items-center gap-4">{getBreadcrumbs()}</div>
+      <div className="flex items-center gap-4 sm:ml-0 ml-14">
+        {getBreadcrumbs()}
+      </div>
 
       <div className="flex items-center gap-4">
         <div className="relative" ref={dropdownRef}>
