@@ -674,7 +674,7 @@ export default function ShoeingsApprovalPanel() {
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleEditShoeing(shoeing)}
-                                className="mt-2"
+                                className="mt-2 w-full bg-primary text-white hover:bg-black hover:text-white"
                               >
                                 <Pencil className="w-4 h-4 mr-2" /> Edit
                               </Button>
@@ -970,13 +970,13 @@ function EditShoeingModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="z-50">
+      <DialogContent className="z-50 bg-white ">
         <DialogHeader>
           <DialogTitle>
             Edit Shoeing for {editedShoeing["Horse Name"]}
           </DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 py-4 ">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="Date of Service" className="text-right">
               Service Date
@@ -984,7 +984,7 @@ function EditShoeingModal({
             <div className="relative">
               <Button
                 variant={"outline"}
-                className="w-[240px] justify-start text-left font-normal"
+                className="w-[240px] justify-start text-left font-normal bg-white"
                 onClick={() => setIsCalendarOpen(!isCalendarOpen)}
               >
                 <CalendarIcon className="mr-2 h-4 w-4" />
@@ -1089,7 +1089,12 @@ function EditShoeingModal({
           <Button onClick={handleClose} variant="outline">
             Cancel
           </Button>
-          <Button onClick={handleSaveClick}>Save Changes</Button>
+          <Button
+            className="hover:bg-black hover:text-white my-2 sm:my-0"
+            onClick={handleSaveClick}
+          >
+            Save Changes
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
