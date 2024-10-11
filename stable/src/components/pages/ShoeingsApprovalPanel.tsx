@@ -495,6 +495,7 @@ export default function ShoeingsApprovalPanel() {
           "Location of Service": updatedShoeing["Location of Service"],
           "Total Cost": updatedShoeing["Total Cost"],
           "Shoe Notes": updatedShoeing["Shoe Notes"],
+          "Other Custom Services": updatedShoeing["Other Custom Services"],
         })
         .eq("id", updatedShoeing.id);
 
@@ -503,7 +504,7 @@ export default function ShoeingsApprovalPanel() {
       console.log("Shoeing updated successfully");
       toast.success("Shoeing updated successfully");
       setEditingShoeing(null);
-      fetchPendingShoeings(); // Make sure this function is refreshing the data
+      fetchPendingShoeings();
     } catch (error) {
       console.error("Error updating shoeing:", error);
       toast.error("Failed to update shoeing");
@@ -621,6 +622,12 @@ export default function ShoeingsApprovalPanel() {
                                 <strong>Description:</strong>{" "}
                                 {shoeing.Description}
                               </p>
+                              {shoeing["Other Custom Services"] && (
+                                <p className="mb-2">
+                                  <strong>Custom Services:</strong>{" "}
+                                  {shoeing["Other Custom Services"]}
+                                </p>
+                              )}
                               {shoeing["Shoe Notes"] && (
                                 <p className="mb-2">
                                   <strong>Notes:</strong>{" "}
@@ -1019,6 +1026,17 @@ function EditShoeingModal({
               inputMode="numeric" // Brings up numeric keyboard on mobile
               pattern="[0-9]*" // Allows only numbers
               value={editedShoeing["Total Cost"] ?? ""} // Use empty string if null or undefined
+              onChange={handleInputChange}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="Other Custom Services" className="text-right">
+              Custom Services
+            </Label>
+            <Textarea
+              id="Other Custom Services"
+              value={editedShoeing["Other Custom Services"] || ""}
               onChange={handleInputChange}
               className="col-span-3"
             />
