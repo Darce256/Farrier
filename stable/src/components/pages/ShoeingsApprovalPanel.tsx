@@ -18,6 +18,7 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
+  Pencil,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider";
@@ -27,6 +28,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -46,6 +48,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Pagination } from "@/components/ui/pagination";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react"; // Make sure to import this icon
+import { format } from "date-fns"; // You might need to install this package
+import { cn } from "@/lib/utils";
 
 interface Shoeing {
   id: string;
@@ -107,6 +120,12 @@ interface Invoice {
   Balance: number;
 }
 
+interface Location {
+  id: number;
+  service_location: string;
+  location_color: string;
+}
+
 // Add these constants at the top of your file
 const QUICKBOOKS_CLIENT_ID = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID;
 const QUICKBOOKS_REDIRECT_URI = import.meta.env.VITE_QUICKBOOKS_REDIRECT_URI;
@@ -126,6 +145,8 @@ export default function ShoeingsApprovalPanel() {
   const [selectedCustomers, setSelectedCustomers] = useState<
     Record<string, string>
   >({});
+  const [editingShoeing, setEditingShoeing] = useState<Shoeing | null>(null);
+  const [locations, setLocations] = useState<Location[]>([]);
 
   const fetchQuickBooksData = useCallback(async () => {
     if (!user) return;
@@ -186,6 +207,7 @@ export default function ShoeingsApprovalPanel() {
 
   useEffect(() => {
     checkQuickBooksConnection();
+    fetchLocations();
   }, [checkQuickBooksConnection]);
 
   const refreshQuickBooksToken = async (refreshToken: string) => {
@@ -254,34 +276,31 @@ export default function ShoeingsApprovalPanel() {
       if (customersError) throw customersError;
 
       // Group shoeings by customer display name
-      const grouped = shoeings.reduce(
-        (acc: GroupedShoeings, shoeing: Shoeing) => {
-          const shoeingHorseValue = `${shoeing["Horses"]}`;
+      const grouped = shoeings.reduce((acc: GroupedShoeings, shoeing: any) => {
+        const shoeingHorseValue = `${shoeing["Horses"]}`;
 
-          let customerDisplayName = "Unknown";
+        let customerDisplayName = "Unknown";
 
-          // Find matching customer
-          const matchingCustomer = customers.find(
-            (customer) =>
-              customer.Horses && customer.Horses.includes(shoeingHorseValue)
-          );
+        // Find matching customer
+        const matchingCustomer = customers.find(
+          (customer) =>
+            customer.Horses && customer.Horses.includes(shoeingHorseValue)
+        );
 
-          if (matchingCustomer) {
-            customerDisplayName = matchingCustomer["Display Name"];
-          } else {
-            console.log(`No matching customer found for: ${shoeingHorseValue}`);
-          }
+        if (matchingCustomer) {
+          customerDisplayName = matchingCustomer["Display Name"];
+        } else {
+          console.log(`No matching customer found for: ${shoeingHorseValue}`);
+        }
 
-          const key = customerDisplayName;
+        const key = customerDisplayName;
 
-          if (!acc[key]) {
-            acc[key] = { displayName: customerDisplayName, shoeings: [] };
-          }
-          acc[key].shoeings.push(shoeing);
-          return acc;
-        },
-        {}
-      );
+        if (!acc[key]) {
+          acc[key] = { displayName: customerDisplayName, shoeings: [] };
+        }
+        acc[key].shoeings.push(shoeing);
+        return acc;
+      }, {});
 
       setGroupedShoeings(grouped);
     } catch (error) {
@@ -355,7 +374,7 @@ export default function ShoeingsApprovalPanel() {
       } else {
         throw new Error("Failed to create invoice in QuickBooks");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in handleAccept:", error);
       toast.error(
         `Failed to accept shoeings and create invoice: ${error.message}`
@@ -451,6 +470,48 @@ export default function ShoeingsApprovalPanel() {
 
   const handleCustomerSelect = (key: string, customerId: string) => {
     setSelectedCustomers((prev) => ({ ...prev, [key]: customerId }));
+  };
+
+  const handleEditShoeing = (shoeing: Shoeing) => {
+    setEditingShoeing(shoeing);
+  };
+
+  const handleSaveEdit = async (updatedShoeing: Shoeing) => {
+    try {
+      const { error } = await supabase
+        .from("shoeings")
+        .update({
+          Description: updatedShoeing.Description,
+          "Location of Service": updatedShoeing["Location of Service"],
+          "Total Cost": updatedShoeing["Total Cost"],
+          "Shoe Notes": updatedShoeing["Shoe Notes"],
+        })
+        .eq("id", updatedShoeing.id);
+
+      if (error) throw error;
+
+      toast.success("Shoeing updated successfully");
+      setEditingShoeing(null);
+      fetchPendingShoeings();
+    } catch (error) {
+      console.error("Error updating shoeing:", error);
+      toast.error("Failed to update shoeing");
+    }
+  };
+
+  const fetchLocations = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("locations")
+        .select("id, service_location, location_color")
+        .order("service_location");
+
+      if (error) throw error;
+      setLocations(data || []);
+    } catch (error) {
+      console.error("Error fetching locations:", error);
+      toast.error("Failed to fetch locations");
+    }
   };
 
   return (
@@ -559,6 +620,14 @@ export default function ShoeingsApprovalPanel() {
                                 <strong>Total:</strong>{" "}
                                 {formatPrice(shoeing["Total Cost"])}
                               </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditShoeing(shoeing)}
+                                className="mt-2"
+                              >
+                                <Pencil className="w-4 h-4 mr-2" /> Edit
+                              </Button>
                             </CardContent>
                           </Card>
                         ))}
@@ -575,7 +644,6 @@ export default function ShoeingsApprovalPanel() {
                           onValueChange={(value) =>
                             handleCustomerSelect(key, value)
                           }
-                          className="bg-white"
                         >
                           <SelectTrigger className="w-[200px] bg-white">
                             <SelectValue placeholder="Select customer" />
@@ -596,6 +664,13 @@ export default function ShoeingsApprovalPanel() {
             </Accordion>
           </>
         )}
+
+        <EditShoeingModal
+          shoeing={editingShoeing}
+          onClose={() => setEditingShoeing(null)}
+          onSave={handleSaveEdit}
+          locations={locations}
+        />
       </>
     );
   }
@@ -736,5 +811,188 @@ function SkeletonLoader() {
         ))}
       </div>
     </div>
+  );
+}
+
+interface EditShoeingModalProps {
+  shoeing: Shoeing | null;
+  onClose: () => void;
+  onSave: (updatedShoeing: Shoeing) => void;
+  locations: Location[];
+}
+
+function EditShoeingModal({
+  shoeing,
+  onClose,
+  onSave,
+  locations,
+}: EditShoeingModalProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [editedShoeing, setEditedShoeing] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (shoeing) {
+      setEditedShoeing({
+        ...shoeing,
+        "Date of Service": shoeing["Date of Service"]
+          ? new Date(shoeing["Date of Service"])
+          : undefined,
+      });
+      setIsOpen(true);
+    } else {
+      setIsOpen(false);
+    }
+  }, [shoeing]);
+
+  const handleClose = () => {
+    setIsOpen(false);
+    onClose();
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { id, value } = e.target;
+    setEditedShoeing((prev: any) => {
+      if (!prev) return null;
+      return { ...prev, [id]: value };
+    });
+  };
+
+  const handleSaveClick = () => {
+    if (editedShoeing) {
+      onSave(editedShoeing);
+      handleClose();
+    }
+  };
+
+  const handleLocationChange = (value: string) => {
+    setEditedShoeing((prev: any) => {
+      if (!prev) return null;
+      return { ...prev, "Location of Service": value };
+    });
+  };
+
+  const handleDateChange = (date: Date | undefined) => {
+    setEditedShoeing((prev: any) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        "Date of Service": date ? date.toISOString() : undefined,
+      };
+    });
+  };
+
+  if (!editedShoeing) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>
+            Edit Shoeing for {editedShoeing["Horse Name"]}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="Date of Service" className="text-right">
+              Service Date
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={"outline"}
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !editedShoeing["Date of Service"] && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {editedShoeing["Date of Service"] ? (
+                    format(new Date(editedShoeing["Date of Service"]), "PPP")
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={
+                    editedShoeing["Date of Service"]
+                      ? new Date(editedShoeing["Date of Service"])
+                      : undefined
+                  }
+                  onSelect={handleDateChange}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="Description" className="text-right">
+              Description
+            </Label>
+            <Input
+              id="Description"
+              value={editedShoeing.Description}
+              onChange={handleInputChange}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="Location of Service" className="text-right">
+              Location
+            </Label>
+            <Select
+              value={editedShoeing["Location of Service"]}
+              onValueChange={handleLocationChange}
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Select a location" />
+              </SelectTrigger>
+              <SelectContent>
+                {locations.map((location) => (
+                  <SelectItem
+                    key={location.id}
+                    value={location.service_location}
+                  >
+                    {location.service_location}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="Total Cost" className="text-right">
+              Total Cost
+            </Label>
+            <Input
+              id="Total Cost"
+              value={editedShoeing["Total Cost"] || ""}
+              onChange={handleInputChange}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="Shoe Notes" className="text-right">
+              Shoe Notes
+            </Label>
+            <Textarea
+              id="Shoe Notes"
+              value={editedShoeing["Shoe Notes"] || ""}
+              onChange={handleInputChange}
+              className="col-span-3"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleClose} variant="outline">
+            Cancel
+          </Button>
+          <Button onClick={handleSaveClick}>Save Changes</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
