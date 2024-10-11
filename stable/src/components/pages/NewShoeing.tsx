@@ -121,7 +121,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
       .from("shoeings")
       .select("*")
       .eq("user_id", user?.id || "")
-      .not("status", "eq", "cancelled") // Add this line to exclude cancelled shoeings
+      .eq("status", "pending") // Change this line to only fetch pending shoeings
       .order("Date of Service", { ascending: false });
 
     if (error) {
@@ -179,7 +179,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
           placeholder="Search shoeings..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10 w-full"
+          className="pl-10 w-full bg-white"
         />
         <Search
           className="absolute left-7 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
@@ -1168,6 +1168,7 @@ export default function ShoeingForm() {
         </TabsContent>
 
         <TabsContent value="submitted-shoeings">
+          <h2 className="text-2xl font-bold mb-4">Pending Shoeings</h2>
           <SubmittedShoeings onEdit={handleEdit} key={submittedShoeingsKey} />
         </TabsContent>
       </Tabs>

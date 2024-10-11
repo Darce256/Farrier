@@ -410,7 +410,7 @@ export default function Horses() {
             value={filterBarnTrainer || ""}
             onValueChange={(value) => setFilterBarnTrainer(value || null)}
           >
-            <SelectTrigger className="w-full md:w-[200px]">
+            <SelectTrigger className="w-full md:w-[200px] bg-white">
               <SelectValue placeholder="Filter by Barn/Trainer" />
             </SelectTrigger>
             <SelectContent>
@@ -426,7 +426,7 @@ export default function Horses() {
             <Input
               type="text"
               placeholder="Search horses..."
-              className="pl-8 pr-8 w-full"
+              className="pl-8 pr-8 w-full bg-white"
               value={searchQuery}
               onChange={handleSearchChange}
             />
@@ -465,7 +465,7 @@ export default function Horses() {
               {viewMode === "card" ? "Table View" : "Card View"}
             </Button>
           )}
-          <Button onClick={clearFilters} variant="outline">
+          <Button onClick={clearFilters} variant="outline" className="bg-white">
             Clear Filters
           </Button>
         </div>
