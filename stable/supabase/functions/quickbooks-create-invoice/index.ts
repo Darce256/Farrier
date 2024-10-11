@@ -172,18 +172,25 @@ async function createInvoice(
       amount = 0;
     }
 
+    const serviceDate = shoeing["Date of Service"]
+      ? new Date(shoeing["Date of Service"]).toISOString().split("T")[0]
+      : new Date().toISOString().split("T")[0];
+
     return {
       DetailType: "SalesItemLineDetail",
       Amount: amount,
+      Description: `${shoeing["Horse Name"] || "Unknown Horse"} - ${
+        shoeing["Description"] || "Shoeing Service"
+      }`,
       SalesItemLineDetail: {
         ItemRef: {
           value: "19",
-          name: "Shoeing",
+          name: "Shoeing Service",
         },
+        ServiceDate: serviceDate,
+        Qty: 1,
+        UnitPrice: amount,
       },
-      Description: `Shoeing for ${
-        shoeing["Horse Name"] || "Unknown Horse"
-      } on ${shoeing["Date of Service"] || "Unknown Date"}`,
     };
   });
 

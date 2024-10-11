@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Pencil,
+  Loader2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider";
@@ -148,6 +149,7 @@ export default function ShoeingsApprovalPanel() {
   >({});
   const [editingShoeing, setEditingShoeing] = useState<Shoeing | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [isAccepting, setIsAccepting] = useState<string | null>(null);
 
   const fetchQuickBooksData = useCallback(async () => {
     if (!user) return;
@@ -315,6 +317,7 @@ export default function ShoeingsApprovalPanel() {
   }
 
   const handleAccept = async (key: string) => {
+    setIsAccepting(key);
     try {
       const shoeings = groupedShoeings[key].shoeings;
       const selectedCustomerId = selectedCustomers[key];
@@ -382,6 +385,8 @@ export default function ShoeingsApprovalPanel() {
       toast.error(
         `Failed to accept shoeings and create invoice: ${error.message}`
       );
+    } finally {
+      setIsAccepting(null);
     }
   };
 
@@ -641,9 +646,18 @@ export default function ShoeingsApprovalPanel() {
                       <div className="flex items-center mt-4 space-x-4">
                         <Button
                           onClick={() => handleAccept(key)}
-                          disabled={!selectedCustomers[key]}
+                          disabled={
+                            !selectedCustomers[key] || isAccepting === key
+                          }
                         >
-                          Accept All
+                          {isAccepting === key ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Sending to QuickBooks...
+                            </>
+                          ) : (
+                            "Accept All"
+                          )}
                         </Button>
                         <Select
                           value={selectedCustomers[key] || ""}
