@@ -662,6 +662,16 @@ export default function ShoeingsApprovalPanel() {
                 <span>{shoeing.alert}</span>
               </div>
             )}
+
+            {/* Add this button for editing */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleEditShoeing(shoeing)}
+              className="mt-2 w-full bg-primary text-white hover:bg-black hover:text-white"
+            >
+              <Pencil className="w-4 h-4 mr-2" /> Edit
+            </Button>
           </CardContent>
           <div className="p-4  bg-white">
             <Select
