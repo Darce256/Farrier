@@ -94,6 +94,9 @@ export default function Calendar() {
   );
   const [showCheckboxes, setShowCheckboxes] = useState(false);
   const { user } = useAuth();
+  const [selectedLocation, setSelectedLocation] = useState<string | undefined>(
+    undefined
+  );
 
   const fetchShoeings = async (startDate: Date, endDate: Date) => {
     console.log("Fetching shoeings for date range:", startDate, endDate);
@@ -392,14 +395,22 @@ export default function Calendar() {
   const resetDuplicationState = () => {
     setShowCheckboxes(false);
     setSelectedShoeings([]);
+    setSelectedLocation(undefined);
   };
 
   const handleDuplicateShoeings = async () => {
-    if (!duplicateDate || selectedShoeings.length === 0 || !user) return;
+    if (
+      !duplicateDate ||
+      !selectedLocation ||
+      selectedShoeings.length === 0 ||
+      !user
+    )
+      return;
 
     console.log("Starting duplication process");
     console.log("Selected shoeings:", selectedShoeings);
     console.log("Duplicate date:", duplicateDate);
+    console.log("Selected location:", selectedLocation);
     console.log("Current user ID:", user.id);
 
     let successCount = 0;
@@ -426,6 +437,7 @@ export default function Calendar() {
       const newShoeing = {
         ...newShoeingWithoutId,
         "Date of Service": newShoeingDate,
+        "Location of Service": selectedLocation, // Use the selected location
         status: "pending",
         Invoice: null,
         "1. Invoice": null,
@@ -464,6 +476,7 @@ export default function Calendar() {
     resetDuplicationState();
     setIsDuplicateDialogOpen(false);
     setDuplicateDate(undefined);
+    setSelectedLocation(undefined); // Reset the selected location
 
     console.log("Refreshing shoeings list...");
     await fetchShoeings(startOfMonth(currentDate), endOfMonth(currentDate));
@@ -685,36 +698,81 @@ export default function Calendar() {
         open={isDuplicateDialogOpen}
         onOpenChange={setIsDuplicateDialogOpen}
       >
-        <DialogContent className="sm:max-w-[425px] w-[calc(100%-3rem)] mr-12 rounded-lg overflow-hidden">
+        <DialogContent className="sm:max-w-[425px] w-[calc(100%-3rem)] mr-12 rounded-lg overflow-hidden max-h-[90vh] flex flex-col bg-white">
           <DialogHeader className="p-4 pb-2">
             <DialogTitle>Duplicate Shoeings</DialogTitle>
           </DialogHeader>
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 space-y-4 flex-grow overflow-y-auto">
+            <div>
+              <label
+                htmlFor="location-select"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Location of Service
+              </label>
+              <Select
+                onValueChange={setSelectedLocation}
+                value={selectedLocation}
+              >
+                <SelectTrigger id="location-select">
+                  <SelectValue placeholder="Select a location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((location) => (
+                    <SelectItem
+                      key={location.service_location}
+                      value={location.service_location}
+                    >
+                      {location.service_location}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <CalendarPicker
               mode="single"
               selected={duplicateDate}
               onSelect={setDuplicateDate}
               disabled={(date) => date <= new Date()}
               initialFocus
-              className="h-full w-full flex"
+              className="w-full"
               classNames={{
                 months:
-                  "flex w-full flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0 flex-1",
-                month: "space-y-4 w-full flex flex-col",
-                table: "w-full h-full border-collapse space-y-1",
-                head_row: "",
-                row: "w-full mt-2",
+                  "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                month: "space-y-4 w-full",
+                table: "w-full border-collapse space-y-1",
+                head_row: "flex w-full",
+                head_cell:
+                  "text-muted-foreground rounded-md w-full font-normal text-[0.8rem]",
+                row: "flex w-full mt-2",
+                cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 w-full",
+                day: "h-9 w-full p-0 font-normal aria-selected:opacity-100",
+                day_selected:
+                  "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                day_today: "bg-accent text-accent-foreground",
+                day_outside: "text-muted-foreground opacity-50",
+                day_disabled: "text-muted-foreground opacity-50",
+                day_range_middle:
+                  "aria-selected:bg-accent aria-selected:text-accent-foreground",
+                day_hidden: "invisible",
               }}
-              style={{ width: "100%" }}
+              components={{
+                IconLeft: ({ ...props }) => <ChevronLeft className="h-4 w-4" />,
+                IconRight: ({ ...props }) => (
+                  <ChevronRight className="h-4 w-4" />
+                ),
+              }}
             />
           </div>
-          <Button
-            onClick={handleDuplicateShoeings}
-            disabled={!duplicateDate}
-            className="w-full"
-          >
-            Duplicate
-          </Button>
+          <div className="px-4 py-3 bg-gray-50 sm:px-6">
+            <Button
+              onClick={handleDuplicateShoeings}
+              disabled={!duplicateDate || !selectedLocation}
+              className="w-full hover:bg-black hover:text-white"
+            >
+              Duplicate
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </Card>
