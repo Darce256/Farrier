@@ -141,6 +141,15 @@ interface Location {
 const QUICKBOOKS_CLIENT_ID = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID;
 const QUICKBOOKS_REDIRECT_URI = import.meta.env.VITE_QUICKBOOKS_REDIRECT_URI;
 
+// Add this helper function at the top of your file or in a separate utils file
+const cleanDescription = (horseName: string, description: string) => {
+  // Remove the horse name and any leading hyphen or dash
+  const cleanedDescription = description
+    .replace(new RegExp(`^${horseName}\\s*[-–]?\\s*`), "")
+    .trim();
+  return cleanedDescription;
+};
+
 export default function ShoeingsApprovalPanel() {
   const [groupedShoeings, setGroupedShoeings] = useState<GroupedShoeings>(
     {} as GroupedShoeings
@@ -376,7 +385,10 @@ export default function ShoeingsApprovalPanel() {
       // Prepare the shoeing data with description
       const shoeingWithDescription = {
         ...shoeing,
-        invoiceDescription: shoeing.Description, // Use the card's description as the invoice line item description
+        invoiceDescription: cleanDescription(
+          shoeing["Horse Name"],
+          shoeing.Description
+        ),
       };
 
       const { data, error } = await supabase.functions.invoke(
@@ -716,7 +728,10 @@ export default function ShoeingsApprovalPanel() {
       // Prepare the shoeings data with descriptions
       const shoeingsWithDescriptions = shoeings.map((shoeing) => ({
         ...shoeing,
-        invoiceDescription: shoeing.Description, // Use the card's description as the invoice line item description
+        invoiceDescription: cleanDescription(
+          shoeing["Horse Name"],
+          shoeing.Description
+        ),
       }));
 
       const { data, error } = await supabase.functions.invoke(

@@ -179,9 +179,7 @@ async function createInvoice(
     return {
       DetailType: "SalesItemLineDetail",
       Amount: amount,
-      Description: `${shoeing["Horse Name"] || "Unknown Horse"} - ${
-        shoeing["Description"] || "Shoeing Service"
-      }`,
+      Description: shoeing.invoiceDescription || "Shoeing Service", // Use the cleaned description from the frontend
       SalesItemLineDetail: {
         ItemRef: {
           value: "19",
