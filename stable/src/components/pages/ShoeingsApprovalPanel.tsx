@@ -611,6 +611,9 @@ export default function ShoeingsApprovalPanel() {
           <p className="text-sm text-gray-600 mb-1">
             Total Cost: ${shoeing["Total Cost"]}
           </p>
+          <p className="text-sm text-gray-600 mb-1">
+            <strong>Description:</strong> {shoeing.Description}
+          </p>
           {shoeing["Other Custom Services"] && (
             <p className="text-sm text-gray-600 mb-1">
               <strong>Custom Services:</strong>{" "}
@@ -629,7 +632,6 @@ export default function ShoeingsApprovalPanel() {
             </div>
           )}
 
-          {/* Add this button for editing */}
           <Button
             variant="outline"
             size="sm"
