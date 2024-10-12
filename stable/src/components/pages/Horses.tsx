@@ -613,8 +613,25 @@ const HorseCard = React.memo(
     };
 
     const handleRemoveAlert = async () => {
-      setAlertText("");
-      await handleAlertSubmit();
+      try {
+        const { data, error } = await supabase
+          .from("horses")
+          .update({ alert: null }) // Set to null instead of an empty string
+          .eq("id", horse.id)
+          .select();
+
+        if (error) throw error;
+
+        console.log("Supabase update response:", data);
+
+        await onAlertUpdate(horse.id, ""); // Pass null instead of an empty string
+        toast.success("Alert removed successfully");
+        setIsAlertDialogOpen(false);
+        setAlertText(""); // Clear the local state
+      } catch (error) {
+        console.error("Error removing alert:", error);
+        toast.error("Failed to remove alert");
+      }
     };
 
     return (
