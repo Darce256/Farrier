@@ -641,9 +641,20 @@ export default function ShoeingForm() {
     }
   }
 
-  const filteredHorses = horses.filter((horse) =>
-    horse.name!.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredHorses = useMemo(() => {
+    const filtered = horses.filter((horse) =>
+      horse.name!.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    return filtered.sort((a, b) => {
+      // First, sort by alert status
+      if (a.alert && !b.alert) return -1;
+      if (!a.alert && b.alert) return 1;
+
+      // If alert status is the same, sort alphabetically
+      return a.name!.localeCompare(b.name!);
+    });
+  }, [horses, searchQuery]);
 
   const filteredBarns = useMemo(() => {
     return existingBarns.filter((barn) =>
@@ -1041,6 +1052,12 @@ export default function ShoeingForm() {
                                             style={style}
                                           >
                                             <div className="flex items-center">
+                                              {filteredHorses[index].alert && (
+                                                <IoFlagSharp
+                                                  className="text-red-500 mr-2"
+                                                  size={20}
+                                                />
+                                              )}
                                               <span className="font-bold">
                                                 {filteredHorses[index].name}
                                               </span>
@@ -1048,12 +1065,6 @@ export default function ShoeingForm() {
                                                 {filteredHorses[index].barn ||
                                                   "No Barn Available"}
                                               </span>
-                                              {filteredHorses[index].alert && (
-                                                <IoFlagSharp
-                                                  className="text-red-500"
-                                                  size={20}
-                                                />
-                                              )}
                                             </div>
                                           </SelectItem>
                                         )}
