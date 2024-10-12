@@ -1178,7 +1178,7 @@ export default function ShoeingForm() {
                         control={form.control}
                         name="dateOfService"
                         render={({ field }) => (
-                          <FormItem className="flex flex-col mt-2">
+                          <FormItem className="flex flex-col mt-2 ">
                             <FormLabel>Date of Service*</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
@@ -1186,7 +1186,7 @@ export default function ShoeingForm() {
                                   <Button
                                     variant={"outline"}
                                     className={cn(
-                                      "w-full pl-3 text-left font-normal",
+                                      "w-full pl-3 text-left font-normal bg-white",
                                       !field.value && "text-muted-foreground"
                                     )}
                                   >
