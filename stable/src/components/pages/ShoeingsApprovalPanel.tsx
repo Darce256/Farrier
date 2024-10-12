@@ -619,79 +619,94 @@ export default function ShoeingsApprovalPanel() {
       );
     }
 
-    const renderShoeingCard = (shoeing: Shoeing, key: string) => (
-      <Card
-        key={shoeing.id}
-        className={`grid grid-rows-[auto_1fr_auto] h-full ${
-          shoeing.alert ? "border-red-500 border-2" : ""
-        }`}
-      >
-        <CardContent className="p-4">
-          <h3 className="font-semibold text-lg mb-2">
-            {shoeing["Horse Name"]}
-          </h3>
-          <p className="text-sm text-gray-600 mb-1">
-            Date: {shoeing["Date of Service"]}
-          </p>
-          <p className="text-sm text-gray-600 mb-1">
-            Barn: {shoeing["Barn / Trainer"]}
-          </p>
-          <p className="text-sm text-gray-600 mb-1">
-            Location: {shoeing["Location of Service"]}
-          </p>
-          <p className="text-sm text-gray-600 mb-1">
-            Total Cost: ${shoeing["Total Cost"]}
-          </p>
-          {shoeing.alert && (
-            <div className="bg-red-100 text-red-700 p-2 rounded-md mt-2 text-sm flex items-start">
-              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
-              <span>{shoeing.alert}</span>
-            </div>
-          )}
-        </CardContent>
-        <div className="p-4 bg-gray-100">
-          <Select
-            onValueChange={(value) => handleCustomerSelect(shoeing.id, value)}
-            value={selectedCustomers[shoeing.id] || ""}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Select QuickBooks Customer" />
-            </SelectTrigger>
-            <SelectContent>
-              {quickBooksData?.customers.map((customer) => (
-                <SelectItem key={customer.id} value={customer.id}>
-                  {customer.displayName}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="p-4 flex justify-between">
-          <Button
-            onClick={() => handleAccept(shoeing.id)}
-            disabled={
-              !selectedCustomers[shoeing.id] || isAccepting === shoeing.id
-            }
-            className="w-1/2 mr-2"
-          >
-            {isAccepting === shoeing.id ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Check className="mr-2 h-4 w-4" />
+    const renderShoeingCard = (shoeing: any, key: string) => {
+      console.log("Shoeing object:", shoeing); // Keep this log for debugging
+
+      // Extract barn from the "Horses" field
+      const horsesMatch = shoeing["Horses"].match(/(.*?) - \[(.*?)\]/);
+      console.log("Horses match:", horsesMatch); // Log the result of the regex match
+
+      let horseName = shoeing["Horse Name"];
+      let barn = "Unknown";
+
+      if (horsesMatch && horsesMatch.length === 3) {
+        horseName = horsesMatch[1];
+        barn = horsesMatch[2];
+      }
+
+      console.log("Extracted horse name:", horseName);
+      console.log("Extracted barn:", barn);
+
+      return (
+        <Card
+          key={shoeing.id}
+          className={`grid grid-rows-[auto_1fr_auto] h-full ${
+            shoeing.alert ? "border-red-500 border-2" : ""
+          }`}
+        >
+          <CardContent className="p-4">
+            <h3 className="font-semibold text-lg mb-2">{horseName}</h3>
+            <p className="text-sm text-gray-600 mb-1">
+              Date: {shoeing["Date of Service"]}
+            </p>
+            <p className="text-sm text-gray-600 mb-1">Barn: {barn}</p>
+            <p className="text-sm text-gray-600 mb-1">
+              Location: {shoeing["Location of Service"]}
+            </p>
+            <p className="text-sm text-gray-600 mb-1">
+              Total Cost: ${shoeing["Total Cost"]}
+            </p>
+            {shoeing.alert && (
+              <div className="bg-red-100 text-red-700 p-2 rounded-md mt-2 text-sm flex items-start">
+                <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+                <span>{shoeing.alert}</span>
+              </div>
             )}
-            Accept
-          </Button>
-          <Button
-            onClick={() => handleReject(shoeing.id)}
-            variant="destructive"
-            className="w-1/2 ml-2"
-          >
-            <X className="mr-2 h-4 w-4" />
-            Reject
-          </Button>
-        </div>
-      </Card>
-    );
+          </CardContent>
+          <div className="p-4 bg-gray-100">
+            <Select
+              onValueChange={(value) => handleCustomerSelect(shoeing.id, value)}
+              value={selectedCustomers[shoeing.id] || ""}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select QuickBooks Customer" />
+              </SelectTrigger>
+              <SelectContent>
+                {quickBooksData?.customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="p-4 flex justify-between">
+            <Button
+              onClick={() => handleAccept(shoeing.id)}
+              disabled={
+                !selectedCustomers[shoeing.id] || isAccepting === shoeing.id
+              }
+              className="w-1/2 mr-2"
+            >
+              {isAccepting === shoeing.id ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              Accept
+            </Button>
+            <Button
+              onClick={() => handleReject(shoeing.id)}
+              variant="destructive"
+              className="w-1/2 ml-2"
+            >
+              <X className="mr-2 h-4 w-4" />
+              Reject
+            </Button>
+          </div>
+        </Card>
+      );
+    };
 
     return (
       <>
