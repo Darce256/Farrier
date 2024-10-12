@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Calendar as _CalendarIcon,
   House,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -77,6 +78,13 @@ interface Shoeing {
   status: string;
 }
 
+interface Horse {
+  id: string;
+  name: string;
+  barn: string | null;
+  alert?: string | null;
+}
+
 const TODAY = new Date();
 
 export default function Calendar() {
@@ -97,6 +105,7 @@ export default function Calendar() {
   const [selectedLocation, setSelectedLocation] = useState<string | undefined>(
     undefined
   );
+  const [horses, setHorses] = useState<Horse[]>([]);
 
   const fetchShoeings = async (startDate: Date, endDate: Date) => {
     console.log("Fetching shoeings for date range:", startDate, endDate);
@@ -136,6 +145,25 @@ export default function Calendar() {
 
     console.log(`Total shoeings fetched: ${allShoeings.length}`);
     setShoeings(allShoeings);
+
+    // Fetch horses data
+    const { data: horsesData, error: horsesError } = await supabase
+      .from("horses")
+      .select("id, Name, alert");
+
+    if (horsesError) {
+      console.error("Error fetching horses:", horsesError);
+      toast.error("Failed to fetch horses data");
+    } else {
+      setHorses(
+        horsesData?.map((horse) => ({
+          id: horse.id,
+          name: horse.Name,
+          alert: horse.alert,
+          barn: "", // Adding a default empty string for the 'barn' property
+        })) || []
+      );
+    }
   };
 
   const fetchLocations = async () => {
@@ -259,6 +287,10 @@ export default function Calendar() {
     const bgColor = getLocationColor(shoeing["Location of Service"]);
     const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
 
+    // Check if the horse has an alert
+    const horse = horses.find((h) => h.name === horseName);
+    const hasAlert = horse && horse.alert;
+
     return (
       <div
         key={shoeing.id}
@@ -268,6 +300,7 @@ export default function Calendar() {
           padding: "0.25rem",
           borderRadius: "0.25rem",
           marginBottom: "0.25rem",
+          border: hasAlert ? "2px solid red" : "none", // Add red border if there's an alert
         }}
         className="text-[10px] sm:text-xs overflow-hidden"
       >
@@ -297,37 +330,46 @@ export default function Calendar() {
             {day}
           </div>
         ))}
-        {calendarDays.map((day, index) => (
-          <div
-            key={index}
-            className={`bg-white p-1 sm:p-2 h-24 sm:h-32 md:h-40 flex flex-col ${
-              day && isToday(day) ? "border-2 border-primary/70" : ""
-            }`}
-            onClick={() => {
-              if (day) {
-                setCurrentDate(day);
-                setViewMode("day");
-              }
-            }}
-          >
-            {day && (
-              <>
-                <div
-                  className={`text-right mb-1 text-xs sm:text-sm ${
-                    isToday(day) ? "font-bold text-primary" : "text-gray-500"
-                  }`}
-                >
-                  {day.getDate()}
-                </div>
-                <div className="flex-grow overflow-y-auto no-scrollbar">
-                  <div className="space-y-1">
-                    {getShoeingsForDate(day).map(renderShoeing)}
+        {calendarDays.map((day, index) => {
+          const shoeingsForDay = day ? getShoeingsForDate(day) : [];
+          const hasAlert = shoeingsForDay.some((shoeing) => {
+            const [horseName] = shoeing.Horses.split(" - ");
+            const horse = horses.find((h) => h.name === horseName);
+            return horse && horse.alert;
+          });
+
+          return (
+            <div
+              key={index}
+              className={`bg-white p-1 sm:p-2 h-24 sm:h-32 md:h-40 flex flex-col ${
+                day && isToday(day) ? "border-2 border-primary/70" : ""
+              } ${hasAlert ? "border-2 border-red-500" : ""}`}
+              onClick={() => {
+                if (day) {
+                  setCurrentDate(day);
+                  setViewMode("day");
+                }
+              }}
+            >
+              {day && (
+                <>
+                  <div
+                    className={`text-right mb-1 text-xs sm:text-sm ${
+                      isToday(day) ? "font-bold text-primary" : "text-gray-500"
+                    }`}
+                  >
+                    {day.getDate()}
                   </div>
-                </div>
-              </>
-            )}
-          </div>
-        ))}
+                  <div className="flex-grow overflow-y-auto no-scrollbar">
+                    <div className="space-y-1">
+                      {shoeingsForDay.map(renderShoeing)}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })}
       </>
     );
   };
@@ -336,32 +378,41 @@ export default function Calendar() {
     const weekDays = generateWeekDays(date);
     return (
       <>
-        {weekDays.map((day, index) => (
-          <div
-            key={index}
-            className={`bg-white p-1 sm:p-2 flex flex-col h-full ${
-              isToday(day) ? "border-2 border-primary/70" : ""
-            }`}
-            onClick={() => {
-              setCurrentDate(day);
-              setViewMode("day");
-            }}
-          >
+        {weekDays.map((day, index) => {
+          const shoeingsForDay = getShoeingsForDate(day);
+          const hasAlert = shoeingsForDay.some((shoeing) => {
+            const [horseName] = shoeing.Horses.split(" - ");
+            const horse = horses.find((h) => h.name === horseName);
+            return horse && horse.alert;
+          });
+
+          return (
             <div
-              className={`text-center mb-1 sm:mb-2 ${
-                isToday(day) ? "font-bold text-primary" : ""
-              }`}
+              key={index}
+              className={`bg-white p-1 sm:p-2 flex flex-col h-full ${
+                isToday(day) ? "border-2 border-primary/70" : ""
+              } ${hasAlert ? "border-2 border-red-500" : ""}`}
+              onClick={() => {
+                setCurrentDate(day);
+                setViewMode("day");
+              }}
             >
-              <div className="font-semibold text-xs sm:text-sm">
-                {DAYS[day.getDay()]}
+              <div
+                className={`text-center mb-1 sm:mb-2 ${
+                  isToday(day) ? "font-bold text-primary" : ""
+                }`}
+              >
+                <div className="font-semibold text-xs sm:text-sm">
+                  {DAYS[day.getDay()]}
+                </div>
+                <div className="text-xs sm:text-sm">{day.getDate()}</div>
               </div>
-              <div className="text-xs sm:text-sm">{day.getDate()}</div>
+              <div className="flex-grow overflow-y-auto no-scrollbar">
+                {shoeingsForDay.map(renderShoeing)}
+              </div>
             </div>
-            <div className="flex-grow overflow-y-auto no-scrollbar">
-              {getShoeingsForDate(day).map(renderShoeing)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </>
     );
   };
@@ -521,39 +572,56 @@ export default function Calendar() {
                     shoeing["Location of Service"]
                   );
                   const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
+                  const horse = horses.find((h) => h.name === horseName);
+                  const hasAlert = horse && horse.alert;
                   return (
                     <AccordionItem
                       key={shoeing.id}
                       value={`item-${index}`}
+                      className={`rounded-md mb-2 ${
+                        hasAlert ? "border-2 border-red-500" : ""
+                      }`}
                       style={{ backgroundColor: bgColor }}
-                      className="rounded-md mb-2"
                     >
-                      <AccordionTrigger className="w-full">
-                        <div className="flex items-center w-full">
-                          {showCheckboxes && (
-                            <Checkbox
-                              checked={selectedShoeings.includes(shoeing.id)}
-                              onCheckedChange={() =>
-                                handleShoeingSelection(shoeing.id)
-                              }
-                              className="mr-0 flex-shrink-0 ml-2 text-white border-black bg-transparent "
-                            />
-                          )}
-                          <div className="flex-grow text-left p-2">
-                            <span className="text-lg font-semibold pl-2">
-                              {horseName}
-                            </span>
-                            <div className="flex items-center text-sm pl-2">
-                              <House className="w-3 h-3 mr-1 flex-shrink-0" />
-                              <span className="truncate">
-                                {barnTrainer?.replace(/[\[\]]/g, "").trim() ||
-                                  ""}
+                      <AccordionTrigger className="w-full hover:no-underline">
+                        <div className="flex flex-col w-full">
+                          <div className="flex items-center w-full">
+                            {showCheckboxes && (
+                              <Checkbox
+                                checked={selectedShoeings.includes(shoeing.id)}
+                                onCheckedChange={() =>
+                                  handleShoeingSelection(shoeing.id)
+                                }
+                                className="mr-2 flex-shrink-0 text-white border-black bg-transparent"
+                              />
+                            )}
+                            <div className="flex-grow text-left">
+                              <span className="text-lg font-semibold ml-2">
+                                {horseName}
+                              </span>
+                              <div className="flex items-center text-sm">
+                                <House className="w-3 h-3 mr-1 flex-shrink-0 ml-2" />
+                                <span className="truncate ml-2">
+                                  {barnTrainer?.replace(/[\[\]]/g, "").trim() ||
+                                    ""}
+                                </span>
+                              </div>
+                              <span className="text-xs mt-1 block ml-2">
+                                {shoeing["Location of Service"]}
                               </span>
                             </div>
-                            <span className="text-xs mt-1 block pl-2">
-                              {shoeing["Location of Service"]}
-                            </span>
                           </div>
+                          {hasAlert && (
+                            <div className="flex items-start bg-red-100 ml-2  text-red-700 p-2 rounded-md mt-2 text-xs w-full">
+                              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+                              <span
+                                className="line-clamp-2"
+                                title={horse.alert || ""}
+                              >
+                                {horse.alert}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="px-4 py-2">
@@ -748,7 +816,7 @@ export default function Calendar() {
                 cell: "text-center text-sm p-0 relative [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20 w-full",
                 day: "h-9 w-full p-0 font-normal aria-selected:opacity-100",
                 day_selected:
-                  "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
+                  "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground",
                 day_today: "bg-accent text-accent-foreground",
                 day_outside: "text-muted-foreground opacity-50",
                 day_disabled: "text-muted-foreground opacity-50",
