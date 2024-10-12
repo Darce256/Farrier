@@ -663,12 +663,12 @@ export default function ShoeingsApprovalPanel() {
               </div>
             )}
           </CardContent>
-          <div className="p-4 bg-gray-100">
+          <div className="p-4  bg-white">
             <Select
               onValueChange={(value) => handleCustomerSelect(shoeing.id, value)}
               value={selectedCustomers[shoeing.id] || ""}
             >
-              <SelectTrigger className="w-full">
+              <SelectTrigger className="w-full ">
                 <SelectValue placeholder="Select QuickBooks Customer" />
               </SelectTrigger>
               <SelectContent>
