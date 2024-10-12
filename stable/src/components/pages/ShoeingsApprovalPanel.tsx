@@ -656,6 +656,17 @@ export default function ShoeingsApprovalPanel() {
             <p className="text-sm text-gray-600 mb-1">
               Total Cost: ${shoeing["Total Cost"]}
             </p>
+            {shoeing["Other Custom Services"] && (
+              <p className="text-sm text-gray-600 mb-1">
+                <strong>Custom Services:</strong>{" "}
+                {shoeing["Other Custom Services"]}
+              </p>
+            )}
+            {shoeing["Shoe Notes"] && (
+              <p className="text-sm text-gray-600 mb-1">
+                <strong>Shoe Notes:</strong> {shoeing["Shoe Notes"]}
+              </p>
+            )}
             {shoeing.alert && (
               <div className="bg-red-100 text-red-700 p-2 rounded-md mt-2 text-sm flex items-start">
                 <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
