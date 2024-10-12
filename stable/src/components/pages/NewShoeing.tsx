@@ -41,28 +41,15 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"; // Shadcn UI Dialog components
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 import { MultiSelect } from "@/components/ui/multi-select";
 import { useAuth } from "@/components/Contexts/AuthProvider"; // Adjust the import path as necessary
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Edit } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { IoFlagOutline, IoFlagSharp } from "react-icons/io5";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { IoFlagSharp } from "react-icons/io5";
 import { AlertCircle } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 const formSchema = z.object({
   horseName: z.string({
@@ -362,6 +349,110 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+// Add this new component after the SubmittedShoeings component
+
+function SentThisMonth() {
+  const [shoeings, setShoeings] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchSentShoeings();
+  }, []);
+
+  async function fetchSentShoeings() {
+    setIsLoading(true);
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    console.log("Fetching all completed shoeings");
+
+    const { data, error } = await supabase
+      .from("shoeings")
+      .select("*")
+      .eq("status", "completed")
+      .order("Date of Service", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching sent shoeings:", error);
+      toast.error("Failed to fetch sent shoeings");
+    } else {
+      const filteredData = data.filter((shoeing) => {
+        const shoeingDate = new Date(shoeing["Date of Service"]);
+        return shoeingDate >= thirtyDaysAgo && shoeingDate <= now;
+      });
+
+      console.log("Fetched and filtered shoeings:", filteredData);
+      if (filteredData.length === 0) {
+        console.log("No completed shoeings found for the last 30 days");
+      } else {
+        console.log("Number of shoeings found:", filteredData.length);
+        console.log("First shoeing date:", filteredData[0]["Date of Service"]);
+        console.log(
+          "Last shoeing date:",
+          filteredData[filteredData.length - 1]["Date of Service"]
+        );
+      }
+      setShoeings(filteredData as any);
+    }
+    setIsLoading(false);
+  }
+
+  return (
+    <div className="w-full">
+      {isLoading ? (
+        <p>Loading...</p>
+      ) : shoeings.length > 0 ? (
+        <div className="space-y-4">
+          {shoeings.map((shoeing: any) => (
+            <Card key={shoeing.id}>
+              <CardContent className="pt-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-lg font-bold text-black mb-1">
+                      {shoeing["Horse Name"]}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(
+                        shoeing["Date of Service"]
+                      ).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <Badge variant="success">Completed</Badge>
+                </div>
+                <p className="text-sm">{shoeing["Base Service"]}</p>
+                <p className="text-sm">{shoeing["Location of Service"]}</p>
+
+                {shoeing["Other Custom Services"] && (
+                  <div className="mt-2">
+                    <p className="text-sm font-semibold">Custom Services:</p>
+                    <p className="text-sm">
+                      {shoeing["Other Custom Services"]}
+                    </p>
+                  </div>
+                )}
+
+                {shoeing["Shoe Notes"] && (
+                  <div className="mt-2">
+                    <p className="text-sm font-semibold">Shoeing Notes:</p>
+                    <p className="text-sm">{shoeing["Shoe Notes"]}</p>
+                  </div>
+                )}
+
+                <p className="text-sm font-semibold mt-2">
+                  Total: ${shoeing["Total Cost"]}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <p>No completed shoeings in the last 30 days.</p>
+      )}
     </div>
   );
 }
@@ -841,6 +932,12 @@ export default function ShoeingForm() {
           >
             Waiting to Invoice
           </TabsTrigger>
+          <TabsTrigger
+            value="sent-this-month"
+            className="flex-1 sm:flex-initial"
+          >
+            Last 30 Days
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="new-shoeing">
@@ -1170,6 +1267,13 @@ export default function ShoeingForm() {
         <TabsContent value="submitted-shoeings">
           <h2 className="text-2xl font-bold mb-4">Pending Shoeings</h2>
           <SubmittedShoeings onEdit={handleEdit} key={submittedShoeingsKey} />
+        </TabsContent>
+
+        <TabsContent value="sent-this-month">
+          <h2 className="text-2xl font-bold mb-4">
+            Completed Shoeings (Last 30 Days)
+          </h2>
+          <SentThisMonth />
         </TabsContent>
       </Tabs>
 
