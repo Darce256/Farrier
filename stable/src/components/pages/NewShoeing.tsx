@@ -79,7 +79,6 @@ type Horse = {
 const newHorseSchema = z.object({
   horseName: z.string().nonempty("Horse name is required"),
   barnName: z.string().nonempty("Barn name is required"),
-  customerName: z.string().nonempty("Customer name is required"),
   ownerEmail: z.string().email("Invalid email address").optional(),
   ownerPhone: z
     .string()
@@ -470,34 +469,7 @@ export default function ShoeingForm() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const selectRef = useRef<HTMLButtonElement>(null);
   const isNewHorseAdded = useRef(false);
-  const [customers, setCustomers] = useState<string[]>([]);
-  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchCustomers();
-  }, []);
-
-  async function fetchCustomers() {
-    const { data, error } = await supabase
-      .from("customers")
-      .select('"Display Name"')
-      .not("Display Name", "is", null);
-
-    if (error) {
-      console.error("Error fetching customers:", error);
-    } else {
-      const uniqueCustomers = [
-        ...new Set(data.map((item: any) => item["Display Name"])),
-      ];
-      setCustomers(uniqueCustomers.sort());
-    }
-  }
-
-  const filteredCustomers = useMemo(() => {
-    return customers.filter((customer) =>
-      customer.toLowerCase().includes(customerSearchQuery.toLowerCase())
-    );
-  }, [customers, customerSearchQuery]);
   // Add refs for MultiSelect components
   const frontAddOnsRef = useRef(null);
   const hindAddOnsRef = useRef(null);
@@ -865,9 +837,8 @@ export default function ShoeingForm() {
   const handleAddNewHorse = async (values: NewHorseFormValues) => {
     console.log("Starting handleAddNewHorse with values:", values);
     try {
-      // Trim the barn name and customer name
+      // Trim the barn name
       const trimmedBarnName = values.barnName.trim();
-      const trimmedCustomerName = values.customerName.trim();
 
       // Format the horse entry
       const horseEntry = `${values.horseName} - [${trimmedBarnName}]`;
@@ -893,7 +864,6 @@ export default function ShoeingForm() {
             Name: values.horseName,
             "Barn / Trainer": trimmedBarnName,
             "Owner Email": values.ownerEmail,
-            Customers: trimmedCustomerName,
           },
         ])
         .select();
@@ -905,70 +875,6 @@ export default function ShoeingForm() {
       }
 
       console.log("Horse added successfully:", horseData);
-
-      // Check if customer already exists
-      const { data: existingCustomers, error: customerCheckError } =
-        await supabase
-          .from("customers")
-          .select("*")
-          .eq("Display Name", trimmedCustomerName)
-          .limit(1);
-
-      if (customerCheckError) {
-        console.error(
-          "Error checking for existing customer:",
-          customerCheckError
-        );
-        toast.error("Error checking for existing customer. Please try again.");
-        return;
-      }
-
-      if (existingCustomers && existingCustomers.length > 0) {
-        console.log("Customer already exists:", existingCustomers[0]);
-        // Update existing customer with new horse
-        let currentHorses = existingCustomers[0].Horses || "";
-
-        // Append the new horse entry to the existing string
-        const updatedHorses = currentHorses
-          ? `${currentHorses}, ${horseEntry}`
-          : horseEntry;
-
-        const { error: updateError } = await supabase
-          .from("customers")
-          .update({
-            Horses: updatedHorses,
-          })
-          .eq("Display Name", trimmedCustomerName);
-
-        if (updateError) {
-          console.error("Error updating existing customer:", updateError);
-          toast.error("Error updating existing customer. Please try again.");
-          return;
-        }
-      } else {
-        // Add new customer
-        console.log("Adding new customer");
-        const { error: customerError } = await supabase
-          .from("customers")
-          .insert([
-            {
-              "Display Name": trimmedCustomerName,
-              Horses: horseEntry,
-              "Owner Email": values.ownerEmail,
-              Phone: values.ownerPhone,
-            },
-          ]);
-
-        if (customerError) {
-          console.error("Error adding new customer:", customerError);
-          toast.error(
-            "Horse added, but failed to add customer. Please try again."
-          );
-          return;
-        }
-      }
-
-      console.log("Customer added or updated successfully");
 
       if (horseData && horseData.length > 0) {
         const newHorse: Horse = {
@@ -995,9 +901,7 @@ export default function ShoeingForm() {
         // Trigger a re-render of the Select component
         setForceUpdate((prev) => !prev);
 
-        toast.success(
-          "New horse added and customer information updated successfully."
-        );
+        toast.success("New horse added successfully.");
       } else {
         console.error("No horse data returned from database");
         toast.error("Failed to add new horse. Please try again.");
@@ -1442,45 +1346,6 @@ export default function ShoeingForm() {
                                 }}
                               >
                                 {barn}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={newHorseForm.control}
-                name="customerName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customer Name*</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          {...field}
-                          placeholder="Enter customer name"
-                          onChange={(e) => {
-                            const value = e.target.value;
-                            field.onChange(value);
-                            setCustomerSearchQuery(value);
-                          }}
-                        />
-                        {customerSearchQuery && (
-                          <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-auto">
-                            {filteredCustomers.map((customer, index) => (
-                              <li
-                                key={index}
-                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                onClick={() => {
-                                  field.onChange(customer);
-                                  setCustomerSearchQuery("");
-                                }}
-                              >
-                                {customer}
                               </li>
                             ))}
                           </ul>
