@@ -470,7 +470,34 @@ export default function ShoeingForm() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const selectRef = useRef<HTMLButtonElement>(null);
   const isNewHorseAdded = useRef(false);
+  const [customers, setCustomers] = useState<string[]>([]);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
 
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  async function fetchCustomers() {
+    const { data, error } = await supabase
+      .from("customers")
+      .select('"Display Name"')
+      .not("Display Name", "is", null);
+
+    if (error) {
+      console.error("Error fetching customers:", error);
+    } else {
+      const uniqueCustomers = [
+        ...new Set(data.map((item: any) => item["Display Name"])),
+      ];
+      setCustomers(uniqueCustomers.sort());
+    }
+  }
+
+  const filteredCustomers = useMemo(() => {
+    return customers.filter((customer) =>
+      customer.toLowerCase().includes(customerSearchQuery.toLowerCase())
+    );
+  }, [customers, customerSearchQuery]);
   // Add refs for MultiSelect components
   const frontAddOnsRef = useRef(null);
   const hindAddOnsRef = useRef(null);
@@ -480,6 +507,10 @@ export default function ShoeingForm() {
   const { user } = useAuth();
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
+    defaultValues: {
+      horseName: "", // Provide a default value
+      // ... other default values ...
+    },
   });
 
   // Separate the new horse form state from the main form
@@ -689,6 +720,8 @@ export default function ShoeingForm() {
         throw new Error("Selected horse not found");
       }
 
+      console.log("Selected horse:", selectedHorse);
+
       const frontAddOns = values.frontAddOns || [];
       const hindAddOns = values.hindAddOns || [];
 
@@ -767,25 +800,10 @@ export default function ShoeingForm() {
 
       console.log("Prepared shoeingData:", shoeingData);
 
-      let data, error;
-
-      if (editingShoeing) {
-        console.log(
-          "Updating existing shoeing record with ID:",
-          editingShoeing.id
-        );
-        ({ data, error } = await supabase
-          .from("shoeings")
-          .update(shoeingData)
-          .eq("id", editingShoeing.id)
-          .select());
-      } else {
-        console.log("Inserting new shoeing record");
-        ({ data, error } = await supabase
-          .from("shoeings")
-          .insert([shoeingData])
-          .select());
-      }
+      const { data, error } = await supabase
+        .from("shoeings")
+        .insert([shoeingData])
+        .select();
 
       console.log("Supabase operation result - data:", data, "error:", error);
 
@@ -797,11 +815,7 @@ export default function ShoeingForm() {
       }
 
       console.log("Shoeing record saved successfully:", data);
-      toast.success(
-        editingShoeing
-          ? "Shoeing record updated successfully!"
-          : "Shoeing record added successfully!"
-      );
+      toast.success("Shoeing record added successfully!");
 
       // Reset form and clear all values
       form.reset({
@@ -849,83 +863,148 @@ export default function ShoeingForm() {
   };
 
   const handleAddNewHorse = async (values: NewHorseFormValues) => {
-    // Trim the barn name
-    const trimmedBarnName = values.barnName.trim();
+    console.log("Starting handleAddNewHorse with values:", values);
+    try {
+      // Trim the barn name and customer name
+      const trimmedBarnName = values.barnName.trim();
+      const trimmedCustomerName = values.customerName.trim();
 
-    // Check if horse with same name and barn already exists
-    const existingHorse = horses.find(
-      (horse) =>
-        horse.name?.toLowerCase() === values.horseName.toLowerCase() &&
-        horse.barn?.toLowerCase().trim() === trimmedBarnName.toLowerCase()
-    );
+      // Format the horse entry
+      const horseEntry = `${values.horseName} - [${trimmedBarnName}]`;
 
-    if (existingHorse) {
-      toast.error("A horse with this name and barn/trainer already exists.");
-      return;
-    }
+      // Check if horse with same name and barn already exists
+      const existingHorse = horses.find(
+        (horse) =>
+          horse.name?.toLowerCase() === values.horseName.toLowerCase() &&
+          horse.barn?.toLowerCase().trim() === trimmedBarnName.toLowerCase()
+      );
 
-    // Start a Supabase transaction
-    const { data: horseData, error: horseError } = await supabase
-      .from("horses")
-      .insert([
-        {
-          Name: values.horseName,
-          "Barn / Trainer": trimmedBarnName, // Use trimmed barn name
-          "Owner Email": values.ownerEmail,
-          Customers: values.customerName,
-        },
-      ])
-      .select();
+      if (existingHorse) {
+        console.log("Horse already exists:", existingHorse);
+        toast.error("A horse with this name and barn/trainer already exists.");
+        return;
+      }
 
-    if (horseError) {
-      console.error("Error adding new horse:", horseError);
-      toast.error("Failed to add new horse. Please try again.");
-      return;
-    }
+      console.log("Inserting new horse into database");
+      const { data: horseData, error: horseError } = await supabase
+        .from("horses")
+        .insert([
+          {
+            Name: values.horseName,
+            "Barn / Trainer": trimmedBarnName,
+            "Owner Email": values.ownerEmail,
+            Customers: trimmedCustomerName,
+          },
+        ])
+        .select();
 
-    // If horse was added successfully, add the customer
-    const { error: customerError } = await supabase.from("customers").insert([
-      {
-        "Display Name": values.customerName,
-        Horses: values.horseName,
-        "Owner Email": values.ownerEmail,
-        Phone: values.ownerPhone,
-      },
-    ]);
+      if (horseError) {
+        console.error("Error adding new horse:", horseError);
+        toast.error("Failed to add new horse. Please try again.");
+        return;
+      }
 
-    if (customerError) {
-      console.error("Error adding new customer:", customerError);
-      toast.error("Horse added, but failed to add customer. Please try again.");
-      return;
-    }
+      console.log("Horse added successfully:", horseData);
 
-    // If both operations were successful
-    if (horseData) {
-      const newHorse = {
-        id: horseData[0].id,
-        name: horseData[0].Name,
-        barn: horseData[0]["Barn / Trainer"],
-      };
+      // Check if customer already exists
+      const { data: existingCustomers, error: customerCheckError } =
+        await supabase
+          .from("customers")
+          .select("*")
+          .eq("Display Name", trimmedCustomerName)
+          .limit(1);
 
-      setHorses((prevHorses) => {
-        const updatedHorses = [...prevHorses, newHorse];
-        return updatedHorses;
-      });
+      if (customerCheckError) {
+        console.error(
+          "Error checking for existing customer:",
+          customerCheckError
+        );
+        toast.error("Error checking for existing customer. Please try again.");
+        return;
+      }
 
-      setIsModalOpen(false);
-      setIsDropdownOpen(false);
-      isNewHorseAdded.current = true;
+      if (existingCustomers && existingCustomers.length > 0) {
+        console.log("Customer already exists:", existingCustomers[0]);
+        // Update existing customer with new horse
+        let currentHorses = existingCustomers[0].Horses || "";
 
-      setTimeout(() => {
-        form.setValue("horseName", newHorse.id);
+        // Append the new horse entry to the existing string
+        const updatedHorses = currentHorses
+          ? `${currentHorses}, ${horseEntry}`
+          : horseEntry;
 
-        if (selectRef.current) {
-          selectRef.current.click();
-          selectRef.current.click();
+        const { error: updateError } = await supabase
+          .from("customers")
+          .update({
+            Horses: updatedHorses,
+          })
+          .eq("Display Name", trimmedCustomerName);
+
+        if (updateError) {
+          console.error("Error updating existing customer:", updateError);
+          toast.error("Error updating existing customer. Please try again.");
+          return;
         }
-      }, 0);
+      } else {
+        // Add new customer
+        console.log("Adding new customer");
+        const { error: customerError } = await supabase
+          .from("customers")
+          .insert([
+            {
+              "Display Name": trimmedCustomerName,
+              Horses: horseEntry,
+              "Owner Email": values.ownerEmail,
+              Phone: values.ownerPhone,
+            },
+          ]);
 
-      toast.success("New horse and customer added successfully.");
+        if (customerError) {
+          console.error("Error adding new customer:", customerError);
+          toast.error(
+            "Horse added, but failed to add customer. Please try again."
+          );
+          return;
+        }
+      }
+
+      console.log("Customer added or updated successfully");
+
+      if (horseData && horseData.length > 0) {
+        const newHorse: Horse = {
+          id: horseData[0].id,
+          name: horseData[0].Name,
+          barn: horseData[0]["Barn / Trainer"],
+        };
+
+        console.log("New horse object:", newHorse);
+
+        setHorses((prevHorses) => {
+          const updatedHorses = [...prevHorses, newHorse];
+          console.log("Updated horses state:", updatedHorses);
+          return updatedHorses;
+        });
+
+        // Close the modal
+        setIsModalOpen(false);
+
+        // Set the newly added horse as the selected horse in the main form
+        form.setValue("horseName", newHorse.id);
+        console.log("Set new horse in form:", newHorse.id);
+
+        // Trigger a re-render of the Select component
+        setForceUpdate((prev) => !prev);
+
+        toast.success(
+          "New horse added and customer information updated successfully."
+        );
+      } else {
+        console.error("No horse data returned from database");
+        toast.error("Failed to add new horse. Please try again.");
+      }
+    } catch (error) {
+      console.error("Unexpected error in handleAddNewHorse:", error);
+      toast.error("An unexpected error occurred. Please try again.");
     }
   };
 
@@ -988,17 +1067,11 @@ export default function ShoeingForm() {
                                 <>
                                   <div className="flex items-center space-x-2">
                                     <Select
+                                      key={`horse-select-${forceUpdate}`}
                                       open={isDropdownOpen}
                                       onOpenChange={setIsDropdownOpen}
-                                      value={field.value}
+                                      value={field.value || ""}
                                       onValueChange={(value) => {
-                                        if (
-                                          isNewHorseAdded.current &&
-                                          value === ""
-                                        ) {
-                                          isNewHorseAdded.current = false;
-                                          return;
-                                        }
                                         field.onChange(value);
                                       }}
                                     >
@@ -1386,7 +1459,33 @@ export default function ShoeingForm() {
                   <FormItem>
                     <FormLabel>Customer Name*</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter customer name" />
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          placeholder="Enter customer name"
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            field.onChange(value);
+                            setCustomerSearchQuery(value);
+                          }}
+                        />
+                        {customerSearchQuery && (
+                          <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-auto">
+                            {filteredCustomers.map((customer, index) => (
+                              <li
+                                key={index}
+                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
+                                onClick={() => {
+                                  field.onChange(customer);
+                                  setCustomerSearchQuery("");
+                                }}
+                              >
+                                {customer}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
