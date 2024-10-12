@@ -373,12 +373,18 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("Selected customer not found in QuickBooks data");
       }
 
+      // Prepare the shoeing data with description
+      const shoeingWithDescription = {
+        ...shoeing,
+        invoiceDescription: shoeing.Description, // Use the card's description as the invoice line item description
+      };
+
       const { data, error } = await supabase.functions.invoke(
         "quickbooks-create-invoice",
         {
           body: JSON.stringify({
             userId: user?.id,
-            shoeings: [shoeing],
+            shoeings: [shoeingWithDescription], // Send as an array with one item
             customerId: selectedCustomerId,
           }),
         }
@@ -707,12 +713,18 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("QuickBooks data not loaded");
       }
 
+      // Prepare the shoeings data with descriptions
+      const shoeingsWithDescriptions = shoeings.map((shoeing) => ({
+        ...shoeing,
+        invoiceDescription: shoeing.Description, // Use the card's description as the invoice line item description
+      }));
+
       const { data, error } = await supabase.functions.invoke(
         "quickbooks-create-invoice",
         {
           body: JSON.stringify({
             userId: user?.id,
-            shoeings,
+            shoeings: shoeingsWithDescriptions,
             customerId: selectedCustomerId,
           }),
         }
