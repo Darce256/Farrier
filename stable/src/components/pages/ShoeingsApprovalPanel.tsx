@@ -106,10 +106,6 @@ interface GroupedShoeings {
     displayName: string;
     shoeings: Shoeing[];
   };
-  noCustomer: {
-    displayName: string;
-    shoeings: Shoeing[];
-  };
 }
 
 interface QuickBooksData {
@@ -141,14 +137,10 @@ interface Location {
 const QUICKBOOKS_CLIENT_ID = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID;
 const QUICKBOOKS_REDIRECT_URI = import.meta.env.VITE_QUICKBOOKS_REDIRECT_URI;
 
-// Add this helper function at the top of your file or in a separate utils file
-const cleanDescription = (horseName: string, description: string) => {
-  // Remove the horse name and any leading hyphen or dash
-  const cleanedDescription = description
-    .replace(new RegExp(`^${horseName}\\s*[-–]?\\s*`), "")
-    .trim();
-  return cleanedDescription;
-};
+// Add this helper function at the top of your file, outside of the component
+function formatInvoiceDescription(description: string): string {
+  return `${description}`.trim();
+}
 
 export default function ShoeingsApprovalPanel() {
   const [groupedShoeings, setGroupedShoeings] = useState<GroupedShoeings>(
@@ -278,70 +270,85 @@ export default function ShoeingsApprovalPanel() {
     setIsLoading(true);
     try {
       console.log("Fetching pending shoeings...");
-      const { data: shoeings, error: shoeingsError } = await supabase
-        .from("shoeings")
-        .select("*")
-        .eq("status", "pending")
-        .order("Date of Service", { ascending: false });
+      const { data: pendingShoeings, error: pendingShoeingsError } =
+        await supabase
+          .from("shoeings")
+          .select("*")
+          .eq("status", "pending")
+          .order("Date of Service", { ascending: false });
 
-      if (shoeingsError) throw shoeingsError;
+      if (pendingShoeingsError) throw pendingShoeingsError;
 
-      console.log("Fetched shoeings:", shoeings);
+      console.log("Fetched pending shoeings:", pendingShoeings);
 
-      if (!shoeings || shoeings.length === 0) {
+      if (!pendingShoeings || pendingShoeings.length === 0) {
         setGroupedShoeings({} as GroupedShoeings);
         return;
       }
 
-      // Fetch all customers
-      const { data: customers, error: customersError } = await supabase
-        .from("customers")
-        .select('"Display Name", Horses');
+      // Get unique Horses values from pending shoeings
+      const uniqueHorses = [
+        ...new Set(pendingShoeings.map((shoeing) => shoeing.Horses)),
+      ];
 
-      if (customersError) throw customersError;
+      // Fetch all shoeings for these horses
+      const { data: allShoeings, error: allShoeingsError } = await supabase
+        .from("shoeings")
+        .select("*")
+        .in("Horses", uniqueHorses);
 
-      // Fetch all horses
-      const { data: horses, error: horsesError } = await supabase
-        .from("horses")
-        .select('Name, "Barn / Trainer", alert');
+      if (allShoeingsError) throw allShoeingsError;
 
-      if (horsesError) throw horsesError;
-
-      // Group shoeings by customer display name
-      const grouped = shoeings.reduce((acc: GroupedShoeings, shoeing: any) => {
-        const shoeingHorseValue = `${shoeing["Horses"]}`;
-
-        // Find matching customer
-        const matchingCustomer = customers.find(
-          (customer) =>
-            customer.Horses && customer.Horses.includes(shoeingHorseValue)
-        );
-
-        // Find matching horse and get alert
-        const [horseName, barnTrainer] = shoeing["Horses"].split(" - ");
-        const matchingHorse = horses.find(
-          (horse) =>
-            horse.Name === horseName &&
-            horse["Barn / Trainer"] === barnTrainer.slice(1, -1) // Remove square brackets
-        );
-
-        shoeing.alert = matchingHorse?.alert || null;
-
-        if (matchingCustomer) {
-          const key = matchingCustomer["Display Name"];
-          if (!acc[key]) {
-            acc[key] = { displayName: key, shoeings: [] };
+      // Group all shoeings by Horses
+      const groupedByHorse = allShoeings.reduce(
+        (acc: { [key: string]: any[] }, shoeing: any) => {
+          if (!acc[shoeing.Horses]) {
+            acc[shoeing.Horses] = [];
           }
-          acc[key].shoeings.push(shoeing);
-        } else {
-          if (!acc.noCustomer) {
-            acc.noCustomer = { displayName: "No Customer", shoeings: [] };
-          }
-          acc.noCustomer.shoeings.push(shoeing);
-        }
+          acc[shoeing.Horses].push(shoeing);
+          return acc;
+        },
+        {}
+      );
 
-        return acc;
-      }, {});
+      // Determine QB Customer for each horse and create final grouping
+      const grouped = pendingShoeings.reduce(
+        (acc: GroupedShoeings, shoeing: any) => {
+          const horseShoeings = groupedByHorse[shoeing.Horses];
+
+          // Count QB Customers for this horse
+          const customerCounts = horseShoeings.reduce(
+            (counts: { [key: string]: number }, s: any) => {
+              if (s["QB Customers"]) {
+                const cleanCustomer = s["QB Customers"]
+                  .replace(/^"|"$/g, "")
+                  .trim();
+                counts[cleanCustomer] = (counts[cleanCustomer] || 0) + 1;
+              }
+              return counts;
+            },
+            {}
+          );
+
+          // Find the most common QB Customer
+          let qbCustomer = "No Customer";
+          let maxCount = 0;
+          for (const [customer, count] of Object.entries(customerCounts)) {
+            if (count > maxCount) {
+              qbCustomer = customer;
+              maxCount = count;
+            }
+          }
+
+          if (!acc[qbCustomer]) {
+            acc[qbCustomer] = { displayName: qbCustomer, shoeings: [] };
+          }
+          acc[qbCustomer].shoeings.push(shoeing);
+
+          return acc;
+        },
+        {}
+      );
 
       setGroupedShoeings(grouped);
     } catch (error) {
@@ -385,10 +392,7 @@ export default function ShoeingsApprovalPanel() {
       // Prepare the shoeing data with description
       const shoeingWithDescription = {
         ...shoeing,
-        invoiceDescription: cleanDescription(
-          shoeing["Horse Name"],
-          shoeing.Description
-        ),
+        invoiceDescription: formatInvoiceDescription(shoeing.Description),
       };
 
       const { data, error } = await supabase.functions.invoke(
@@ -728,10 +732,7 @@ export default function ShoeingsApprovalPanel() {
       // Prepare the shoeings data with descriptions
       const shoeingsWithDescriptions = shoeings.map((shoeing) => ({
         ...shoeing,
-        invoiceDescription: cleanDescription(
-          shoeing["Horse Name"],
-          shoeing.Description
-        ),
+        invoiceDescription: formatInvoiceDescription(shoeing.Description),
       }));
 
       const { data, error } = await supabase.functions.invoke(
