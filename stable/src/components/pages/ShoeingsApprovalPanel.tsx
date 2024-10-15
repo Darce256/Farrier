@@ -338,10 +338,17 @@ export default function ShoeingsApprovalPanel() {
             }
           }
 
-          if (!acc[qbCustomer]) {
-            acc[qbCustomer] = { displayName: qbCustomer, shoeings: [] };
+          if (!qbCustomer || qbCustomer === "No Customer") {
+            if (!acc.noCustomer) {
+              acc.noCustomer = { displayName: "No Customer", shoeings: [] };
+            }
+            acc.noCustomer.shoeings.push(shoeing);
+          } else {
+            if (!acc[qbCustomer]) {
+              acc[qbCustomer] = { displayName: qbCustomer, shoeings: [] };
+            }
+            acc[qbCustomer].shoeings.push(shoeing);
           }
-          acc[qbCustomer].shoeings.push(shoeing);
 
           return acc;
         },
@@ -368,7 +375,13 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("Shoeing not found");
       }
 
-      const selectedCustomerId = selectedCustomers[shoeingId];
+      // For grouped shoeings, use the group name (key) as the customer
+      const groupKey = Object.keys(groupedShoeings).find((key) =>
+        groupedShoeings[key].shoeings.some((s) => s.id === shoeingId)
+      );
+
+      const selectedCustomerId =
+        groupKey !== "noCustomer" ? groupKey : selectedCustomers[shoeingId];
 
       if (!selectedCustomerId) {
         toast.error("Please select a QuickBooks customer before accepting");
@@ -380,11 +393,18 @@ export default function ShoeingsApprovalPanel() {
       }
 
       // Find the selected customer's display name
-      const selectedCustomer = quickBooksData.customers.find(
-        (c) => c.id === selectedCustomerId
-      );
+      const selectedCustomer =
+        groupKey !== "noCustomer"
+          ? {
+              id: groupKey,
+              displayName:
+                groupedShoeings[groupKey as keyof typeof groupedShoeings]
+                  ?.displayName || groupKey,
+            }
+          : quickBooksData?.customers.find((c) => c.id === selectedCustomerId);
+
       if (!selectedCustomer) {
-        throw new Error("Selected customer not found in QuickBooks data");
+        throw new Error("Selected customer not found");
       }
 
       // Prepare the shoeing data with description and Owner Email
@@ -399,8 +419,8 @@ export default function ShoeingsApprovalPanel() {
         {
           body: JSON.stringify({
             userId: user?.id,
-            shoeings: [shoeingWithDescription], // Send as an array with one item
-            customerId: selectedCustomerId,
+            shoeings: [shoeingWithDescription],
+            customerId: selectedCustomer.id,
           }),
         }
       );
@@ -409,11 +429,12 @@ export default function ShoeingsApprovalPanel() {
         console.error("Error from Edge Function:", error);
         throw error;
       }
+
       console.log("Data from Edge Function:", data);
       if (data.invoice && data.invoice.Invoice) {
-        // Update shoeing status, QB Customers, and Date Sent in your database
+        // Update shoeing status and QB Customers in your database
         console.log(
-          "Updating shoeing status, QB Customers, and Date Sent:",
+          "Updating shoeing status and QB Customers:",
           data.invoice.Invoice.Id
         );
         const { error: updateError } = await supabase
@@ -421,14 +442,13 @@ export default function ShoeingsApprovalPanel() {
           .update({
             status: "completed",
             Invoice: data.invoice.Invoice.DocNumber,
-            "QB Customers": groupedShoeings[selectedCustomerId].displayName, // Update the QB Customers column
-            "Date Sent": format(new Date(), "MM/dd/yyyy"), // Update Date Sent with today's date
+            "QB Customers": selectedCustomer.displayName,
           })
           .eq("id", shoeingId);
 
         if (updateError) {
           console.error(
-            "Error updating shoeing status, QB Customers, and Date Sent:",
+            "Error updating shoeing status and QB Customers:",
             updateError
           );
           throw updateError;
@@ -594,126 +614,11 @@ export default function ShoeingsApprovalPanel() {
     }
   };
 
-  const renderShoeingCard = (
-    shoeing: any,
-    key: string,
-    isNoCustomer: boolean
-  ) => {
-    // Extract barn from the "Horses" field
-    const horsesMatch = shoeing["Horses"].match(/(.*?) - \[(.*?)\]/);
-
-    let horseName = shoeing["Horse Name"];
-    let barn = "Unknown";
-
-    if (horsesMatch && horsesMatch.length === 3) {
-      horseName = horsesMatch[1];
-      barn = horsesMatch[2];
-    }
-
-    return (
-      <Card
-        key={shoeing.id}
-        className={`grid grid-rows-[auto_1fr_auto] h-full ${
-          shoeing.alert ? "border-red-500 border-2" : ""
-        }`}
-      >
-        <CardContent className="p-4">
-          <h3 className="font-semibold text-lg mb-2">{horseName}</h3>
-          <p className="text-sm text-gray-600 mb-1">
-            Date: {shoeing["Date of Service"]}
-          </p>
-          <p className="text-sm text-gray-600 mb-1">Barn: {barn}</p>
-          <p className="text-sm text-gray-600 mb-1">
-            Location: {shoeing["Location of Service"]}
-          </p>
-          <p className="text-sm text-gray-600 mb-1">
-            Total Cost: ${shoeing["Total Cost"]}
-          </p>
-          <p className="text-sm text-gray-600 mb-1">
-            <strong>Description:</strong> {shoeing.Description}
-          </p>
-          {shoeing["Other Custom Services"] && (
-            <p className="text-sm text-gray-600 mb-1">
-              <strong>Custom Services:</strong>{" "}
-              {shoeing["Other Custom Services"]}
-            </p>
-          )}
-          {shoeing["Shoe Notes"] && (
-            <p className="text-sm text-gray-600 mb-1">
-              <strong>Shoe Notes:</strong> {shoeing["Shoe Notes"]}
-            </p>
-          )}
-          {shoeing.alert && (
-            <div className="bg-red-100 text-red-700 p-2 rounded-md mt-2 text-sm flex items-start">
-              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
-              <span>{shoeing.alert}</span>
-            </div>
-          )}
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleEditShoeing(shoeing)}
-            className="mt-2 w-full bg-primary text-white hover:bg-black hover:text-white"
-          >
-            <Pencil className="w-4 h-4 mr-2" /> Edit
-          </Button>
-        </CardContent>
-        {isNoCustomer && (
-          <>
-            <div className="p-4 bg-white">
-              <Select
-                onValueChange={(value) =>
-                  handleCustomerSelect(shoeing.id, value)
-                }
-                value={selectedCustomers[shoeing.id] || ""}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select QuickBooks Customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {quickBooksData?.customers.map((customer) => (
-                    <SelectItem key={customer.id} value={customer.id}>
-                      {customer.displayName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="p-4 flex justify-between">
-              <Button
-                onClick={() => handleAccept(shoeing.id)}
-                disabled={
-                  !selectedCustomers[shoeing.id] || isAccepting === shoeing.id
-                }
-                className="w-1/2 mr-2"
-              >
-                {isAccepting === shoeing.id ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
-                Accept
-              </Button>
-              <Button
-                onClick={() => handleReject(shoeing.id)}
-                variant="destructive"
-                className="w-1/2 ml-2"
-              >
-                <X className="mr-2 h-4 w-4" />
-                Reject
-              </Button>
-            </div>
-          </>
-        )}
-      </Card>
-    );
-  };
-
-  async function handleAcceptAll(key: string) {
+  // Add this function to your component
+  const handleAcceptAll = async (key: string) => {
     setIsAccepting(key);
     try {
-      const shoeings = groupedShoeings[key].shoeings;
+      const shoeingsToAccept = groupedShoeings[key].shoeings;
       const selectedCustomerId = selectedCustomers[key];
 
       if (!selectedCustomerId) {
@@ -721,15 +626,11 @@ export default function ShoeingsApprovalPanel() {
         return;
       }
 
-      if (!quickBooksData) {
-        throw new Error("QuickBooks data not loaded");
-      }
-
-      // Prepare the shoeings data with descriptions and Owner Email
-      const shoeingsWithDescriptions = shoeings.map((shoeing) => ({
+      // Prepare the shoeings data
+      const shoeingsWithDescription = shoeingsToAccept.map((shoeing) => ({
         ...shoeing,
         invoiceDescription: formatInvoiceDescription(shoeing.Description),
-        "Owner Email": shoeing["Owner Email"], // Add Owner Email to the shoeing data
+        "Owner Email": shoeing["Owner Email"],
       }));
 
       const { data, error } = await supabase.functions.invoke(
@@ -737,35 +638,28 @@ export default function ShoeingsApprovalPanel() {
         {
           body: JSON.stringify({
             userId: user?.id,
-            shoeings: shoeingsWithDescriptions,
+            shoeings: shoeingsWithDescription,
             customerId: selectedCustomerId,
           }),
         }
       );
 
-      if (error) {
-        console.error("Error from Edge Function:", error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (data.invoice && data.invoice.Invoice) {
-        // Update shoeings status in your database
-        for (const shoeing of shoeings) {
-          const { error: updateError } = await supabase
+        // Update all shoeings in this group
+        const updatePromises = shoeingsToAccept.map((shoeing) =>
+          supabase
             .from("shoeings")
             .update({
               status: "completed",
               Invoice: data.invoice.Invoice.DocNumber,
-              "QB Customers": groupedShoeings[key].displayName, // Update the QB Customers column
-              "Date Sent": format(new Date(), "MM/dd/yyyy"), // Update Date Sent with today's date
+              "QB Customers": groupedShoeings[key].displayName,
             })
-            .eq("id", shoeing.id);
+            .eq("id", shoeing.id)
+        );
 
-          if (updateError) {
-            console.error("Error updating shoeing status:", updateError);
-            throw updateError;
-          }
-        }
+        await Promise.all(updatePromises);
 
         const invoiceNumber =
           data.invoice.Invoice.DocNumber ||
@@ -774,14 +668,7 @@ export default function ShoeingsApprovalPanel() {
         toast.success(
           `Shoeings accepted and invoice #${invoiceNumber} created in QuickBooks`
         );
-
-        console.log(data);
         fetchPendingShoeings();
-        setSelectedCustomers((prev) => {
-          const newState = { ...prev };
-          delete newState[key];
-          return newState;
-        });
       } else {
         throw new Error("Failed to create invoice in QuickBooks");
       }
@@ -793,7 +680,7 @@ export default function ShoeingsApprovalPanel() {
     } finally {
       setIsAccepting(null);
     }
-  }
+  };
 
   function renderShoeingApprovalContent() {
     if (isQuickBooksConnected === null || isLoading) {
@@ -823,8 +710,7 @@ export default function ShoeingsApprovalPanel() {
       <>
         <h1 className="text-2xl font-bold mb-4">Shoeing Management</h1>
         <Accordion
-          type="single"
-          collapsible
+          type="multiple"
           className="space-y-4 bg-gray-100 p-4 rounded-md"
         >
           {groupedShoeings.noCustomer && (
@@ -837,9 +723,78 @@ export default function ShoeingsApprovalPanel() {
               </AccordionTrigger>
               <AccordionContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {groupedShoeings.noCustomer.shoeings.map((shoeing) =>
-                    renderShoeingCard(shoeing, "noCustomer", true)
-                  )}
+                  {groupedShoeings.noCustomer.shoeings.map((shoeing) => (
+                    <Card
+                      key={shoeing.id}
+                      className="grid grid-rows-[auto_1fr_auto] h-full"
+                    >
+                      <CardContent className="p-4">
+                        {/* Render shoeing details */}
+                        <h3 className="font-semibold text-lg mb-2">
+                          {shoeing["Horse Name"]}
+                        </h3>
+                        <p>Date: {shoeing["Date of Service"]}</p>
+                        <p>Barn: {shoeing["Barn / Trainer"]}</p>
+                        <p>Location: {shoeing["Location of Service"]}</p>
+                        <p>Total Cost: ${shoeing["Total Cost"]}</p>
+                        <p>
+                          <strong>Description:</strong> {shoeing.Description}
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditShoeing(shoeing)}
+                          className="mt-2 w-full bg-primary text-white hover:bg-black hover:text-white"
+                        >
+                          <Pencil className="w-4 h-4 mr-2" /> Edit
+                        </Button>
+                      </CardContent>
+                      <div className="p-4 bg-white">
+                        <Select
+                          onValueChange={(value) =>
+                            handleCustomerSelect(shoeing.id, value)
+                          }
+                          value={selectedCustomers[shoeing.id] || ""}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select QuickBooks Customer" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {quickBooksData?.customers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.displayName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="p-4 flex justify-between">
+                        <Button
+                          onClick={() => handleAccept(shoeing.id)}
+                          disabled={
+                            !selectedCustomers[shoeing.id] ||
+                            isAccepting === shoeing.id
+                          }
+                          className="w-1/2 mr-2"
+                        >
+                          {isAccepting === shoeing.id ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Check className="mr-2 h-4 w-4" />
+                          )}
+                          Accept
+                        </Button>
+                        <Button
+                          onClick={() => handleReject(shoeing.id)}
+                          variant="destructive"
+                          className="w-1/2 ml-2"
+                        >
+                          <X className="mr-2 h-4 w-4" />
+                          Reject
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -856,9 +811,35 @@ export default function ShoeingsApprovalPanel() {
                     </AccordionTrigger>
                     <AccordionContent>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {shoeings.map((shoeing) =>
-                          renderShoeingCard(shoeing, key, false)
-                        )}
+                        {shoeings.map((shoeing) => (
+                          <Card
+                            key={shoeing.id}
+                            className="grid grid-rows-[auto_1fr_auto] h-full"
+                          >
+                            <CardContent className="p-4">
+                              {/* Render shoeing details */}
+                              <h3 className="font-semibold text-lg mb-2">
+                                {shoeing["Horse Name"]}
+                              </h3>
+                              <p>Date: {shoeing["Date of Service"]}</p>
+                              <p>Barn: {shoeing["Barn / Trainer"]}</p>
+                              <p>Location: {shoeing["Location of Service"]}</p>
+                              <p>Total Cost: ${shoeing["Total Cost"]}</p>
+                              <p>
+                                <strong>Description:</strong>{" "}
+                                {shoeing.Description}
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditShoeing(shoeing)}
+                                className="mt-2 w-full bg-primary text-white hover:bg-black hover:text-white"
+                              >
+                                <Pencil className="w-4 h-4 mr-2" /> Edit
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
                       <div className="flex items-center mt-4 space-x-4">
                         <Button
