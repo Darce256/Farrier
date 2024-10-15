@@ -359,7 +359,7 @@ export default function ShoeingsApprovalPanel() {
     }
   }
 
-  const handleAccept = async (shoeingId: string) => {
+  async function handleAccept(shoeingId: string) {
     setIsAccepting(shoeingId);
     try {
       const shoeing = Object.values(groupedShoeings)
@@ -418,7 +418,7 @@ export default function ShoeingsApprovalPanel() {
           .update({
             status: "completed",
             Invoice: data.invoice.Invoice.Id,
-            "QB Customers": selectedCustomer.displayName, // Update the QB Customers column
+            "QB Customers": groupedShoeings[selectedCustomerId].displayName, // Update the QB Customers column
           })
           .eq("id", shoeingId);
 
@@ -454,7 +454,7 @@ export default function ShoeingsApprovalPanel() {
     } finally {
       setIsAccepting(null);
     }
-  };
+  }
 
   const handleReject = async (id: string) => {
     try {
@@ -714,7 +714,7 @@ export default function ShoeingsApprovalPanel() {
     );
   };
 
-  const handleAcceptAll = async (key: string) => {
+  async function handleAcceptAll(key: string) {
     setIsAccepting(key);
     try {
       const shoeings = groupedShoeings[key].shoeings;
@@ -759,6 +759,7 @@ export default function ShoeingsApprovalPanel() {
             .update({
               status: "completed",
               Invoice: data.invoice.Invoice.Id,
+              "QB Customers": groupedShoeings[key].displayName, // Update the QB Customers column
             })
             .eq("id", shoeing.id);
 
@@ -792,7 +793,7 @@ export default function ShoeingsApprovalPanel() {
     } finally {
       setIsAccepting(null);
     }
-  };
+  }
 
   function renderShoeingApprovalContent() {
     if (isQuickBooksConnected === null || isLoading) {
