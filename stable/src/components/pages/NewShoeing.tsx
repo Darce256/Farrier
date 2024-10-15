@@ -73,6 +73,9 @@ type Horse = {
   name: string | null; // Allow name to be null for filtering
   barn: string | null; // Allow barn to be null for conditional display
   alert?: string | null;
+  ownerEmail: string | null;
+  ownerPhone: string | null;
+  customerName: string | null;
 };
 
 // Update the schema to include customerName and phone number validation
@@ -591,7 +594,9 @@ export default function ShoeingForm() {
     while (fetchMore) {
       const { data, error } = await supabase
         .from("horses")
-        .select('id, "Name", "Barn / Trainer", alert')
+        .select(
+          'id, "Name", "Barn / Trainer", alert, "Owner Email", "Owner Phone", "Customers"'
+        )
         .range(from, to);
 
       if (error) {
@@ -615,6 +620,9 @@ export default function ShoeingForm() {
         name: horse.Name,
         barn: horse["Barn / Trainer"],
         alert: horse.alert,
+        ownerEmail: horse["Owner Email"],
+        ownerPhone: horse["Owner Phone"],
+        customerName: horse["Customers"],
       }))
       .sort((a, b) => a.name!.localeCompare(b.name!));
     setHorses(formattedData);
@@ -764,6 +772,8 @@ export default function ShoeingForm() {
         "Cost of Service": baseServiceCost,
         "Cost of Front Add-Ons": frontAddOnsCost,
         "Cost of Hind Add-Ons": hindAddOnsCost,
+        "Owner Email": selectedHorse.ownerEmail,
+        "QB Customers": selectedHorse.customerName,
         "Total Cost": totalCost,
         Description: description,
         status: "pending",
@@ -881,6 +891,9 @@ export default function ShoeingForm() {
           id: horseData[0].id,
           name: horseData[0].Name,
           barn: horseData[0]["Barn / Trainer"],
+          ownerEmail: horseData[0]["Owner Email"],
+          ownerPhone: horseData[0]["Owner Phone"],
+          customerName: horseData[0]["Customers"],
         };
 
         console.log("New horse object:", newHorse);

@@ -166,7 +166,6 @@ export default function ShoeingsApprovalPanel() {
   const fetchQuickBooksData = useCallback(async () => {
     if (!user) return;
     try {
-      console.log("Fetching QuickBooks data...");
       const { data, error } = await supabase.functions.invoke(
         "quickbooks-create-invoice",
         {
@@ -269,7 +268,6 @@ export default function ShoeingsApprovalPanel() {
   async function fetchPendingShoeings() {
     setIsLoading(true);
     try {
-      console.log("Fetching pending shoeings...");
       const { data: pendingShoeings, error: pendingShoeingsError } =
         await supabase
           .from("shoeings")
@@ -291,10 +289,10 @@ export default function ShoeingsApprovalPanel() {
         ...new Set(pendingShoeings.map((shoeing) => shoeing.Horses)),
       ];
 
-      // Fetch all shoeings for these horses
+      // Fetch all shoeings for these horses, including Owner Email
       const { data: allShoeings, error: allShoeingsError } = await supabase
         .from("shoeings")
-        .select("*")
+        .select("*") // Use double quotes for column names with spaces
         .in("Horses", uniqueHorses);
 
       if (allShoeingsError) throw allShoeingsError;
@@ -389,10 +387,11 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("Selected customer not found in QuickBooks data");
       }
 
-      // Prepare the shoeing data with description
+      // Prepare the shoeing data with description and Owner Email
       const shoeingWithDescription = {
         ...shoeing,
         invoiceDescription: formatInvoiceDescription(shoeing.Description),
+        "Owner Email": shoeing["Owner Email"],
       };
 
       const { data, error } = await supabase.functions.invoke(
@@ -410,14 +409,18 @@ export default function ShoeingsApprovalPanel() {
         console.error("Error from Edge Function:", error);
         throw error;
       }
-
+      console.log("Data from Edge Function:", data);
       if (data.invoice && data.invoice.Invoice) {
         // Update shoeing status and QB Customers in your database
+        console.log(
+          "Updating shoeing status and QB Customers:",
+          data.invoice.Invoice.Id
+        );
         const { error: updateError } = await supabase
           .from("shoeings")
           .update({
             status: "completed",
-            Invoice: data.invoice.Invoice.Id,
+            Invoice: data.invoice.Invoice.DocNumber,
             "QB Customers": groupedShoeings[selectedCustomerId].displayName, // Update the QB Customers column
           })
           .eq("id", shoeingId);
@@ -552,7 +555,6 @@ export default function ShoeingsApprovalPanel() {
 
   const handleSaveEdit = async (updatedShoeing: Shoeing) => {
     try {
-      console.log("Updating shoeing in database:", updatedShoeing);
       const { error } = await supabase
         .from("shoeings")
         .update({
@@ -567,7 +569,6 @@ export default function ShoeingsApprovalPanel() {
 
       if (error) throw error;
 
-      console.log("Shoeing updated successfully");
       toast.success("Shoeing updated successfully");
       setEditingShoeing(null);
       fetchPendingShoeings();
@@ -597,11 +598,8 @@ export default function ShoeingsApprovalPanel() {
     key: string,
     isNoCustomer: boolean
   ) => {
-    console.log("Shoeing object:", shoeing); // Keep this log for debugging
-
     // Extract barn from the "Horses" field
     const horsesMatch = shoeing["Horses"].match(/(.*?) - \[(.*?)\]/);
-    console.log("Horses match:", horsesMatch); // Log the result of the regex match
 
     let horseName = shoeing["Horse Name"];
     let barn = "Unknown";
@@ -610,9 +608,6 @@ export default function ShoeingsApprovalPanel() {
       horseName = horsesMatch[1];
       barn = horsesMatch[2];
     }
-
-    console.log("Extracted horse name:", horseName);
-    console.log("Extracted barn:", barn);
 
     return (
       <Card
@@ -729,10 +724,11 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("QuickBooks data not loaded");
       }
 
-      // Prepare the shoeings data with descriptions
+      // Prepare the shoeings data with descriptions and Owner Email
       const shoeingsWithDescriptions = shoeings.map((shoeing) => ({
         ...shoeing,
         invoiceDescription: formatInvoiceDescription(shoeing.Description),
+        "Owner Email": shoeing["Owner Email"], // Add Owner Email to the shoeing data
       }));
 
       const { data, error } = await supabase.functions.invoke(
@@ -758,7 +754,7 @@ export default function ShoeingsApprovalPanel() {
             .from("shoeings")
             .update({
               status: "completed",
-              Invoice: data.invoice.Invoice.Id,
+              Invoice: data.invoice.Invoice.DocNumber,
               "QB Customers": groupedShoeings[key].displayName, // Update the QB Customers column
             })
             .eq("id", shoeing.id);
@@ -776,6 +772,8 @@ export default function ShoeingsApprovalPanel() {
         toast.success(
           `Shoeings accepted and invoice #${invoiceNumber} created in QuickBooks`
         );
+
+        console.log(data);
         fetchPendingShoeings();
         setSelectedCustomers((prev) => {
           const newState = { ...prev };
@@ -966,12 +964,6 @@ function SentInvoicesTab() {
 
         setInvoices(data.invoices);
         setTotalCount(data.totalCount);
-        console.log(
-          "Fetched invoices:",
-          data.invoices.length,
-          "Total count:",
-          data.totalCount
-        );
       } catch (err) {
         console.error("Error fetching invoices:", err);
         setError("Failed to fetch invoices. Please try again later.");
@@ -1141,14 +1133,12 @@ function EditShoeingModal({
   };
 
   const handleDateChange = (date: Date | undefined) => {
-    console.log("New date selected:", date);
     setEditedShoeing((prev: any) => {
       if (!prev) return null;
       const newShoeing = {
         ...prev,
         "Date of Service": date ? format(date, "M/d/yyyy") : undefined,
       };
-      console.log("Updated shoeing object:", newShoeing);
       return newShoeing;
     });
     setIsCalendarOpen(false);
@@ -1156,7 +1146,6 @@ function EditShoeingModal({
 
   const handleSaveClick = () => {
     if (editedShoeing) {
-      console.log("Saving shoeing:", editedShoeing);
       onSave(editedShoeing);
       handleClose();
     }
