@@ -592,7 +592,7 @@ export default function Calendar() {
                                 onCheckedChange={() =>
                                   handleShoeingSelection(shoeing.id)
                                 }
-                                className="mr-2 flex-shrink-0 text-white border-black bg-transparent"
+                                className="mr-2 ml-2 flex-shrink-0 text-white border-black bg-transparent"
                               />
                             )}
                             <div className="flex-grow text-left">
