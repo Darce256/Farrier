@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from "recharts";
 import {
   Card,
   CardContent,
@@ -10,6 +17,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { DatePickerWithPresets } from "@/components/ui/date-picker";
 import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface AddonData {
   name: string;
@@ -21,7 +29,7 @@ interface Shoeing {
   "Front Add-On's": string;
   "Hind Add-On's": string;
   "Cost of Front Add-Ons": string;
-  "Cost of Hind Add-Ons": string;
+  "Cost of Hind Add-On's": string;
   "Date of Service": string;
 }
 
@@ -111,6 +119,7 @@ export default function TopSellingAddonsChart() {
   >(undefined);
   const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   useEffect(() => {
     fetchAllShoeings();
@@ -147,7 +156,12 @@ export default function TopSellingAddonsChart() {
       );
     }
 
-    setAllShoeings(validShoeings);
+    setAllShoeings(
+      validShoeings.map((shoeing) => ({
+        ...shoeing,
+        "Cost of Hind Add-On's": shoeing["Cost of Hind Add-Ons"],
+      }))
+    );
   }
 
   function processData() {
@@ -187,7 +201,7 @@ export default function TopSellingAddonsChart() {
     const addonData: { [key: string]: number } = {};
     let revenue = 0;
 
-    filteredShoeings.forEach((shoeing, _index) => {
+    filteredShoeings.forEach((shoeing: any, _index: number) => {
       const frontAddons = shoeing["Front Add-On's"]?.split(",") || [];
       const hindAddons = shoeing["Hind Add-On's"]?.split(",") || [];
       const frontCost = parseFloat(
@@ -252,10 +266,10 @@ export default function TopSellingAddonsChart() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  outerRadius="90%"
+                  outerRadius={isMobile ? "60%" : "70%"}
                   fill="#8884d8"
                   dataKey="value"
-                  label={<CustomLabel />}
+                  label={isMobile ? undefined : <CustomLabel />}
                 >
                   {data.map((_entry, index) => (
                     <Cell
@@ -265,6 +279,7 @@ export default function TopSellingAddonsChart() {
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
+                {isMobile && <Legend />}
               </PieChart>
             </ResponsiveContainer>
           ) : (

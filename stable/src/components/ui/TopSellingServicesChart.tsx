@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from "recharts";
 import {
   Card,
   CardContent,
@@ -10,6 +17,7 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import { DatePickerWithPresets } from "@/components/ui/date-picker";
 import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 interface ServiceData {
   name: string;
@@ -109,6 +117,7 @@ export default function TopSellingServicesChart() {
   >(undefined);
   const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
+  const isMobile = useMediaQuery("(max-width: 640px)");
 
   useEffect(() => {
     fetchAllShoeings();
@@ -226,12 +235,14 @@ export default function TopSellingServicesChart() {
         <CardDescription>
           Distribution of sales across our most popular services
         </CardDescription>
-        <DatePickerWithPresets
-          dateRange={dateRange}
-          setDateRange={setDateRange}
-        />
-        <div className="mt-2 text-lg font-semibold">
-          Total Revenue: ${totalRevenue.toFixed(2)}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <DatePickerWithPresets
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+          />
+          <div className="text-sm font-semibold">
+            Total Add-on Revenue: ${totalRevenue.toFixed(2)}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -244,10 +255,10 @@ export default function TopSellingServicesChart() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  outerRadius={150}
+                  outerRadius={isMobile ? "60%" : "70%"}
                   fill="#8884d8"
                   dataKey="value"
-                  label={<CustomLabel />}
+                  label={isMobile ? undefined : <CustomLabel />}
                 >
                   {data.map((_entry, index) => (
                     <Cell
@@ -257,6 +268,13 @@ export default function TopSellingServicesChart() {
                   ))}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
+                {isMobile && (
+                  <Legend
+                    layout="vertical"
+                    align="center"
+                    verticalAlign="bottom"
+                  />
+                )}
               </PieChart>
             </ResponsiveContainer>
           ) : (
