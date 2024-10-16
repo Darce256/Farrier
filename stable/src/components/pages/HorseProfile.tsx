@@ -42,7 +42,7 @@ export default function HorseProfile() {
   );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hasAlert, setHasAlert] = useState(false);
+  const [, setHasAlert] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
 
   useEffect(() => {
@@ -323,7 +323,7 @@ export default function HorseProfile() {
                           dangerouslySetInnerHTML={{
                             __html: note.content.replace(
                               /@\[(.*?)\](?:\((.*?)\))?/g,
-                              (match, name) => {
+                              (name) => {
                                 const cleanName = name.split(" - ")[0].trim();
                                 return cleanName === horse.Name.trim()
                                   ? `<strong>${cleanName}</strong>`

@@ -75,7 +75,7 @@ export default function QuickBooksCallback() {
           console.log("QuickBooks tokens stored successfully");
           toast.success("QuickBooks connected successfully");
           navigate("/shoeings-approval-panel", { replace: true });
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error processing QuickBooks connection:", error);
           toast.error(error.message || "Failed to connect QuickBooks");
           navigate("/", { replace: true });

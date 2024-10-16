@@ -19,7 +19,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { login, user } = useAuth(); // Also get the user object
+  const { login } = useAuth(); // Also get the user object
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,10 +1,5 @@
 import "./App.css";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/ui/nav/Navbar";
 import Home from "./components/pages/Home";
 import { Footer } from "./components/ui/nav/Footer";
@@ -12,8 +7,7 @@ import LoginPage from "./components/pages/Login";
 import SignUpPage from "./components/pages/Signup";
 import Dashboard from "./components/pages/Dashboard";
 import AuthenticatedLayout from "./components/layouts/AuthenticatedLayout";
-import { AuthProvider, useAuth } from "./components/Contexts/AuthProvider";
-import { ReactNode } from "react";
+import { AuthProvider } from "./components/Contexts/AuthProvider";
 import Horses from "./components/pages/Horses";
 import NewShoeing from "./components/pages/NewShoeing";
 import Notes from "./components/pages/Notes";
@@ -22,9 +16,7 @@ import Inbox from "./components/pages/Inbox";
 import { NotificationProvider } from "@/components/Contexts/NotificationProvider";
 import Calendar from "./components/pages/Calendar";
 import HorseProfile from "./components/pages/HorseProfile";
-import ShoeingApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
 import { QueryClient, QueryClientProvider } from "react-query";
-import { Spinner } from "./components/ui/spinner";
 import ShoeingsApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
 import ProtectedRoute from "@/lib/ProtectedRoute";
 import QuickBooksCallback from "@/lib/QuickbooksCallback";

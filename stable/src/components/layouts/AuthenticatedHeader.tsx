@@ -55,8 +55,7 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
 
 export default function AuthenticatedHeader() {
   const { user, logout } = useAuth();
-  const { notifications, deleteNotification, markAsRead, fetchNotifications } =
-    useNotifications();
+  const { notifications, markAsRead, fetchNotifications } = useNotifications();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const location = useLocation();

@@ -471,11 +471,6 @@ export default function ShoeingForm() {
   const [barnSearchQuery, setBarnSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const selectRef = useRef<HTMLButtonElement>(null);
-  const isNewHorseAdded = useRef(false);
-
-  // Add refs for MultiSelect components
-  const frontAddOnsRef = useRef(null);
-  const hindAddOnsRef = useRef(null);
 
   const [activeTab, setActiveTab] = useState("new-shoeing");
   const [editingShoeing, setEditingShoeing] = useState<any>(null);
@@ -849,9 +844,6 @@ export default function ShoeingForm() {
     try {
       // Trim the barn name
       const trimmedBarnName = values.barnName.trim();
-
-      // Format the horse entry
-      const horseEntry = `${values.horseName} - [${trimmedBarnName}]`;
 
       // Check if horse with same name and barn already exists
       const existingHorse = horses.find(

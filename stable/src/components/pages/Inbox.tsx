@@ -15,7 +15,6 @@ import { useAuth } from "@/components/Contexts/AuthProvider";
 import { MdMailOutline } from "react-icons/md";
 import { useNotifications } from "@/components/Contexts/NotificationProvider";
 import { getRelativeTimeString } from "@/lib/dateUtils";
-import toast from "react-hot-toast";
 
 interface Notification {
   id: string;

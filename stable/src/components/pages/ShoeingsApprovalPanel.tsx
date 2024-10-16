@@ -13,18 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton"; // Make sure you have this 
 import {
   Check,
   X,
-  Search,
-  ChevronDown,
-  ChevronUp,
   ChevronLeft,
   ChevronRight,
   Pencil,
   Loader2,
-  AlertCircle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider";
-import axios from "axios";
 import {
   Dialog,
   DialogContent,
@@ -49,18 +44,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Pagination } from "@/components/ui/pagination";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react"; // Make sure to import this icon
 import { format } from "date-fns"; // You might need to install this package
-import { cn } from "@/lib/utils";
 import { parse } from "date-fns";
 
 interface Shoeing {
@@ -85,20 +73,6 @@ interface Shoeing {
     Horses: string;
   };
   alert?: string | null; // Add this line
-}
-
-interface Horse {
-  id: string;
-  Name: string;
-  Customers: string | null;
-}
-
-interface Customer {
-  id: string;
-  "Display Name": string;
-  "Company/Horses Name": string;
-  Horses: string | null;
-  "Owner Email": string | null;
 }
 
 interface GroupedShoeings {
@@ -146,8 +120,7 @@ export default function ShoeingsApprovalPanel() {
   const [groupedShoeings, setGroupedShoeings] = useState<GroupedShoeings>(
     {} as GroupedShoeings
   );
-  const [searchTerm, setSearchTerm] = useState("");
-  const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
+
   const { user } = useAuth();
   const [isQuickBooksConnected, setIsQuickBooksConnected] = useState<
     boolean | null
@@ -519,52 +492,6 @@ export default function ShoeingsApprovalPanel() {
       toast.error("Failed to reject shoeing");
     }
   };
-
-  const toggleAccordion = (id: string) => {
-    setExpandedCards((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
-  };
-
-  const filteredGroupedShoeings = Object.entries(groupedShoeings).reduce(
-    (acc, [key, { displayName, shoeings }]) => {
-      const filteredShoeings = shoeings.filter(
-        (shoeing) =>
-          shoeing["Horse Name"]
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          shoeing.Description.toLowerCase().includes(
-            searchTerm.toLowerCase()
-          ) ||
-          shoeing["Location of Service"]
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase())
-      );
-      if (filteredShoeings.length > 0) {
-        acc[key] = { displayName, shoeings: filteredShoeings };
-      }
-      return acc;
-    },
-    {} as GroupedShoeings
-  );
-
-  function formatPrice(price: string | null): string {
-    if (!price || price.trim() === "") {
-      return "$0.00";
-    }
-    return price.startsWith("$") ? price : `$${price}`;
-  }
-
-  function formatPriceToNumber(price: string | null): number {
-    if (!price) return 0;
-    return parseFloat(price.replace(/[^0-9.-]+/g, ""));
-  }
 
   const handleCustomerSelect = (key: string, customerId: string) => {
     setSelectedCustomers((prev) => ({ ...prev, [key]: customerId }));
