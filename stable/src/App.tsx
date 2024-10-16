@@ -20,6 +20,7 @@ import { QueryClient, QueryClientProvider } from "react-query";
 import ShoeingsApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
 import ProtectedRoute from "@/lib/ProtectedRoute";
 import QuickBooksCallback from "@/lib/QuickbooksCallback";
+import { ProtectedAdminRoute } from "./components/ProtectedAdminRoute";
 
 function AppRoutes() {
   return (
@@ -66,7 +67,14 @@ function AppRoutes() {
               </ProtectedRoute>
             }
           >
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedAdminRoute>
+                  <Dashboard />
+                </ProtectedAdminRoute>
+              }
+            />
             <Route path="/horses" element={<Horses />} />
             <Route path="/new-shoeings" element={<NewShoeing />} />
             <Route path="/notes" element={<Notes />} />

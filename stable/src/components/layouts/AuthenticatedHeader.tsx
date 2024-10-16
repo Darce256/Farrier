@@ -132,16 +132,18 @@ export default function AuthenticatedHeader() {
     return (
       <Breadcrumb>
         <BreadcrumbList>
-          <BreadcrumbItem>
-            <BreadcrumbLink asChild>
-              <Link to="/dashboard">Dashboard</Link>
-            </BreadcrumbLink>
-          </BreadcrumbItem>
+          {user?.isAdmin && (
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild>
+                <Link to="/dashboard">Dashboard</Link>
+              </BreadcrumbLink>
+            </BreadcrumbItem>
+          )}
           {pathSegments.map((segment, index) => {
             const url = `/${pathSegments.slice(0, index + 1).join("/")}`;
             const isLast = index === pathSegments.length - 1;
 
-            if (segment === "dashboard") return null;
+            if (segment === "dashboard" && !user?.isAdmin) return null;
 
             let displayName = capitalize(segment);
 

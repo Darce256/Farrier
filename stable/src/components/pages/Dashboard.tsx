@@ -18,13 +18,21 @@ import {
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/components/Contexts/AuthProvider";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [pendingShoeingsCount, setPendingShoeingsCount] = useState(0);
 
   useEffect(() => {
-    fetchPendingShoeingsCount();
-  }, []);
+    if (!user?.isAdmin) {
+      navigate("/horses");
+    } else {
+      fetchPendingShoeingsCount();
+    }
+  }, [user, navigate]);
 
   async function fetchPendingShoeingsCount() {
     const { count, error } = await supabase
@@ -37,6 +45,11 @@ export default function Dashboard() {
     } else {
       setPendingShoeingsCount(count || 0);
     }
+  }
+
+  // Only render the dashboard content if the user is an admin
+  if (!user?.isAdmin) {
+    return null;
   }
 
   return (
