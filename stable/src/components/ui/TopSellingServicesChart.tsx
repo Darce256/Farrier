@@ -16,13 +16,7 @@ import {
 } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
 import { DatePickerWithPresets } from "@/components/ui/date-picker";
-import {
-  format,
-  parseISO,
-  isWithinInterval,
-  startOfDay,
-  endOfDay,
-} from "date-fns";
+import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
 interface ServiceData {
   name: string;
@@ -137,6 +131,8 @@ export default function TopSellingServicesChart() {
         "Sample shoeing date:",
         filteredShoeings[0]?.["Date of Service"]
       );
+    } else {
+      console.log("Showing all time data");
     }
 
     console.log(`Filtered shoeings: ${filteredShoeings.length}`);
@@ -204,7 +200,7 @@ export default function TopSellingServicesChart() {
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {data.map((entry, index) => (
+                  {data.map((_entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}

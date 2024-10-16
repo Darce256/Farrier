@@ -1,12 +1,4 @@
-import React from "react";
-import {
-  format,
-  subDays,
-  startOfYear,
-  startOfDay,
-  endOfDay,
-  parseISO,
-} from "date-fns";
+import { format, subDays, startOfYear, startOfDay, endOfDay } from "date-fns";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Button } from "./button";
 import { cn } from "@/lib/utils";
@@ -19,7 +11,6 @@ import {
   SelectValue,
 } from "./select";
 import { Calendar } from "./calendar";
-import { DateRange } from "react-day-picker";
 
 export function DatePickerWithPresets({
   dateRange,
@@ -42,14 +33,6 @@ export function DatePickerWithPresets({
     setDateRange(range as { from: string | null; to: string | null });
   };
 
-  // Convert string dates to Date objects for the Calendar component
-  const calendarDateRange: DateRange | undefined = dateRange
-    ? {
-        from: dateRange.from ? parseISO(dateRange.from) : undefined,
-        to: dateRange.to ? parseISO(dateRange.to) : undefined,
-      }
-    : undefined;
-
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -64,11 +47,11 @@ export function DatePickerWithPresets({
           {dateRange?.from ? (
             dateRange.to ? (
               <>
-                {format(parseISO(dateRange.from), "LLL dd, y")} -{" "}
-                {format(parseISO(dateRange.to), "LLL dd, y")}
+                {format(new Date(dateRange.from), "LLL dd, y")} -{" "}
+                {format(new Date(dateRange.to), "LLL dd, y")}
               </>
             ) : (
-              format(parseISO(dateRange.from), "LLL dd, y")
+              format(new Date(dateRange.from), "LLL dd, y")
             )
           ) : (
             <span>Pick a date range</span>
@@ -96,6 +79,9 @@ export function DatePickerWithPresets({
               case "yearToDate":
                 setFullDayRange({ from: startOfYear(today), to: today });
                 break;
+              case "allTime":
+                setDateRange(undefined); // This will represent "All Time"
+                break;
             }
           }}
         >
@@ -108,12 +94,16 @@ export function DatePickerWithPresets({
             <SelectItem value="lastWeek">Last Week</SelectItem>
             <SelectItem value="lastMonth">Last Month</SelectItem>
             <SelectItem value="yearToDate">Year-to-Date</SelectItem>
+            <SelectItem value="allTime">All Time</SelectItem>
           </SelectContent>
         </Select>
         <div className="rounded-md border">
           <Calendar
             mode="range"
-            selected={calendarDateRange}
+            selected={{
+              from: dateRange?.from ? new Date(dateRange.from) : undefined,
+              to: dateRange?.to ? new Date(dateRange.to) : undefined,
+            }}
             onSelect={setFullDayRange}
             numberOfMonths={2}
           />
