@@ -20,6 +20,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import { useNavigate } from "react-router-dom";
+import TopSellingServicesChart from "@/components/ui/TopSellingServicesChart";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -116,7 +117,7 @@ export default function Dashboard() {
           </CardFooter>
         </Card>
       </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card x-chunk="dashboard-01-chunk-4">
           <CardHeader className="pb-2">
             <CardDescription>Top Products</CardDescription>
@@ -235,6 +236,7 @@ export default function Dashboard() {
             </Table>
           </CardContent>
         </Card>
+        <TopSellingServicesChart />
       </div>
     </div>
   );
