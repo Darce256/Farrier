@@ -11,15 +11,17 @@ import { supabase } from "@/lib/supabaseClient";
 import { DatePickerWithPresets } from "@/components/ui/date-picker";
 import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
-interface ServiceData {
+interface AddonData {
   name: string;
   value: number;
   percentage: number;
 }
 
 interface Shoeing {
-  "Base Service": string;
-  "Cost of Service": string;
+  "Front Add-On's": string;
+  "Hind Add-On's": string;
+  "Cost of Front Add-Ons": string;
+  "Cost of Hind Add-Ons": string;
   "Date of Service": string;
 }
 
@@ -102,8 +104,8 @@ const CustomLabel = ({
   );
 };
 
-export default function TopSellingServicesChart() {
-  const [data, setData] = useState<ServiceData[]>([]);
+export default function TopSellingAddonsChart() {
+  const [data, setData] = useState<AddonData[]>([]);
   const [dateRange, setDateRange] = useState<
     { from: string | null; to: string | null } | undefined
   >(undefined);
@@ -123,7 +125,9 @@ export default function TopSellingServicesChart() {
   async function fetchAllShoeings() {
     const { data, error } = await supabase
       .from("shoeings")
-      .select('"Base Service", "Cost of Service", "Date of Service"');
+      .select(
+        '"Front Add-On\'s", "Hind Add-On\'s", "Cost of Front Add-Ons", "Cost of Hind Add-Ons", "Date of Service"'
+      );
 
     if (error) {
       console.error("Error fetching shoeings:", error);
@@ -133,9 +137,8 @@ export default function TopSellingServicesChart() {
     // Filter out any invalid entries
     const validShoeings = data.filter(
       (shoeing) =>
-        shoeing["Base Service"] &&
-        shoeing["Cost of Service"] &&
-        shoeing["Date of Service"]
+        shoeing["Date of Service"] &&
+        (shoeing["Front Add-On's"] || shoeing["Hind Add-On's"])
     );
 
     if (validShoeings.length < data.length) {
@@ -143,8 +146,6 @@ export default function TopSellingServicesChart() {
         `Filtered out ${data.length - validShoeings.length} invalid shoeings`
       );
     }
-
-    console.log("Sample shoeing data:", validShoeings.slice(0, 5));
 
     setAllShoeings(validShoeings);
   }
@@ -159,7 +160,10 @@ export default function TopSellingServicesChart() {
       const toDate = endOfDay(new Date(dateRange.to));
 
       filteredShoeings = allShoeings.filter((shoeing) => {
-        // Parse the date string in the format 'MM/DD/YYYY'
+        if (!shoeing["Date of Service"]) {
+          console.warn("Shoeing with no date:", shoeing);
+          return false;
+        }
         const [month, day, year] = shoeing["Date of Service"].split("/");
         const shoeingDate = new Date(
           parseInt(year),
@@ -180,39 +184,41 @@ export default function TopSellingServicesChart() {
 
     console.log(`Filtered shoeings: ${filteredShoeings.length}`);
 
-    const serviceData: { [key: string]: number } = {};
+    const addonData: { [key: string]: number } = {};
     let revenue = 0;
 
-    filteredShoeings.forEach((shoeing, index) => {
-      const service = shoeing["Base Service"];
-      const costString = shoeing["Cost of Service"];
+    filteredShoeings.forEach((shoeing, _index) => {
+      const frontAddons = shoeing["Front Add-On's"]?.split(",") || [];
+      const hindAddons = shoeing["Hind Add-On's"]?.split(",") || [];
+      const frontCost = parseFloat(
+        shoeing["Cost of Front Add-Ons"]?.replace("$", "").trim() || "0"
+      );
+      const hindCost = parseFloat(
+        shoeing["Cost of Hind Add-Ons"]?.replace("$", "").trim() || "0"
+      );
 
-      if (!service || !costString) {
-        console.warn(`Invalid shoeing data at index ${index}:`, shoeing);
-        return; // Skip this iteration
-      }
+      [...frontAddons, ...hindAddons].forEach((addon) => {
+        const trimmedAddon = addon.trim();
+        if (trimmedAddon) {
+          addonData[trimmedAddon] =
+            (addonData[trimmedAddon] || 0) +
+            (frontCost + hindCost) / (frontAddons.length + hindAddons.length);
+        }
+      });
 
-      const cost = parseFloat(costString.replace("$", "").trim());
-
-      if (isNaN(cost)) {
-        console.warn(`Invalid cost value at index ${index}:`, costString);
-        return; // Skip this iteration
-      }
-
-      serviceData[service] = (serviceData[service] || 0) + cost;
-      revenue += cost;
+      revenue += frontCost + hindCost;
     });
 
     setTotalRevenue(revenue);
 
-    const chartData = Object.entries(serviceData)
+    const chartData = Object.entries(addonData)
       .map(([name, value]) => ({
         name,
         value,
         percentage: (value / revenue) * 100,
       }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Get top 5 services
+      .slice(0, 5); // Get top 5 add-ons
 
     console.log("Chart data:", chartData);
 
@@ -220,22 +226,24 @@ export default function TopSellingServicesChart() {
   }
 
   return (
-    <Card className="w-full col-span-1">
-      <CardHeader>
-        <CardTitle>Top Selling Services</CardTitle>
+    <Card className="w-full h-full">
+      <CardHeader className="space-y-1">
+        <CardTitle>Top Selling Add-ons</CardTitle>
         <CardDescription>
-          Distribution of sales across our most popular services
+          Distribution of sales across our most popular add-ons
         </CardDescription>
-        <DatePickerWithPresets
-          dateRange={dateRange}
-          setDateRange={setDateRange}
-        />
-        <div className="mt-2 text-lg font-semibold">
-          Total Revenue: ${totalRevenue.toFixed(2)}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <DatePickerWithPresets
+            dateRange={dateRange}
+            setDateRange={setDateRange}
+          />
+          <div className="text-sm font-semibold">
+            Total Add-on Revenue: ${totalRevenue.toFixed(2)}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-[400px]">
+        <div className="h-[400px] w-full">
           {data.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -244,7 +252,7 @@ export default function TopSellingServicesChart() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  outerRadius={150}
+                  outerRadius="90%"
                   fill="#8884d8"
                   dataKey="value"
                   label={<CustomLabel />}
