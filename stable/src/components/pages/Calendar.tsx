@@ -22,7 +22,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { format, parse, isValid, startOfMonth, endOfMonth } from "date-fns";
+import {
+  format,
+  parse,
+  isValid,
+  startOfMonth,
+  endOfMonth,
+  isWithinInterval,
+} from "date-fns";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
@@ -87,9 +94,12 @@ interface Horse {
 const TODAY = new Date();
 
 export default function Calendar() {
+  const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
+  const [currentMonthShoeings, setCurrentMonthShoeings] = useState<Shoeing[]>(
+    []
+  );
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week" | "day">("month");
-  const [shoeings, setShoeings] = useState<Shoeing[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
   const [selectedShoeings, setSelectedShoeings] = useState<string[]>([]);
   const [isDuplicateDialogOpen, setIsDuplicateDialogOpen] = useState(false);
@@ -106,25 +116,25 @@ export default function Calendar() {
   );
   const [horses, setHorses] = useState<Horse[]>([]);
 
-  const fetchShoeings = async (startDate: Date, endDate: Date) => {
-    console.log("Fetching shoeings for date range:", startDate, endDate);
+  const fetchAllShoeings = async () => {
+    console.log("Fetching all shoeings");
     let allShoeings: Shoeing[] = [];
-    let page = 0;
+    let lastId: string | null = null;
     const pageSize = 1000;
-    let hasMore = true;
 
-    const formattedStartDate = format(startDate, "M/d/yyyy");
-    const formattedEndDate = format(endDate, "M/d/yyyy");
-
-    while (hasMore) {
-      const { data, error } = await supabase
+    while (true) {
+      let query = supabase
         .from("shoeings")
         .select("*")
-        .gte("Date of Service", formattedStartDate)
-        .lte("Date of Service", formattedEndDate)
-        .not("status", "eq", "cancelled") // Add this line to exclude cancelled shoeings
-        .range(page * pageSize, (page + 1) * pageSize - 1)
-        .order("Date of Service", { ascending: true });
+        .not("status", "eq", "cancelled")
+        .order("id", { ascending: true })
+        .limit(pageSize);
+
+      if (lastId) {
+        query = query.gt("id", lastId);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error("Error fetching shoeings:", error);
@@ -132,37 +142,19 @@ export default function Calendar() {
         break;
       }
 
-      if (data) {
+      if (data && data.length > 0) {
         allShoeings = [...allShoeings, ...data];
-        console.log(`Fetched ${data.length} shoeings for page ${page + 1}`);
-        hasMore = data.length === pageSize;
-        page++;
+        lastId = data[data.length - 1].id;
+        console.log(
+          `Fetched ${data.length} shoeings. Total: ${allShoeings.length}`
+        );
       } else {
-        hasMore = false;
+        break;
       }
     }
 
     console.log(`Total shoeings fetched: ${allShoeings.length}`);
-    setShoeings(allShoeings);
-
-    // Fetch horses data
-    const { data: horsesData, error: horsesError } = await supabase
-      .from("horses")
-      .select("id, Name, alert");
-
-    if (horsesError) {
-      console.error("Error fetching horses:", horsesError);
-      toast.error("Failed to fetch horses data");
-    } else {
-      setHorses(
-        horsesData?.map((horse) => ({
-          id: horse.id,
-          name: horse.Name,
-          alert: horse.alert,
-          barn: "", // Adding a default empty string for the 'barn' property
-        })) || []
-      );
-    }
+    return allShoeings;
   };
 
   const fetchLocations = async () => {
@@ -210,26 +202,10 @@ export default function Calendar() {
 
   const getShoeingsForDate = (date: Date) => {
     const dateString = format(date, "M/d/yyyy");
-
-    const filteredShoeings = shoeings.filter((shoeing) => {
+    return currentMonthShoeings.filter((shoeing) => {
       if (!shoeing["Date of Service"]) return false;
-
-      try {
-        const shoeingDate = parse(
-          shoeing["Date of Service"],
-          "M/d/yyyy",
-          new Date()
-        );
-        if (!isValid(shoeingDate)) return false;
-
-        return format(shoeingDate, "M/d/yyyy") === dateString;
-      } catch (error) {
-        console.error("Error parsing date:", shoeing["Date of Service"], error);
-        return false;
-      }
+      return shoeing["Date of Service"] === dateString;
     });
-
-    return filteredShoeings;
   };
 
   const generateWeekDays = (date: Date) => {
@@ -250,17 +226,7 @@ export default function Calendar() {
 
   const navigatePeriod = (direction: "prev" | "next") => {
     const newDate = new Date(currentDate);
-    switch (viewMode) {
-      case "month":
-        newDate.setMonth(newDate.getMonth() + (direction === "next" ? 1 : -1));
-        break;
-      case "week":
-        newDate.setDate(newDate.getDate() + (direction === "next" ? 7 : -7));
-        break;
-      case "day":
-        newDate.setDate(newDate.getDate() + (direction === "next" ? 1 : -1));
-        break;
-    }
+    newDate.setMonth(newDate.getMonth() + (direction === "next" ? 1 : -1));
     setCurrentDate(newDate);
   };
 
@@ -466,7 +432,7 @@ export default function Calendar() {
     let successCount = 0;
     let errorCount = 0;
 
-    const shoeingsToDuplicate = shoeings.filter((shoeing) =>
+    const shoeingsToDuplicate = allShoeings.filter((shoeing) =>
       selectedShoeings.includes(shoeing.id)
     );
 
@@ -529,7 +495,7 @@ export default function Calendar() {
     setSelectedLocation(undefined); // Reset the selected location
 
     console.log("Refreshing shoeings list...");
-    await fetchShoeings(startOfMonth(currentDate), endOfMonth(currentDate));
+    await fetchAllShoeings();
     console.log("Shoeings refreshed");
   };
 
@@ -683,16 +649,24 @@ export default function Calendar() {
   }, []);
 
   useEffect(() => {
-    const start = startOfMonth(currentDate);
-    const end = endOfMonth(currentDate);
-    fetchShoeings(start, end);
+    const loadAllShoeings = async () => {
+      const shoeings = await fetchAllShoeings();
+      setAllShoeings(shoeings);
+    };
+
+    loadAllShoeings();
     fetchLocations();
-  }, [currentDate]);
+  }, []);
 
   useEffect(() => {
-    console.log("Shoeings updated:", shoeings);
+    const shoeingsForMonth = filterShoeingsForMonth(allShoeings, currentDate);
+    setCurrentMonthShoeings(shoeingsForMonth);
+  }, [allShoeings, currentDate]);
+
+  useEffect(() => {
+    console.log("Shoeings updated:", allShoeings);
     console.log("Location colors:", locationColors);
-  }, [shoeings, locationColors]);
+  }, [allShoeings, locationColors]);
 
   return (
     <Card className="w-full min-h-[calc(100vh-4rem)] shadow-lg flex flex-col">
@@ -843,3 +817,38 @@ export default function Calendar() {
     </Card>
   );
 }
+
+const filterShoeingsForMonth = (shoeings: Shoeing[], date: Date) => {
+  const startOfMonthDate = startOfMonth(date);
+  const endOfMonthDate = endOfMonth(date);
+
+  return shoeings.filter((shoeing) => {
+    if (!shoeing["Date of Service"]) {
+      return false;
+    }
+
+    try {
+      const shoeingDate = parse(
+        shoeing["Date of Service"],
+        "M/d/yyyy",
+        new Date()
+      );
+      if (!isValid(shoeingDate)) {
+        console.warn(
+          `Invalid date for shoeing with id ${shoeing.id}: ${shoeing["Date of Service"]}`
+        );
+        return false;
+      }
+      return isWithinInterval(shoeingDate, {
+        start: startOfMonthDate,
+        end: endOfMonthDate,
+      });
+    } catch (error) {
+      console.error(
+        `Error parsing date for shoeing with id ${shoeing.id}:`,
+        error
+      );
+      return false;
+    }
+  });
+};
