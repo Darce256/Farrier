@@ -7,14 +7,6 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table";
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -24,6 +16,7 @@ import TopSellingServicesChart from "@/components/ui/TopSellingServicesChart";
 import TopSellingAddonsChart from "@/components/ui/TopSellingAddonsChart";
 import LocationRevenueChart from "../ui/LocationRevenueChart";
 import TopProductsChart from "@/components/ui/TopProductsChart";
+import TopCustomersChart from "@/components/ui/TopCustomersChart";
 
 interface Shoeing {
   "Base Service": string;
@@ -34,6 +27,7 @@ interface Shoeing {
   "Cost of Hind Add-Ons": string;
   "Date of Service": string;
   "Location of Service": string;
+  "QB Customers": string;
 }
 
 interface TopProduct {
@@ -86,7 +80,7 @@ export default function Dashboard() {
       const { data, error } = await supabase
         .from("shoeings")
         .select(
-          '"Base Service", "Front Add-On\'s", "Hind Add-On\'s", "Cost of Service", "Cost of Front Add-Ons", "Cost of Hind Add-Ons", "Date of Service", "Location of Service"'
+          '"Base Service", "Front Add-On\'s", "Hind Add-On\'s", "Cost of Service", "Cost of Front Add-Ons", "Cost of Hind Add-Ons", "Date of Service", "Location of Service", "QB Customers"'
         )
         .range(page * pageSize, (page + 1) * pageSize - 1);
 
@@ -906,66 +900,7 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <TopProductsChart allShoeings={allShoeings} />
 
-            <Card x-chunk="dashboard-01-chunk-5">
-              <CardHeader className="pb-2">
-                <CardDescription>Top Customers</CardDescription>
-                <CardTitle className="text-4xl">John Doe</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-md text-gray-400">
-                        Customer
-                      </TableHead>
-                      <TableHead className="text-md text-gray-400">
-                        Orders
-                      </TableHead>
-                      <TableHead className="text-md text-gray-400">
-                        Total Spend
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">John Doe</div>
-                      </TableCell>
-                      <TableCell>5</TableCell>
-                      <TableCell>$1,299.99</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Jane Smith</div>
-                      </TableCell>
-                      <TableCell>3</TableCell>
-                      <TableCell>$899.99</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Sam Wilson</div>
-                      </TableCell>
-                      <TableCell>4</TableCell>
-                      <TableCell>$1,199.99</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Chris Evans</div>
-                      </TableCell>
-                      <TableCell>2</TableCell>
-                      <TableCell>$499.99</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Natasha Romanoff</div>
-                      </TableCell>
-                      <TableCell>6</TableCell>
-                      <TableCell>$1,599.99</TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <TopCustomersChart allShoeings={allShoeings as any} />
           </div>
         </div>
       </div>
