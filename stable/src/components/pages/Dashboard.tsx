@@ -42,8 +42,12 @@ export default function Dashboard() {
   const [weeklyRevenue, setWeeklyRevenue] = useState(0);
   const [weeklyRevenueChange, setWeeklyRevenueChange] = useState(0);
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
-  const [monthlyRevenueChange] = useState(0);
+  const [monthlyRevenueChange, setMonthlyRevenueChange] = useState(0);
   const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
+  const [past7DaysRevenue, setPast7DaysRevenue] = useState(0);
+  const [past7DaysRevenueChange, setPast7DaysRevenueChange] = useState(0);
+  const [quarterlyRevenue, setQuarterlyRevenue] = useState(0);
+  const [quarterlyRevenueChange, setQuarterlyRevenueChange] = useState(0);
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -58,6 +62,8 @@ export default function Dashboard() {
     if (allShoeings.length > 0) {
       calculateWeeklyRevenue();
       calculateMonthlyRevenue();
+      calculatePast7DaysRevenue();
+      calculateQuarterlyRevenue();
     }
   }, [allShoeings]);
 
@@ -124,11 +130,265 @@ export default function Dashboard() {
 
   function calculateWeeklyRevenue() {
     const today = new Date();
+    const startOfWeek = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - today.getDay()
+    );
+
+    console.log(
+      "Calculating revenue from",
+      startOfWeek.toDateString(),
+      "to",
+      today.toDateString()
+    );
+    console.log("Total shoeings:", allShoeings.length);
+
+    let includedCount = 0;
+    const thisWeekRevenue = allShoeings.reduce((sum, shoeing, index) => {
+      const dateOfService = shoeing["Date of Service"];
+      const baseCostString = shoeing["Cost of Service"];
+      const frontAddOnCostString = shoeing["Cost of Front Add-Ons"];
+      const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
+
+      if (!dateOfService || !baseCostString) {
+        return sum;
+      }
+
+      const [month, day, year] = dateOfService.split("/");
+      const shoeingDate = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day)
+      );
+
+      // Set time to midnight for comparison
+      const shoeingDateMidnight = new Date(
+        shoeingDate.getFullYear(),
+        shoeingDate.getMonth(),
+        shoeingDate.getDate()
+      );
+      const startOfWeekMidnight = new Date(
+        startOfWeek.getFullYear(),
+        startOfWeek.getMonth(),
+        startOfWeek.getDate()
+      );
+      const todayMidnight = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+
+      if (
+        shoeingDateMidnight >= startOfWeekMidnight &&
+        shoeingDateMidnight <= todayMidnight
+      ) {
+        const baseCost = parseFloat(baseCostString.replace("$", "").trim());
+        const frontAddOnCost = frontAddOnCostString
+          ? parseFloat(frontAddOnCostString.replace("$", "").trim())
+          : 0;
+        const hindAddOnCost = hindAddOnCostString
+          ? parseFloat(hindAddOnCostString.replace("$", "").trim())
+          : 0;
+
+        const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
+
+        if (!isNaN(totalCost)) {
+          includedCount++;
+          return sum + totalCost;
+        } else {
+        }
+      } else {
+      }
+      return sum;
+    }, 0);
+
+    console.log("This week revenue:", thisWeekRevenue);
+    console.log("Included shoeings count:", includedCount);
+
+    setWeeklyRevenue(thisWeekRevenue);
+    setWeeklyRevenueChange(
+      ((thisWeekRevenue - weeklyRevenue) / weeklyRevenue) * 100
+    );
+  }
+
+  function calculateMonthlyRevenue() {
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+    console.log(
+      "Calculating monthly revenue from",
+      firstDayOfMonth.toDateString(),
+      "to",
+      today.toDateString()
+    );
+    console.log("Total shoeings:", allShoeings.length);
+
+    let includedCount = 0;
+    const thisMonthRevenue = allShoeings.reduce((sum, shoeing, index) => {
+      const dateOfService = shoeing["Date of Service"];
+      const baseCostString = shoeing["Cost of Service"];
+      const frontAddOnCostString = shoeing["Cost of Front Add-Ons"];
+      const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
+
+      if (!dateOfService || !baseCostString) {
+        console.warn("Invalid shoeing entry:", shoeing);
+        return sum;
+      }
+
+      const [month, day, year] = dateOfService.split("/");
+      const shoeingDate = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day)
+      );
+
+      // Set time to midnight for comparison
+      const shoeingDateMidnight = new Date(
+        shoeingDate.getFullYear(),
+        shoeingDate.getMonth(),
+        shoeingDate.getDate()
+      );
+      const firstDayOfMonthMidnight = new Date(
+        firstDayOfMonth.getFullYear(),
+        firstDayOfMonth.getMonth(),
+        firstDayOfMonth.getDate()
+      );
+      const todayMidnight = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+
+      if (
+        shoeingDateMidnight >= firstDayOfMonthMidnight &&
+        shoeingDateMidnight <= todayMidnight
+      ) {
+        const baseCost = parseFloat(baseCostString.replace("$", "").trim());
+        const frontAddOnCost = frontAddOnCostString
+          ? parseFloat(frontAddOnCostString.replace("$", "").trim())
+          : 0;
+        const hindAddOnCost = hindAddOnCostString
+          ? parseFloat(hindAddOnCostString.replace("$", "").trim())
+          : 0;
+
+        const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
+
+        if (!isNaN(totalCost)) {
+          console.log(
+            `Including shoeing ${index}:`,
+            dateOfService,
+            "Base:",
+            baseCost,
+            "Front:",
+            frontAddOnCost,
+            "Hind:",
+            hindAddOnCost,
+            "Total:",
+            totalCost
+          );
+          includedCount++;
+          return sum + totalCost;
+        } else {
+          console.warn(
+            `Invalid cost for shoeing ${index}:`,
+            baseCostString,
+            frontAddOnCostString,
+            hindAddOnCostString
+          );
+        }
+      } else {
+        console.log(
+          `Excluding shoeing ${index}:`,
+          dateOfService,
+          "outside date range"
+        );
+      }
+      return sum;
+    }, 0);
+
+    console.log("This month revenue:", thisMonthRevenue);
+    console.log("Included shoeings count:", includedCount);
+
+    setMonthlyRevenue(thisMonthRevenue);
+
+    // Calculate last month's revenue for comparison
+    const firstDayOfLastMonth = new Date(
+      today.getFullYear(),
+      today.getMonth() - 1,
+      1
+    );
+    const lastDayOfLastMonth = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      0
+    );
+    const lastMonthRevenue = allShoeings.reduce((sum, shoeing) => {
+      const dateOfService = shoeing["Date of Service"];
+      const baseCostString = shoeing["Cost of Service"];
+      const frontAddOnCostString = shoeing["Cost of Front Add-Ons"];
+      const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
+
+      if (!dateOfService || !baseCostString) return sum;
+
+      const [month, day, year] = dateOfService.split("/");
+      const shoeingDate = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day)
+      );
+
+      // Set time to midnight for comparison
+      const shoeingDateMidnight = new Date(
+        shoeingDate.getFullYear(),
+        shoeingDate.getMonth(),
+        shoeingDate.getDate()
+      );
+      const firstDayOfLastMonthMidnight = new Date(
+        firstDayOfLastMonth.getFullYear(),
+        firstDayOfLastMonth.getMonth(),
+        firstDayOfLastMonth.getDate()
+      );
+      const lastDayOfLastMonthMidnight = new Date(
+        lastDayOfLastMonth.getFullYear(),
+        lastDayOfLastMonth.getMonth(),
+        lastDayOfLastMonth.getDate()
+      );
+
+      if (
+        shoeingDateMidnight >= firstDayOfLastMonthMidnight &&
+        shoeingDateMidnight <= lastDayOfLastMonthMidnight
+      ) {
+        const baseCost = parseFloat(baseCostString.replace("$", "").trim());
+        const frontAddOnCost = frontAddOnCostString
+          ? parseFloat(frontAddOnCostString.replace("$", "").trim())
+          : 0;
+        const hindAddOnCost = hindAddOnCostString
+          ? parseFloat(hindAddOnCostString.replace("$", "").trim())
+          : 0;
+
+        const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
+        return isNaN(totalCost) ? sum : sum + totalCost;
+      }
+      return sum;
+    }, 0);
+
+    console.log("Last month revenue:", lastMonthRevenue);
+
+    setMonthlyRevenueChange(
+      lastMonthRevenue !== 0
+        ? ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
+        : 0
+    );
+  }
+
+  function calculatePast7DaysRevenue() {
+    const today = new Date();
     const sevenDaysAgo = new Date(
       today.getFullYear(),
       today.getMonth(),
-      today.getDate() - 7
-    );
+      today.getDate() - 6
+    ); // -6 because we want to include today
 
     console.log(
       "Calculating revenue from",
@@ -138,11 +398,15 @@ export default function Dashboard() {
     );
     console.log("Total shoeings:", allShoeings.length);
 
-    const thisWeekRevenue = allShoeings.reduce((sum, shoeing, index) => {
+    let includedCount = 0;
+    const past7DaysRevenue = allShoeings.reduce((sum, shoeing, index) => {
       const dateOfService = shoeing["Date of Service"];
-      const costString = shoeing["Cost of Service"];
+      const baseCostString = shoeing["Cost of Service"];
+      const frontAddOnCostString = shoeing["Cost of Front Add-Ons"];
+      const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
 
-      if (!dateOfService || !costString) {
+      if (!dateOfService || !baseCostString) {
+        console.warn("Invalid shoeing entry:", shoeing);
         return sum;
       }
 
@@ -174,33 +438,67 @@ export default function Dashboard() {
         shoeingDateMidnight >= sevenDaysAgoMidnight &&
         shoeingDateMidnight <= todayMidnight
       ) {
-        const cost = parseFloat(costString.replace("$", "").trim());
-        if (!isNaN(cost)) {
+        const baseCost = parseFloat(baseCostString.replace("$", "").trim());
+        const frontAddOnCost = frontAddOnCostString
+          ? parseFloat(frontAddOnCostString.replace("$", "").trim())
+          : 0;
+        const hindAddOnCost = hindAddOnCostString
+          ? parseFloat(hindAddOnCostString.replace("$", "").trim())
+          : 0;
+
+        const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
+
+        if (!isNaN(totalCost)) {
           console.log(
             `Including shoeing ${index}:`,
             dateOfService,
-            costString,
-            cost
+            "Base:",
+            baseCost,
+            "Front:",
+            frontAddOnCost,
+            "Hind:",
+            hindAddOnCost,
+            "Total:",
+            totalCost
           );
-          return sum + cost;
+          includedCount++;
+          return sum + totalCost;
+        } else {
+          console.warn(
+            `Invalid cost for shoeing ${index}:`,
+            baseCostString,
+            frontAddOnCostString,
+            hindAddOnCostString
+          );
         }
+      } else {
+        console.log(
+          `Excluding shoeing ${index}:`,
+          dateOfService,
+          "outside date range"
+        );
       }
       return sum;
     }, 0);
 
-    console.log("This week revenue:", thisWeekRevenue);
+    console.log("Past 7 days revenue:", past7DaysRevenue);
+    console.log("Included shoeings count:", includedCount);
 
-    // Calculate last week's revenue similarly
-    const twoWeeksAgo = new Date(
+    setPast7DaysRevenue(past7DaysRevenue);
+
+    // Calculate previous 7 days revenue for comparison
+    const fourteenDaysAgo = new Date(
       today.getFullYear(),
       today.getMonth(),
-      today.getDate() - 14
+      today.getDate() - 13
     );
-    const lastWeekRevenue = allShoeings.reduce((sum, shoeing) => {
+    const previous7DaysRevenue = allShoeings.reduce((sum, shoeing) => {
       const dateOfService = shoeing["Date of Service"];
-      const costString = shoeing["Cost of Service"];
+      const baseCostString = shoeing["Cost of Service"];
+      const frontAddOnCostString = shoeing["Cost of Front Add-Ons"];
+      const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
 
-      if (!dateOfService || !costString) return sum;
+      if (!dateOfService || !baseCostString) return sum;
 
       const [month, day, year] = dateOfService.split("/");
       const shoeingDate = new Date(
@@ -215,10 +513,10 @@ export default function Dashboard() {
         shoeingDate.getMonth(),
         shoeingDate.getDate()
       );
-      const twoWeeksAgoMidnight = new Date(
-        twoWeeksAgo.getFullYear(),
-        twoWeeksAgo.getMonth(),
-        twoWeeksAgo.getDate()
+      const fourteenDaysAgoMidnight = new Date(
+        fourteenDaysAgo.getFullYear(),
+        fourteenDaysAgo.getMonth(),
+        fourteenDaysAgo.getDate()
       );
       const sevenDaysAgoMidnight = new Date(
         sevenDaysAgo.getFullYear(),
@@ -227,43 +525,64 @@ export default function Dashboard() {
       );
 
       if (
-        shoeingDateMidnight >= twoWeeksAgoMidnight &&
+        shoeingDateMidnight >= fourteenDaysAgoMidnight &&
         shoeingDateMidnight < sevenDaysAgoMidnight
       ) {
-        const cost = parseFloat(costString.replace("$", "").trim());
-        return isNaN(cost) ? sum : sum + cost;
+        const baseCost = parseFloat(baseCostString.replace("$", "").trim());
+        const frontAddOnCost = frontAddOnCostString
+          ? parseFloat(frontAddOnCostString.replace("$", "").trim())
+          : 0;
+        const hindAddOnCost = hindAddOnCostString
+          ? parseFloat(hindAddOnCostString.replace("$", "").trim())
+          : 0;
+
+        const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
+
+        if (!isNaN(totalCost)) {
+          return sum + totalCost;
+        } else {
+        }
       }
       return sum;
     }, 0);
 
-    console.log("Last week revenue:", lastWeekRevenue);
+    console.log("Previous 7 days revenue:", previous7DaysRevenue);
+    console.log("Included shoeings count:", includedCount);
 
-    setWeeklyRevenue(thisWeekRevenue);
-    setWeeklyRevenueChange(
-      lastWeekRevenue !== 0
-        ? ((thisWeekRevenue - lastWeekRevenue) / lastWeekRevenue) * 100
+    setPast7DaysRevenueChange(
+      previous7DaysRevenue !== 0
+        ? ((past7DaysRevenue - previous7DaysRevenue) / previous7DaysRevenue) *
+            100
         : 0
     );
   }
 
-  function calculateMonthlyRevenue() {
+  function calculateQuarterlyRevenue() {
     const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const currentQuarter = Math.floor(today.getMonth() / 3);
+    const firstDayOfQuarter = new Date(
+      today.getFullYear(),
+      currentQuarter * 3,
+      1
+    );
 
     console.log(
-      "Calculating monthly revenue from",
-      firstDayOfMonth.toDateString(),
+      "Calculating quarterly revenue from",
+      firstDayOfQuarter.toDateString(),
       "to",
       today.toDateString()
     );
     console.log("Total shoeings:", allShoeings.length);
 
     let includedCount = 0;
-    const thisMonthRevenue = allShoeings.reduce((sum, shoeing, index) => {
+    const thisQuarterRevenue = allShoeings.reduce((sum, shoeing, index) => {
       const dateOfService = shoeing["Date of Service"];
-      const costString = shoeing["Cost of Service"];
+      const baseCostString = shoeing["Cost of Service"];
+      const frontAddOnCostString = shoeing["Cost of Front Add-Ons"];
+      const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
 
-      if (!dateOfService || !costString) {
+      if (!dateOfService || !baseCostString) {
+        console.warn("Invalid shoeing entry:", shoeing);
         return sum;
       }
 
@@ -280,32 +599,144 @@ export default function Dashboard() {
         shoeingDate.getMonth(),
         shoeingDate.getDate()
       );
+      const firstDayOfQuarterMidnight = new Date(
+        firstDayOfQuarter.getFullYear(),
+        firstDayOfQuarter.getMonth(),
+        firstDayOfQuarter.getDate()
+      );
+      const todayMidnight = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
 
       if (
-        shoeingDateMidnight >= firstDayOfMonth &&
-        shoeingDateMidnight <= today
+        shoeingDateMidnight >= firstDayOfQuarterMidnight &&
+        shoeingDateMidnight <= todayMidnight
       ) {
-        const cost = parseFloat(costString.replace("$", "").trim());
-        if (!isNaN(cost)) {
+        const baseCost = parseFloat(baseCostString.replace("$", "").trim());
+        const frontAddOnCost = frontAddOnCostString
+          ? parseFloat(frontAddOnCostString.replace("$", "").trim())
+          : 0;
+        const hindAddOnCost = hindAddOnCostString
+          ? parseFloat(hindAddOnCostString.replace("$", "").trim())
+          : 0;
+
+        const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
+
+        if (!isNaN(totalCost)) {
           console.log(
             `Including shoeing ${index}:`,
             dateOfService,
-            costString,
-            cost
+            "Base:",
+            baseCost,
+            "Front:",
+            frontAddOnCost,
+            "Hind:",
+            hindAddOnCost,
+            "Total:",
+            totalCost
           );
           includedCount++;
-          return sum + cost;
+          return sum + totalCost;
+        } else {
+          console.warn(
+            `Invalid cost for shoeing ${index}:`,
+            baseCostString,
+            frontAddOnCostString,
+            hindAddOnCostString
+          );
         }
+      } else {
+        console.log(
+          `Excluding shoeing ${index}:`,
+          dateOfService,
+          "outside date range"
+        );
       }
       return sum;
     }, 0);
 
-    console.log("This month revenue:", thisMonthRevenue);
+    console.log("This quarter revenue:", thisQuarterRevenue);
     console.log("Included shoeings count:", includedCount);
 
-    setMonthlyRevenue(thisMonthRevenue);
-    // ... rest of the function
+    setQuarterlyRevenue(thisQuarterRevenue);
+
+    // Calculate last quarter's revenue for comparison
+    const lastQuarterFirstDay = new Date(
+      today.getFullYear(),
+      (currentQuarter - 1) * 3,
+      1
+    );
+    const lastQuarterLastDay = new Date(firstDayOfQuarter.getTime() - 1);
+    const lastQuarterRevenue = allShoeings.reduce((sum, shoeing) => {
+      const dateOfService = shoeing["Date of Service"];
+      const baseCostString = shoeing["Cost of Service"];
+      const frontAddOnCostString = shoeing["Cost of Front Add-Ons"];
+      const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
+
+      if (!dateOfService || !baseCostString) return sum;
+
+      const [month, day, year] = dateOfService.split("/");
+      const shoeingDate = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day)
+      );
+
+      // Set time to midnight for comparison
+      const shoeingDateMidnight = new Date(
+        shoeingDate.getFullYear(),
+        shoeingDate.getMonth(),
+        shoeingDate.getDate()
+      );
+      const lastQuarterFirstDayMidnight = new Date(
+        lastQuarterFirstDay.getFullYear(),
+        lastQuarterFirstDay.getMonth(),
+        lastQuarterFirstDay.getDate()
+      );
+      const lastQuarterLastDayMidnight = new Date(
+        lastQuarterLastDay.getFullYear(),
+        lastQuarterLastDay.getMonth(),
+        lastQuarterLastDay.getDate()
+      );
+
+      if (
+        shoeingDateMidnight >= lastQuarterFirstDayMidnight &&
+        shoeingDateMidnight <= lastQuarterLastDayMidnight
+      ) {
+        const baseCost = parseFloat(baseCostString.replace("$", "").trim());
+        const frontAddOnCost = frontAddOnCostString
+          ? parseFloat(frontAddOnCostString.replace("$", "").trim())
+          : 0;
+        const hindAddOnCost = hindAddOnCostString
+          ? parseFloat(hindAddOnCostString.replace("$", "").trim())
+          : 0;
+
+        const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
+        return isNaN(totalCost) ? sum : sum + totalCost;
+      }
+      return sum;
+    }, 0);
+
+    console.log("Last quarter revenue:", lastQuarterRevenue);
+
+    setQuarterlyRevenueChange(
+      lastQuarterRevenue !== 0
+        ? ((thisQuarterRevenue - lastQuarterRevenue) / lastQuarterRevenue) * 100
+        : 0
+    );
   }
+
+  // Helper function to format currency
+  const formatCurrency = (amount: number) => {
+    return amount.toLocaleString("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  };
 
   // Only render the dashboard content if the user is an admin
   if (!user?.isAdmin) {
@@ -321,29 +752,30 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="pb-2">
-                <CardDescription>This Week</CardDescription>
+                <CardDescription>Past 7 Days</CardDescription>
                 <CardTitle className="text-4xl">
-                  ${weeklyRevenue.toFixed(2)}
+                  {formatCurrency(past7DaysRevenue)}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
-                  {weeklyRevenueChange >= 0 ? "+" : ""}
-                  {weeklyRevenueChange.toFixed(2)}% from last week
+                  {past7DaysRevenueChange >= 0 ? "+" : ""}
+                  {past7DaysRevenueChange.toFixed(2)}% from previous 7 days
                 </div>
               </CardContent>
               <CardFooter>
                 <Progress
-                  value={Math.abs(weeklyRevenueChange)}
-                  aria-label={`${Math.abs(weeklyRevenueChange)}% change`}
+                  value={Math.abs(past7DaysRevenueChange)}
+                  aria-label={`${Math.abs(past7DaysRevenueChange)}% change`}
                 />
               </CardFooter>
             </Card>
+
             <Card>
               <CardHeader className="pb-2">
                 <CardDescription>This Month</CardDescription>
                 <CardTitle className="text-4xl">
-                  ${monthlyRevenue.toFixed(2)}
+                  {formatCurrency(monthlyRevenue)}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -359,18 +791,24 @@ export default function Dashboard() {
                 />
               </CardFooter>
             </Card>
-            <Card x-chunk="dashboard-01-chunk-2">
+            <Card>
               <CardHeader className="pb-2">
-                <CardDescription>New Customers</CardDescription>
-                <CardTitle className="text-4xl">+250</CardTitle>
+                <CardDescription>This Quarter</CardDescription>
+                <CardTitle className="text-4xl">
+                  {formatCurrency(quarterlyRevenue)}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
-                  +15% from last month
+                  {quarterlyRevenueChange >= 0 ? "+" : ""}
+                  {quarterlyRevenueChange.toFixed(2)}% from last quarter
                 </div>
               </CardContent>
               <CardFooter>
-                <Progress value={15} aria-label="15% increase" />
+                <Progress
+                  value={Math.abs(quarterlyRevenueChange)}
+                  aria-label={`${Math.abs(quarterlyRevenueChange)}% change`}
+                />
               </CardFooter>
             </Card>
             <Card x-chunk="dashboard-01-chunk-3">
