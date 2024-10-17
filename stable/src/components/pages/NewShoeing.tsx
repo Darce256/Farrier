@@ -414,7 +414,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
 
 // Add this new component after the SubmittedShoeings component
 
-function SentThisMonth() {
+function SentLastThirtyDays() {
   const [shoeings, setShoeings] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -428,35 +428,54 @@ function SentThisMonth() {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    console.log("Fetching all completed shoeings");
+    // Format dates to MM/DD/YYYY
+    const formatDate = (date: Date) => {
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const year = date.getFullYear();
+      return `${month}/${day}/${year}`;
+    };
+
+    const nowFormatted = formatDate(now);
+    const thirtyDaysAgoFormatted = formatDate(thirtyDaysAgo);
+
+    console.log("Fetching completed shoeings for the last 30 days");
+    console.log("Date range:", thirtyDaysAgoFormatted, "to", nowFormatted);
 
     const { data, error } = await supabase
       .from("shoeings")
       .select("*")
       .eq("status", "completed")
-      .order("Date of Service", { ascending: false });
+      .gte("Date of Service", thirtyDaysAgoFormatted)
+      .lte("Date of Service", nowFormatted);
 
     if (error) {
       console.error("Error fetching sent shoeings:", error);
       toast.error("Failed to fetch sent shoeings");
     } else {
-      const filteredData = data.filter((shoeing) => {
-        const shoeingDate = new Date(shoeing["Date of Service"]);
-        return shoeingDate >= thirtyDaysAgo && shoeingDate <= now;
+      // Sort the data by date (most recent first)
+      const sortedData = data.sort((a, b) => {
+        const dateA = new Date(
+          a["Date of Service"].split("/").reverse().join("-")
+        );
+        const dateB = new Date(
+          b["Date of Service"].split("/").reverse().join("-")
+        );
+        return dateB.getTime() - dateA.getTime();
       });
 
-      console.log("Fetched and filtered shoeings:", filteredData);
-      if (filteredData.length === 0) {
+      console.log("Fetched and sorted shoeings:", sortedData);
+      if (sortedData.length === 0) {
         console.log("No completed shoeings found for the last 30 days");
       } else {
-        console.log("Number of shoeings found:", filteredData.length);
-        console.log("First shoeing date:", filteredData[0]["Date of Service"]);
+        console.log("Number of shoeings found:", sortedData.length);
+        console.log("First shoeing date:", sortedData[0]["Date of Service"]);
         console.log(
           "Last shoeing date:",
-          filteredData[filteredData.length - 1]["Date of Service"]
+          sortedData[sortedData.length - 1]["Date of Service"]
         );
       }
-      setShoeings(filteredData as any);
+      setShoeings(sortedData as any);
     }
     setIsLoading(false);
   }
@@ -1390,7 +1409,7 @@ export default function ShoeingForm() {
           <h2 className="text-2xl font-bold mb-4">
             Completed Shoeings (Last 30 Days)
           </h2>
-          <SentThisMonth />
+          <SentLastThirtyDays />
         </TabsContent>
       </Tabs>
 
