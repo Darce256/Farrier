@@ -23,13 +23,6 @@ import { useNavigate } from "react-router-dom";
 import TopSellingServicesChart from "@/components/ui/TopSellingServicesChart";
 import TopSellingAddonsChart from "@/components/ui/TopSellingAddonsChart";
 import LocationRevenueChart from "../ui/LocationRevenueChart";
-import {
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
-  isWithinInterval,
-} from "date-fns";
 
 interface Shoeing {
   "Base Service": string;
@@ -49,7 +42,7 @@ export default function Dashboard() {
   const [weeklyRevenue, setWeeklyRevenue] = useState(0);
   const [weeklyRevenueChange, setWeeklyRevenueChange] = useState(0);
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
-  const [monthlyRevenueChange, setMonthlyRevenueChange] = useState(0);
+  const [monthlyRevenueChange] = useState(0);
   const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
 
   useEffect(() => {
@@ -150,7 +143,6 @@ export default function Dashboard() {
       const costString = shoeing["Cost of Service"];
 
       if (!dateOfService || !costString) {
-        console.warn("Invalid shoeing entry:", shoeing);
         return sum;
       }
 
@@ -191,15 +183,7 @@ export default function Dashboard() {
             cost
           );
           return sum + cost;
-        } else {
-          console.warn(`Invalid cost for shoeing ${index}:`, costString);
         }
-      } else {
-        console.log(
-          `Excluding shoeing ${index}:`,
-          dateOfService,
-          "outside date range"
-        );
       }
       return sum;
     }, 0);
@@ -264,45 +248,63 @@ export default function Dashboard() {
 
   function calculateMonthlyRevenue() {
     const today = new Date();
-    const thisMonthStart = startOfMonth(today);
-    const thisMonthEnd = endOfMonth(today);
-    const lastMonthStart = startOfMonth(
-      new Date(today.getFullYear(), today.getMonth() - 1, 1)
-    );
-    const lastMonthEnd = endOfMonth(
-      new Date(today.getFullYear(), today.getMonth() - 1, 1)
-    );
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-    const thisMonthRevenue = allShoeings.reduce((sum, shoeing) => {
-      const shoeingDate = new Date(shoeing["Date of Service"]);
+    console.log(
+      "Calculating monthly revenue from",
+      firstDayOfMonth.toDateString(),
+      "to",
+      today.toDateString()
+    );
+    console.log("Total shoeings:", allShoeings.length);
+
+    let includedCount = 0;
+    const thisMonthRevenue = allShoeings.reduce((sum, shoeing, index) => {
+      const dateOfService = shoeing["Date of Service"];
+      const costString = shoeing["Cost of Service"];
+
+      if (!dateOfService || !costString) {
+        return sum;
+      }
+
+      const [month, day, year] = dateOfService.split("/");
+      const shoeingDate = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day)
+      );
+
+      // Set time to midnight for comparison
+      const shoeingDateMidnight = new Date(
+        shoeingDate.getFullYear(),
+        shoeingDate.getMonth(),
+        shoeingDate.getDate()
+      );
+
       if (
-        isWithinInterval(shoeingDate, {
-          start: thisMonthStart,
-          end: thisMonthEnd,
-        })
+        shoeingDateMidnight >= firstDayOfMonth &&
+        shoeingDateMidnight <= today
       ) {
-        return sum + parseFloat(shoeing["Cost of Service"].replace("$", ""));
+        const cost = parseFloat(costString.replace("$", "").trim());
+        if (!isNaN(cost)) {
+          console.log(
+            `Including shoeing ${index}:`,
+            dateOfService,
+            costString,
+            cost
+          );
+          includedCount++;
+          return sum + cost;
+        }
       }
       return sum;
     }, 0);
 
-    const lastMonthRevenue = allShoeings.reduce((sum, shoeing) => {
-      const shoeingDate = new Date(shoeing["Date of Service"]);
-      if (
-        isWithinInterval(shoeingDate, {
-          start: lastMonthStart,
-          end: lastMonthEnd,
-        })
-      ) {
-        return sum + parseFloat(shoeing["Cost of Service"].replace("$", ""));
-      }
-      return sum;
-    }, 0);
+    console.log("This month revenue:", thisMonthRevenue);
+    console.log("Included shoeings count:", includedCount);
 
     setMonthlyRevenue(thisMonthRevenue);
-    setMonthlyRevenueChange(
-      ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
-    );
+    // ... rest of the function
   }
 
   // Only render the dashboard content if the user is an admin
