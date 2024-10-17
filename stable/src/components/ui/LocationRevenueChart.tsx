@@ -16,7 +16,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { supabase } from "@/lib/supabaseClient";
 import { DatePickerWithPresets } from "@/components/ui/date-picker";
 import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 
@@ -45,43 +44,22 @@ const COLORS = [
   "#d0ed57",
 ];
 
-export default function LocationRevenueChart() {
+interface Props {
+  allShoeings: Shoeing[];
+}
+
+export default function LocationRevenueChart({ allShoeings }: Props) {
   const [data, setData] = useState<LocationData[]>([]);
   const [dateRange, setDateRange] = useState<
     { from: string | null; to: string | null } | undefined
   >(undefined);
-  const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
-
-  useEffect(() => {
-    fetchAllShoeings();
-  }, []);
 
   useEffect(() => {
     if (allShoeings.length > 0) {
       processData();
     }
   }, [dateRange, allShoeings]);
-
-  async function fetchAllShoeings() {
-    const { data, error } = await supabase
-      .from("shoeings")
-      .select('"Location of Service", "Cost of Service", "Date of Service"');
-
-    if (error) {
-      console.error("Error fetching shoeings:", error);
-      return;
-    }
-
-    const validShoeings = data.filter(
-      (shoeing) =>
-        shoeing["Location of Service"] &&
-        shoeing["Cost of Service"] &&
-        shoeing["Date of Service"]
-    );
-
-    setAllShoeings(validShoeings);
-  }
 
   function processData() {
     let filteredShoeings = allShoeings;
@@ -106,13 +84,15 @@ export default function LocationRevenueChart() {
 
     filteredShoeings.forEach((shoeing) => {
       const location = shoeing["Location of Service"];
-      const cost = parseFloat(
-        shoeing["Cost of Service"].replace("$", "").trim()
-      );
+      const costString = shoeing["Cost of Service"];
 
-      if (!isNaN(cost)) {
-        locationData[location] = (locationData[location] || 0) + cost;
-        revenue += cost;
+      if (location && costString) {
+        const cost = parseFloat(costString.replace("$", "").trim());
+
+        if (!isNaN(cost)) {
+          locationData[location] = (locationData[location] || 0) + cost;
+          revenue += cost;
+        }
       }
     });
 

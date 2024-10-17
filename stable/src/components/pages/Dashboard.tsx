@@ -23,19 +23,98 @@ import { useNavigate } from "react-router-dom";
 import TopSellingServicesChart from "@/components/ui/TopSellingServicesChart";
 import TopSellingAddonsChart from "@/components/ui/TopSellingAddonsChart";
 import LocationRevenueChart from "../ui/LocationRevenueChart";
+import {
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  isWithinInterval,
+} from "date-fns";
+
+interface Shoeing {
+  "Base Service": string;
+  "Front Add-On's": string;
+  "Hind Add-On's": string;
+  "Cost of Service": string;
+  "Cost of Front Add-Ons": string;
+  "Cost of Hind Add-Ons": string;
+  "Date of Service": string;
+  "Location of Service": string;
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [pendingShoeingsCount, setPendingShoeingsCount] = useState(0);
+  const [weeklyRevenue, setWeeklyRevenue] = useState(0);
+  const [weeklyRevenueChange, setWeeklyRevenueChange] = useState(0);
+  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
+  const [monthlyRevenueChange, setMonthlyRevenueChange] = useState(0);
+  const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
 
   useEffect(() => {
     if (!user?.isAdmin) {
       navigate("/horses");
     } else {
       fetchPendingShoeingsCount();
+      fetchAllShoeings();
     }
   }, [user, navigate]);
+
+  useEffect(() => {
+    if (allShoeings.length > 0) {
+      calculateWeeklyRevenue();
+      calculateMonthlyRevenue();
+    }
+  }, [allShoeings]);
+
+  async function fetchAllShoeings() {
+    let allShoeings: Shoeing[] = [];
+    let page = 0;
+    const pageSize = 1000; // Supabase's maximum page size
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from("shoeings")
+        .select(
+          '"Base Service", "Front Add-On\'s", "Hind Add-On\'s", "Cost of Service", "Cost of Front Add-Ons", "Cost of Hind Add-Ons", "Date of Service", "Location of Service"'
+        )
+        .range(page * pageSize, (page + 1) * pageSize - 1);
+
+      if (error) {
+        console.error("Error fetching shoeings:", error);
+        break;
+      }
+
+      if (data) {
+        allShoeings = [...allShoeings, ...data];
+        hasMore = data.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    console.log("Total shoeings fetched:", allShoeings.length);
+
+    // Filter out any entries with null Date of Service
+    const validShoeings = allShoeings.filter(
+      (shoeing) => shoeing["Date of Service"] != null
+    );
+
+    if (validShoeings.length < allShoeings.length) {
+      console.warn(
+        `Filtered out ${
+          allShoeings.length - validShoeings.length
+        } shoeings with null Date of Service`
+      );
+    }
+
+    console.log("Valid shoeings:", validShoeings);
+
+    setAllShoeings(validShoeings);
+  }
 
   async function fetchPendingShoeingsCount() {
     const { count, error } = await supabase
@@ -50,6 +129,182 @@ export default function Dashboard() {
     }
   }
 
+  function calculateWeeklyRevenue() {
+    const today = new Date();
+    const sevenDaysAgo = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - 7
+    );
+
+    console.log(
+      "Calculating revenue from",
+      sevenDaysAgo.toDateString(),
+      "to",
+      today.toDateString()
+    );
+    console.log("Total shoeings:", allShoeings.length);
+
+    const thisWeekRevenue = allShoeings.reduce((sum, shoeing, index) => {
+      const dateOfService = shoeing["Date of Service"];
+      const costString = shoeing["Cost of Service"];
+
+      if (!dateOfService || !costString) {
+        console.warn("Invalid shoeing entry:", shoeing);
+        return sum;
+      }
+
+      const [month, day, year] = dateOfService.split("/");
+      const shoeingDate = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day)
+      );
+
+      // Set time to midnight for comparison
+      const shoeingDateMidnight = new Date(
+        shoeingDate.getFullYear(),
+        shoeingDate.getMonth(),
+        shoeingDate.getDate()
+      );
+      const sevenDaysAgoMidnight = new Date(
+        sevenDaysAgo.getFullYear(),
+        sevenDaysAgo.getMonth(),
+        sevenDaysAgo.getDate()
+      );
+      const todayMidnight = new Date(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate()
+      );
+
+      if (
+        shoeingDateMidnight >= sevenDaysAgoMidnight &&
+        shoeingDateMidnight <= todayMidnight
+      ) {
+        const cost = parseFloat(costString.replace("$", "").trim());
+        if (!isNaN(cost)) {
+          console.log(
+            `Including shoeing ${index}:`,
+            dateOfService,
+            costString,
+            cost
+          );
+          return sum + cost;
+        } else {
+          console.warn(`Invalid cost for shoeing ${index}:`, costString);
+        }
+      } else {
+        console.log(
+          `Excluding shoeing ${index}:`,
+          dateOfService,
+          "outside date range"
+        );
+      }
+      return sum;
+    }, 0);
+
+    console.log("This week revenue:", thisWeekRevenue);
+
+    // Calculate last week's revenue similarly
+    const twoWeeksAgo = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate() - 14
+    );
+    const lastWeekRevenue = allShoeings.reduce((sum, shoeing) => {
+      const dateOfService = shoeing["Date of Service"];
+      const costString = shoeing["Cost of Service"];
+
+      if (!dateOfService || !costString) return sum;
+
+      const [month, day, year] = dateOfService.split("/");
+      const shoeingDate = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day)
+      );
+
+      // Set time to midnight for comparison
+      const shoeingDateMidnight = new Date(
+        shoeingDate.getFullYear(),
+        shoeingDate.getMonth(),
+        shoeingDate.getDate()
+      );
+      const twoWeeksAgoMidnight = new Date(
+        twoWeeksAgo.getFullYear(),
+        twoWeeksAgo.getMonth(),
+        twoWeeksAgo.getDate()
+      );
+      const sevenDaysAgoMidnight = new Date(
+        sevenDaysAgo.getFullYear(),
+        sevenDaysAgo.getMonth(),
+        sevenDaysAgo.getDate()
+      );
+
+      if (
+        shoeingDateMidnight >= twoWeeksAgoMidnight &&
+        shoeingDateMidnight < sevenDaysAgoMidnight
+      ) {
+        const cost = parseFloat(costString.replace("$", "").trim());
+        return isNaN(cost) ? sum : sum + cost;
+      }
+      return sum;
+    }, 0);
+
+    console.log("Last week revenue:", lastWeekRevenue);
+
+    setWeeklyRevenue(thisWeekRevenue);
+    setWeeklyRevenueChange(
+      lastWeekRevenue !== 0
+        ? ((thisWeekRevenue - lastWeekRevenue) / lastWeekRevenue) * 100
+        : 0
+    );
+  }
+
+  function calculateMonthlyRevenue() {
+    const today = new Date();
+    const thisMonthStart = startOfMonth(today);
+    const thisMonthEnd = endOfMonth(today);
+    const lastMonthStart = startOfMonth(
+      new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    );
+    const lastMonthEnd = endOfMonth(
+      new Date(today.getFullYear(), today.getMonth() - 1, 1)
+    );
+
+    const thisMonthRevenue = allShoeings.reduce((sum, shoeing) => {
+      const shoeingDate = new Date(shoeing["Date of Service"]);
+      if (
+        isWithinInterval(shoeingDate, {
+          start: thisMonthStart,
+          end: thisMonthEnd,
+        })
+      ) {
+        return sum + parseFloat(shoeing["Cost of Service"].replace("$", ""));
+      }
+      return sum;
+    }, 0);
+
+    const lastMonthRevenue = allShoeings.reduce((sum, shoeing) => {
+      const shoeingDate = new Date(shoeing["Date of Service"]);
+      if (
+        isWithinInterval(shoeingDate, {
+          start: lastMonthStart,
+          end: lastMonthEnd,
+        })
+      ) {
+        return sum + parseFloat(shoeing["Cost of Service"].replace("$", ""));
+      }
+      return sum;
+    }, 0);
+
+    setMonthlyRevenue(thisMonthRevenue);
+    setMonthlyRevenueChange(
+      ((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100
+    );
+  }
+
   // Only render the dashboard content if the user is an admin
   if (!user?.isAdmin) {
     return null;
@@ -62,32 +317,44 @@ export default function Dashboard() {
 
         <div className="grid gap-4 md:gap-8 mb-8">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <Card x-chunk="dashboard-01-chunk-0">
+            <Card>
               <CardHeader className="pb-2">
                 <CardDescription>This Week</CardDescription>
-                <CardTitle className="text-4xl">$1,329</CardTitle>
+                <CardTitle className="text-4xl">
+                  ${weeklyRevenue.toFixed(2)}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
-                  +25% from last week
+                  {weeklyRevenueChange >= 0 ? "+" : ""}
+                  {weeklyRevenueChange.toFixed(2)}% from last week
                 </div>
               </CardContent>
               <CardFooter>
-                <Progress value={25} aria-label="25% increase" />
+                <Progress
+                  value={Math.abs(weeklyRevenueChange)}
+                  aria-label={`${Math.abs(weeklyRevenueChange)}% change`}
+                />
               </CardFooter>
             </Card>
-            <Card x-chunk="dashboard-01-chunk-1">
+            <Card>
               <CardHeader className="pb-2">
                 <CardDescription>This Month</CardDescription>
-                <CardTitle className="text-4xl">$5,329</CardTitle>
+                <CardTitle className="text-4xl">
+                  ${monthlyRevenue.toFixed(2)}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-xs text-muted-foreground">
-                  +10% from last month
+                  {monthlyRevenueChange >= 0 ? "+" : ""}
+                  {monthlyRevenueChange.toFixed(2)}% from last month
                 </div>
               </CardContent>
               <CardFooter>
-                <Progress value={12} aria-label="12% increase" />
+                <Progress
+                  value={Math.abs(monthlyRevenueChange)}
+                  aria-label={`${Math.abs(monthlyRevenueChange)}% change`}
+                />
               </CardFooter>
             </Card>
             <Card x-chunk="dashboard-01-chunk-2">
@@ -253,13 +520,13 @@ export default function Dashboard() {
         <h2 className="text-xl font-semibold mb-4">Sales Analytics</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
           <div className="w-full">
-            <TopSellingServicesChart />
+            <TopSellingServicesChart allShoeings={allShoeings} />
           </div>
           <div className="w-full">
-            <TopSellingAddonsChart />
+            <TopSellingAddonsChart allShoeings={allShoeings as any} />
           </div>
           <div className="w-full">
-            <LocationRevenueChart />
+            <LocationRevenueChart allShoeings={allShoeings as any} />
           </div>
         </div>
       </div>

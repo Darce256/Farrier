@@ -110,53 +110,23 @@ const CustomLabel = ({
   );
 };
 
-export default function TopSellingServicesChart() {
+interface Props {
+  allShoeings: Shoeing[];
+}
+
+export default function TopSellingServicesChart({ allShoeings }: Props) {
   const [data, setData] = useState<ServiceData[]>([]);
   const [dateRange, setDateRange] = useState<
     { from: string | null; to: string | null } | undefined
   >(undefined);
-  const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
   const isMobile = useMediaQuery("(max-width: 640px)");
-
-  useEffect(() => {
-    fetchAllShoeings();
-  }, []);
 
   useEffect(() => {
     if (allShoeings.length > 0) {
       processData();
     }
   }, [dateRange, allShoeings]);
-
-  async function fetchAllShoeings() {
-    const { data, error } = await supabase
-      .from("shoeings")
-      .select('"Base Service", "Cost of Service", "Date of Service"');
-
-    if (error) {
-      console.error("Error fetching shoeings:", error);
-      return;
-    }
-
-    // Filter out any invalid entries
-    const validShoeings = data.filter(
-      (shoeing) =>
-        shoeing["Base Service"] &&
-        shoeing["Cost of Service"] &&
-        shoeing["Date of Service"]
-    );
-
-    if (validShoeings.length < data.length) {
-      console.warn(
-        `Filtered out ${data.length - validShoeings.length} invalid shoeings`
-      );
-    }
-
-    console.log("Sample shoeing data:", validShoeings.slice(0, 5));
-
-    setAllShoeings(validShoeings);
-  }
 
   function processData() {
     console.log("Processing data with date range:", dateRange);
@@ -197,7 +167,6 @@ export default function TopSellingServicesChart() {
       const costString = shoeing["Cost of Service"];
 
       if (!service || !costString) {
-        console.warn(`Invalid shoeing data at index ${index}:`, shoeing);
         return; // Skip this iteration
       }
 

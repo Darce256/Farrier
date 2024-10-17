@@ -14,7 +14,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { supabase } from "@/lib/supabaseClient";
 import { DatePickerWithPresets } from "@/components/ui/date-picker";
 import { isWithinInterval, startOfDay, endOfDay } from "date-fns";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -112,18 +111,17 @@ const CustomLabel = ({
   );
 };
 
-export default function TopSellingAddonsChart() {
+interface Props {
+  allShoeings: Shoeing[];
+}
+
+export default function TopSellingAddonsChart({ allShoeings }: Props) {
   const [data, setData] = useState<AddonData[]>([]);
   const [dateRange, setDateRange] = useState<
     { from: string | null; to: string | null } | undefined
   >(undefined);
-  const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
   const [totalRevenue, setTotalRevenue] = useState<number>(0);
   const isMobile = useMediaQuery("(max-width: 640px)");
-
-  useEffect(() => {
-    fetchAllShoeings();
-  }, []);
 
   useEffect(() => {
     if (allShoeings.length > 0) {
@@ -131,42 +129,7 @@ export default function TopSellingAddonsChart() {
     }
   }, [dateRange, allShoeings]);
 
-  async function fetchAllShoeings() {
-    const { data, error } = await supabase
-      .from("shoeings")
-      .select(
-        '"Front Add-On\'s", "Hind Add-On\'s", "Cost of Front Add-Ons", "Cost of Hind Add-Ons", "Date of Service"'
-      );
-
-    if (error) {
-      console.error("Error fetching shoeings:", error);
-      return;
-    }
-
-    // Filter out any invalid entries
-    const validShoeings = data.filter(
-      (shoeing) =>
-        shoeing["Date of Service"] &&
-        (shoeing["Front Add-On's"] || shoeing["Hind Add-On's"])
-    );
-
-    if (validShoeings.length < data.length) {
-      console.warn(
-        `Filtered out ${data.length - validShoeings.length} invalid shoeings`
-      );
-    }
-
-    setAllShoeings(
-      validShoeings.map((shoeing) => ({
-        ...shoeing,
-        "Cost of Hind Add-On's": shoeing["Cost of Hind Add-Ons"],
-      }))
-    );
-  }
-
   function processData() {
-    console.log("Processing data with date range:", dateRange);
-
     let filteredShoeings = allShoeings;
 
     if (dateRange?.from && dateRange?.to) {
@@ -174,10 +137,6 @@ export default function TopSellingAddonsChart() {
       const toDate = endOfDay(new Date(dateRange.to));
 
       filteredShoeings = allShoeings.filter((shoeing) => {
-        if (!shoeing["Date of Service"]) {
-          console.warn("Shoeing with no date:", shoeing);
-          return false;
-        }
         const [month, day, year] = shoeing["Date of Service"].split("/");
         const shoeingDate = new Date(
           parseInt(year),
@@ -186,29 +145,19 @@ export default function TopSellingAddonsChart() {
         );
         return isWithinInterval(shoeingDate, { start: fromDate, end: toDate });
       });
-
-      console.log("Date range:", { fromDate, toDate });
-      console.log(
-        "Sample shoeing date:",
-        filteredShoeings[0]?.["Date of Service"]
-      );
-    } else {
-      console.log("Showing all time data");
     }
-
-    console.log(`Filtered shoeings: ${filteredShoeings.length}`);
 
     const addonData: { [key: string]: number } = {};
     let revenue = 0;
 
-    filteredShoeings.forEach((shoeing: any, _index: number) => {
+    filteredShoeings.forEach((shoeing) => {
       const frontAddons = shoeing["Front Add-On's"]?.split(",") || [];
       const hindAddons = shoeing["Hind Add-On's"]?.split(",") || [];
       const frontCost = parseFloat(
         shoeing["Cost of Front Add-Ons"]?.replace("$", "").trim() || "0"
       );
       const hindCost = parseFloat(
-        shoeing["Cost of Hind Add-Ons"]?.replace("$", "").trim() || "0"
+        shoeing["Cost of Hind Add-On's"]?.replace("$", "").trim() || "0"
       );
 
       [...frontAddons, ...hindAddons].forEach((addon) => {
@@ -233,8 +182,6 @@ export default function TopSellingAddonsChart() {
       }))
       .sort((a, b) => b.value - a.value)
       .slice(0, 5); // Get top 5 add-ons
-
-    console.log("Chart data:", chartData);
 
     setData(chartData);
   }
