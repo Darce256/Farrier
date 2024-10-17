@@ -23,6 +23,7 @@ import { useNavigate } from "react-router-dom";
 import TopSellingServicesChart from "@/components/ui/TopSellingServicesChart";
 import TopSellingAddonsChart from "@/components/ui/TopSellingAddonsChart";
 import LocationRevenueChart from "../ui/LocationRevenueChart";
+import TopProductsChart from "@/components/ui/TopProductsChart";
 
 interface Shoeing {
   "Base Service": string;
@@ -54,7 +55,7 @@ export default function Dashboard() {
   const [past7DaysRevenueChange, setPast7DaysRevenueChange] = useState(0);
   const [quarterlyRevenue, setQuarterlyRevenue] = useState(0);
   const [quarterlyRevenueChange, setQuarterlyRevenueChange] = useState(0);
-  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [, setTopProducts] = useState<TopProduct[]>([]);
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -903,50 +904,7 @@ export default function Dashboard() {
             </Card>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Top Product</CardDescription>
-                <CardTitle className="text-4xl">
-                  {topProducts.length > 0 ? topProducts[0].name : "N/A"}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {topProducts.length > 0 && (
-                  <div className="text-xs text-muted-foreground mb-4">
-                    {formatCurrency(topProducts[0].revenue)} (
-                    {topProducts[0].percentage.toFixed(2)}% of total revenue)
-                  </div>
-                )}
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-md text-gray-400">
-                        Product
-                      </TableHead>
-                      <TableHead className="text-md text-gray-400">
-                        Revenue
-                      </TableHead>
-                      <TableHead className="text-md text-gray-400">
-                        Percentage
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {topProducts.map((product, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          <div className={index === 0 ? "font-medium" : ""}>
-                            {product.name}
-                          </div>
-                        </TableCell>
-                        <TableCell>{formatCurrency(product.revenue)}</TableCell>
-                        <TableCell>{product.percentage.toFixed(2)}%</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <TopProductsChart allShoeings={allShoeings} />
 
             <Card x-chunk="dashboard-01-chunk-5">
               <CardHeader className="pb-2">
@@ -1016,14 +974,12 @@ export default function Dashboard() {
       <div className="mt-8">
         <h2 className="text-xl font-semibold mb-4">Sales Analytics</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 w-full">
+          <LocationRevenueChart allShoeings={allShoeings} />
           <div className="w-full">
             <TopSellingServicesChart allShoeings={allShoeings} />
           </div>
           <div className="w-full">
             <TopSellingAddonsChart allShoeings={allShoeings as any} />
-          </div>
-          <div className="w-full">
-            <LocationRevenueChart allShoeings={allShoeings as any} />
           </div>
         </div>
       </div>
