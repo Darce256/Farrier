@@ -35,12 +35,18 @@ interface Shoeing {
   "Location of Service": string;
 }
 
+interface TopProduct {
+  name: string;
+  revenue: number;
+  percentage: number;
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [pendingShoeingsCount, setPendingShoeingsCount] = useState(0);
   const [weeklyRevenue, setWeeklyRevenue] = useState(0);
-  const [weeklyRevenueChange, setWeeklyRevenueChange] = useState(0);
+  const [, setWeeklyRevenueChange] = useState(0);
   const [monthlyRevenue, setMonthlyRevenue] = useState(0);
   const [monthlyRevenueChange, setMonthlyRevenueChange] = useState(0);
   const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
@@ -48,6 +54,7 @@ export default function Dashboard() {
   const [past7DaysRevenueChange, setPast7DaysRevenueChange] = useState(0);
   const [quarterlyRevenue, setQuarterlyRevenue] = useState(0);
   const [quarterlyRevenueChange, setQuarterlyRevenueChange] = useState(0);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
 
   useEffect(() => {
     if (!user?.isAdmin) {
@@ -64,6 +71,7 @@ export default function Dashboard() {
       calculateMonthlyRevenue();
       calculatePast7DaysRevenue();
       calculateQuarterlyRevenue();
+      setTopProducts(calculateTopProducts());
     }
   }, [allShoeings]);
 
@@ -145,7 +153,7 @@ export default function Dashboard() {
     console.log("Total shoeings:", allShoeings.length);
 
     let includedCount = 0;
-    const thisWeekRevenue = allShoeings.reduce((sum, shoeing, index) => {
+    const thisWeekRevenue = allShoeings.reduce((sum, shoeing, _index) => {
       const dateOfService = shoeing["Date of Service"];
       const baseCostString = shoeing["Cost of Service"];
       const frontAddOnCostString = shoeing["Cost of Front Add-Ons"];
@@ -728,6 +736,70 @@ export default function Dashboard() {
     );
   }
 
+  function calculateTopProducts(): TopProduct[] {
+    const productMap = new Map<string, number>();
+    let totalRevenue = 0;
+
+    allShoeings.forEach((shoeing) => {
+      const baseService = shoeing["Base Service"];
+      const baseCostString = shoeing["Cost of Service"];
+
+      if (baseService && baseCostString) {
+        const baseCost = parseFloat(baseCostString.replace("$", "").trim());
+        if (!isNaN(baseCost)) {
+          productMap.set(
+            baseService,
+            (productMap.get(baseService) || 0) + baseCost
+          );
+          totalRevenue += baseCost;
+        }
+      }
+
+      const frontAddOns = shoeing["Front Add-On's"];
+      const frontAddOnCostString = shoeing["Cost of Front Add-Ons"];
+
+      if (frontAddOns && frontAddOnCostString) {
+        const frontAddOnCost = parseFloat(
+          frontAddOnCostString.replace("$", "").trim()
+        );
+        if (!isNaN(frontAddOnCost)) {
+          productMap.set(
+            frontAddOns,
+            (productMap.get(frontAddOns) || 0) + frontAddOnCost
+          );
+          totalRevenue += frontAddOnCost;
+        }
+      }
+
+      const hindAddOns = shoeing["Hind Add-On's"];
+      const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
+
+      if (hindAddOns && hindAddOnCostString) {
+        const hindAddOnCost = parseFloat(
+          hindAddOnCostString.replace("$", "").trim()
+        );
+        if (!isNaN(hindAddOnCost)) {
+          productMap.set(
+            hindAddOns,
+            (productMap.get(hindAddOns) || 0) + hindAddOnCost
+          );
+          totalRevenue += hindAddOnCost;
+        }
+      }
+    });
+
+    const sortedProducts = Array.from(productMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([name, revenue]) => ({
+        name,
+        revenue,
+        percentage: (revenue / totalRevenue) * 100,
+      }));
+
+    return sortedProducts;
+  }
+
   // Helper function to format currency
   const formatCurrency = (amount: number) => {
     return amount.toLocaleString("en-US", {
@@ -830,67 +902,52 @@ export default function Dashboard() {
               </CardFooter>
             </Card>
           </div>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <Card x-chunk="dashboard-01-chunk-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Card>
               <CardHeader className="pb-2">
-                <CardDescription>Top Products</CardDescription>
-                <CardTitle className="text-4xl ">Full Shoeing</CardTitle>
+                <CardDescription>Top Product</CardDescription>
+                <CardTitle className="text-4xl">
+                  {topProducts.length > 0 ? topProducts[0].name : "N/A"}
+                </CardTitle>
               </CardHeader>
               <CardContent>
+                {topProducts.length > 0 && (
+                  <div className="text-xs text-muted-foreground mb-4">
+                    {formatCurrency(topProducts[0].revenue)} (
+                    {topProducts[0].percentage.toFixed(2)}% of total revenue)
+                  </div>
+                )}
                 <Table>
                   <TableHeader>
-                    <TableRow className="">
+                    <TableRow>
                       <TableHead className="text-md text-gray-400">
                         Product
                       </TableHead>
                       <TableHead className="text-md text-gray-400">
-                        Sales
+                        Revenue
                       </TableHead>
                       <TableHead className="text-md text-gray-400">
-                        Revenue
+                        Percentage
                       </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Full Shoeing</div>
-                      </TableCell>
-                      <TableCell>25</TableCell>
-                      <TableCell>$499.99</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Horse Spaghetti</div>
-                      </TableCell>
-                      <TableCell>100</TableCell>
-                      <TableCell>$129.99</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Glue Sticks</div>
-                      </TableCell>
-                      <TableCell>50</TableCell>
-                      <TableCell>$39.99</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Cowboy Hats</div>
-                      </TableCell>
-                      <TableCell>75</TableCell>
-                      <TableCell>$59.99</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell>
-                        <div className="font-medium">Ponytail Extensions</div>
-                      </TableCell>
-                      <TableCell>30</TableCell>
-                      <TableCell>$199.99</TableCell>
-                    </TableRow>
+                    {topProducts.map((product, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <div className={index === 0 ? "font-medium" : ""}>
+                            {product.name}
+                          </div>
+                        </TableCell>
+                        <TableCell>{formatCurrency(product.revenue)}</TableCell>
+                        <TableCell>{product.percentage.toFixed(2)}%</TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
+
             <Card x-chunk="dashboard-01-chunk-5">
               <CardHeader className="pb-2">
                 <CardDescription>Top Customers</CardDescription>
