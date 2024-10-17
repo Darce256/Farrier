@@ -323,11 +323,9 @@ export default function HorseProfile() {
                           dangerouslySetInnerHTML={{
                             __html: note.content.replace(
                               /@\[(.*?)\](?:\((.*?)\))?/g,
-                              (name) => {
+                              (_match, name) => {
                                 const cleanName = name.split(" - ")[0].trim();
-                                return cleanName === horse.Name.trim()
-                                  ? `<strong>${cleanName}</strong>`
-                                  : cleanName;
+                                return `<strong>${cleanName}</strong>`;
                               }
                             ),
                           }}
