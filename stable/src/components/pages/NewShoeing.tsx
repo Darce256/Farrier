@@ -172,6 +172,11 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
         {shoeing["Hind Add-On's"] && (
           <div className="text-gray-500">Hind: {shoeing["Hind Add-On's"]}</div>
         )}
+        {shoeing["Other Custom Services"] && (
+          <div className="text-gray-500">
+            Custom: {shoeing["Other Custom Services"]}
+          </div>
+        )}
       </>
     );
   };
@@ -190,75 +195,6 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
           className="absolute left-7 sm:left-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none"
           size={20}
         />
-      </div>
-      <div className="mb-4 sm:hidden">
-        {filteredShoeings.length > 0 ? (
-          filteredShoeings.map((shoeing: any) => (
-            <Card key={shoeing.id} className="mx-4">
-              <CardContent className="pt-4">
-                <div className="flex justify-between items-start mb-2">
-                  <div>
-                    <p className="text-lg font-bold text-black mb-1">
-                      {shoeing["Horse Name"]}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {new Date(
-                        shoeing["Date of Service"]
-                      ).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {shoeing.Horses.split(" - ")[1]
-                        ?.replace(/[\[\]]/g, "")
-                        .trim() || "No Barn/Trainer"}
-                    </p>
-                  </div>
-                  <span
-                    className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
-                      shoeing.status === "completed"
-                        ? "bg-green-100 text-green-800"
-                        : shoeing.status === "cancelled"
-                        ? "bg-red-100 text-red-800"
-                        : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {shoeing.status.charAt(0).toUpperCase() +
-                      shoeing.status.slice(1)}
-                  </span>
-                </div>
-                {renderServices(shoeing)}
-                <p className="text-sm text-gray-500 mt-1">
-                  {shoeing["Location of Service"]}
-                </p>
-                <div className="mt-4 flex justify-end space-x-2">
-                  <Button
-                    onClick={() => onEdit(shoeing)}
-                    className="w-1/2"
-                    variant="outline"
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Button>
-                  {shoeing.status === "pending" && (
-                    <Button
-                      variant="destructive"
-                      onClick={() => openDeleteConfirm(shoeing.id)}
-                      className="w-1/2"
-                    >
-                      <Trash className="h-4 w-4 mr-2" />
-                      Delete
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        ) : (
-          <Card className="mx-4">
-            <CardContent className="pt-4">
-              <p className="text-center text-gray-500">No shoeings available</p>
-            </CardContent>
-          </Card>
-        )}
       </div>
       <div className="hidden sm:block overflow-x-auto">
         <table className="w-full min-w-full divide-y divide-gray-300">
@@ -281,6 +217,12 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                 className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
               >
                 Status
+              </th>
+              <th
+                scope="col"
+                className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900"
+              >
+                Notes
               </th>
               <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
                 <span className="sr-only">Actions</span>
@@ -320,6 +262,19 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                         shoeing.status.slice(1)}
                     </span>
                   </td>
+                  <td className="px-3 py-4 text-sm text-gray-500">
+                    {shoeing["Shoe Notes"] && (
+                      <div className="mb-2">
+                        <strong>Shoeing Notes:</strong> {shoeing["Shoe Notes"]}
+                      </div>
+                    )}
+                    {shoeing["Other Custom Services"] && (
+                      <div>
+                        <strong>Custom Services:</strong>{" "}
+                        {shoeing["Other Custom Services"]}
+                      </div>
+                    )}
+                  </td>
                   <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                     <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
                       <Button
@@ -347,7 +302,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
             ) : (
               <tr>
                 <td
-                  colSpan={4}
+                  colSpan={5}
                   className="px-3 py-4 text-sm text-gray-500 text-center"
                 >
                   No shoeings available
@@ -356,6 +311,91 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
             )}
           </tbody>
         </table>
+      </div>
+      <div className="mb-4 sm:hidden">
+        {filteredShoeings.length > 0 ? (
+          filteredShoeings.map((shoeing: any) => (
+            <Card key={shoeing.id} className="mx-4 mb-4">
+              <CardContent className="pt-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div>
+                    <p className="text-lg font-bold text-black mb-1">
+                      {shoeing["Horse Name"]}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(
+                        shoeing["Date of Service"]
+                      ).toLocaleDateString()}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {shoeing.Horses.split(" - ")[1]
+                        ?.replace(/[\[\]]/g, "")
+                        .trim() || "No Barn/Trainer"}
+                    </p>
+                  </div>
+                  <span
+                    className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
+                      shoeing.status === "completed"
+                        ? "bg-green-100 text-green-800"
+                        : shoeing.status === "cancelled"
+                        ? "bg-red-100 text-red-800"
+                        : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {shoeing.status.charAt(0).toUpperCase() +
+                      shoeing.status.slice(1)}
+                  </span>
+                </div>
+                {renderServices(shoeing)}
+                <p className="text-sm text-gray-500 mt-1">
+                  {shoeing["Location of Service"]}
+                </p>
+                {shoeing["Shoe Notes"] && (
+                  <div className="mt-2">
+                    <p className="text-sm font-semibold">Shoeing Notes:</p>
+                    <p className="text-sm text-gray-500">
+                      {shoeing["Shoe Notes"]}
+                    </p>
+                  </div>
+                )}
+                {shoeing["Other Custom Services"] && (
+                  <div className="mt-2">
+                    <p className="text-sm font-semibold">Custom Services:</p>
+                    <p className="text-sm text-gray-500">
+                      {shoeing["Other Custom Services"]}
+                    </p>
+                  </div>
+                )}
+                <div className="mt-4 flex justify-end space-x-2">
+                  <Button
+                    onClick={() => onEdit(shoeing)}
+                    className="w-1/2"
+                    variant="outline"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                  {shoeing.status === "pending" && (
+                    <Button
+                      variant="destructive"
+                      onClick={() => openDeleteConfirm(shoeing.id)}
+                      className="w-1/2"
+                    >
+                      <Trash className="h-4 w-4 mr-2" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <Card className="mx-4">
+            <CardContent className="pt-4">
+              <p className="text-center text-gray-500">No shoeings available</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent className="sm:max-w-[425px] mx-auto rounded-lg sm:rounded-lg p-4 sm:p-6 w-[calc(100%-2rem)] sm:w-full">
@@ -521,6 +561,24 @@ export default function ShoeingForm() {
 
   const [submittedShoeingsKey, setSubmittedShoeingsKey] = useState(0);
 
+  const parseAddOns = useMemo(() => {
+    return (
+      addOnsString: string | string[] | null,
+      validAddOns: string[]
+    ): string[] => {
+      if (!addOnsString) return [];
+
+      let addOnsArray = Array.isArray(addOnsString)
+        ? addOnsString
+        : [addOnsString];
+
+      return addOnsArray.flatMap((item) => {
+        const foundAddOns = validAddOns.filter((addOn) => item.includes(addOn));
+        return foundAddOns.length > 0 ? foundAddOns : item.trim();
+      });
+    };
+  }, []); // Empty dependency array as this function doesn't depend on any props or state
+
   useEffect(() => {
     async function fetchData() {
       await Promise.all([
@@ -563,21 +621,8 @@ export default function ShoeingForm() {
         return;
       }
 
-      // Parse the add-ons strings into arrays
-      const parseAddOns = (
-        addOnsString: string | string[] | null
-      ): string[] => {
-        if (!addOnsString) return [];
-        if (Array.isArray(addOnsString)) {
-          return addOnsString.flatMap((item) =>
-            item.split(/\s+and\s+/).map((s) => s.trim())
-          );
-        }
-        return addOnsString.split(/\s+and\s+/).map((s) => s.trim());
-      };
-
-      const frontAddOns = parseAddOns(editingShoeing["Front Add-On's"]);
-      const hindAddOns = parseAddOns(editingShoeing["Hind Add-On's"]);
+      const frontAddOns = parseAddOns(editingShoeing["Front Add-On's"], addOns);
+      const hindAddOns = parseAddOns(editingShoeing["Hind Add-On's"], addOns);
 
       console.log("Front Add-Ons (parsed):", frontAddOns);
       console.log("Hind Add-Ons (parsed):", hindAddOns);
@@ -602,7 +647,7 @@ export default function ShoeingForm() {
 
       console.log("Form values after reset:", form.getValues());
     }
-  }, [editingShoeing, form, horses]);
+  }, [editingShoeing, form, horses, addOns, parseAddOns]);
 
   const handleEdit = (shoeing: any) => {
     console.log("Editing shoeing:", shoeing);
