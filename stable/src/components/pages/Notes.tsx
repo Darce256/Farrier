@@ -44,14 +44,36 @@ export default function Notes() {
         setUserProfiles(userData);
       }
 
-      const { data: horseData, error: horseError } = await supabase
-        .from("horses")
-        .select('id, Name, "Barn / Trainer"');
-      if (horseError) {
-        console.error("Error fetching horse profiles:", horseError);
-      } else {
-        setHorseProfiles(horseData);
+      let allHorses: HorseProfile[] = [];
+      let lastFetchedIndex = 0;
+      const pageSize = 1000; // Adjust this value based on your needs
+
+      while (true) {
+        const { data: horseData, error: horseError } = await supabase
+          .from("horses")
+          .select('id, Name, "Barn / Trainer"')
+          .range(lastFetchedIndex, lastFetchedIndex + pageSize - 1);
+
+        if (horseError) {
+          console.error("Error fetching horse profiles:", horseError);
+          break;
+        }
+
+        if (horseData && horseData.length > 0) {
+          allHorses = [...allHorses, ...horseData];
+          lastFetchedIndex += horseData.length;
+
+          if (horseData.length < pageSize) {
+            // We've fetched all horses
+            break;
+          }
+        } else {
+          // No more horses to fetch
+          break;
+        }
       }
+
+      setHorseProfiles(allHorses);
     };
     fetchProfiles();
   }, []);

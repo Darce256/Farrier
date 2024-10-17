@@ -965,6 +965,27 @@ function HorseDetailsModal({
     );
   };
 
+  const formatNote = (note: string) => {
+    const parts = note.split(":");
+    const date = parts[0];
+    let content = parts.slice(1).join(":").trim();
+
+    // Remove @, [], and IDs from horse and user tags
+    content = content.replace(/@\[(.*?)\]\([^)]*\)/g, "<strong>$1</strong>");
+
+    return (
+      <div className="border border-gray-400 p-2 rounded-md mb-2">
+        <p className="text-sm">
+          <span className="font-semibold">{date}:</span>{" "}
+          <span
+            className="text-sm"
+            dangerouslySetInnerHTML={{ __html: content }}
+          />
+        </p>
+      </div>
+    );
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
@@ -1122,16 +1143,9 @@ function HorseDetailsModal({
                         </AccordionTrigger>
                         <AccordionContent>
                           {notes.map((note, index) => (
-                            <div className="border border-gray-400 p-2 rounded-md mb-2">
-                              <p key={index} className=" text-sm">
-                                <span className="font-semibold">
-                                  {note.split(":")[0]}:
-                                </span>{" "}
-                                <span className="text-sm">
-                                  {note.split(":")[1]}
-                                </span>
-                              </p>
-                            </div>
+                            <React.Fragment key={index}>
+                              {formatNote(note)}
+                            </React.Fragment>
                           ))}
                         </AccordionContent>
                       </AccordionItem>
