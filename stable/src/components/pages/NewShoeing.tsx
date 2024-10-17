@@ -160,6 +160,22 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
         .includes(searchTerm.toLowerCase())
   );
 
+  const renderServices = (shoeing: any) => {
+    return (
+      <>
+        <div className="text-gray-500">{shoeing["Base Service"]}</div>
+        {shoeing["Front Add-On's"] && (
+          <div className="text-gray-500">
+            Front: {shoeing["Front Add-On's"]}
+          </div>
+        )}
+        {shoeing["Hind Add-On's"] && (
+          <div className="text-gray-500">Hind: {shoeing["Hind Add-On's"]}</div>
+        )}
+      </>
+    );
+  };
+
   return (
     <div className="w-full">
       <div className="mb-4 px-4 sm:px-0 relative">
@@ -190,7 +206,6 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                         shoeing["Date of Service"]
                       ).toLocaleDateString()}
                     </p>
-                    {/* Add Barn/Trainer information */}
                     <p className="text-sm text-gray-600">
                       {shoeing.Horses.split(" - ")[1]
                         ?.replace(/[\[\]]/g, "")
@@ -210,8 +225,10 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                       shoeing.status.slice(1)}
                   </span>
                 </div>
-                <p className="text-sm">{shoeing["Base Service"]}</p>
-                <p className="text-sm">{shoeing["Location of Service"]}</p>
+                {renderServices(shoeing)}
+                <p className="text-sm text-gray-500 mt-1">
+                  {shoeing["Location of Service"]}
+                </p>
                 <div className="mt-4 flex justify-end space-x-2">
                   <Button
                     onClick={() => onEdit(shoeing)}
@@ -284,9 +301,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                         ?.replace(/[\[\]]/g, "")
                         .trim() || "No Barn/Trainer"}
                     </div>
-                    <div className="text-gray-500">
-                      {shoeing["Base Service"]}
-                    </div>
+                    {renderServices(shoeing)}
                     <div className="text-gray-500">
                       {shoeing["Location of Service"]}
                     </div>
