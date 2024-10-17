@@ -563,17 +563,32 @@ export default function ShoeingForm() {
         return;
       }
 
+      // Parse the add-ons strings into arrays
+      const parseAddOns = (
+        addOnsString: string | string[] | null
+      ): string[] => {
+        if (!addOnsString) return [];
+        if (Array.isArray(addOnsString)) {
+          return addOnsString.flatMap((item) =>
+            item.split(/\s+and\s+/).map((s) => s.trim())
+          );
+        }
+        return addOnsString.split(/\s+and\s+/).map((s) => s.trim());
+      };
+
+      const frontAddOns = parseAddOns(editingShoeing["Front Add-On's"]);
+      const hindAddOns = parseAddOns(editingShoeing["Hind Add-On's"]);
+
+      console.log("Front Add-Ons (parsed):", frontAddOns);
+      console.log("Hind Add-Ons (parsed):", hindAddOns);
+
       form.reset({
         horseName: selectedHorse.id,
         dateOfService: new Date(editingShoeing["Date of Service"]),
         locationOfService: editingShoeing["Location of Service"],
         baseService: editingShoeing["Base Service"],
-        frontAddOns: editingShoeing["Front Add-On's"]
-          ? editingShoeing["Front Add-On's"].split(" and ")
-          : [],
-        hindAddOns: editingShoeing["Hind Add-On's"]
-          ? editingShoeing["Hind Add-On's"].split(" and ")
-          : [],
+        frontAddOns: frontAddOns,
+        hindAddOns: hindAddOns,
         customServices: editingShoeing["Other Custom Services"] || "",
         shoeingNotes: editingShoeing["Shoe Notes"] || "",
       });
@@ -584,6 +599,8 @@ export default function ShoeingForm() {
 
       // Force re-render of all form components
       setForceUpdate((prev) => !prev);
+
+      console.log("Form values after reset:", form.getValues());
     }
   }, [editingShoeing, form, horses]);
 
@@ -727,11 +744,20 @@ export default function ShoeingForm() {
 
       console.log("Selected horse:", selectedHorse);
 
-      const frontAddOns = values.frontAddOns || [];
-      const hindAddOns = values.hindAddOns || [];
+      const joinAddOns = (addOns: string[] | undefined): string => {
+        return addOns ? addOns.join(" and ") : "";
+      };
+
+      const frontAddOns = joinAddOns(values.frontAddOns);
+      const hindAddOns = joinAddOns(values.hindAddOns);
 
       // Recalculate costs
-      const allAddOns = [...new Set([...frontAddOns, ...hindAddOns])];
+      const allAddOns = [
+        ...new Set([
+          ...frontAddOns.split(" and "),
+          ...hindAddOns.split(" and "),
+        ]),
+      ];
       const { data: pricesData, error: pricesError } = await supabase
         .from("prices")
         .select("*")
@@ -758,11 +784,11 @@ export default function ShoeingForm() {
 
       baseServiceCost = priceMap.get(values.baseService) || 0;
 
-      frontAddOns.forEach((addOn) => {
+      frontAddOns.split(" and ").forEach((addOn) => {
         frontAddOnsCost += priceMap.get(addOn) || 0;
       });
 
-      hindAddOns.forEach((addOn) => {
+      hindAddOns.split(" and ").forEach((addOn) => {
         hindAddOnsCost += priceMap.get(addOn) || 0;
       });
 
@@ -777,11 +803,11 @@ export default function ShoeingForm() {
 
       // Create the updated description
       let description = `${selectedHorse.name} - ${values.baseService}`;
-      if (frontAddOns.length > 0) {
-        description += ` with front add-ons: ${frontAddOns.join(" and ")}`;
+      if (frontAddOns) {
+        description += ` with front add-ons: ${frontAddOns}`;
       }
-      if (hindAddOns.length > 0) {
-        description += ` and hind add-ons: ${hindAddOns.join(" and ")}`;
+      if (hindAddOns) {
+        description += ` and hind add-ons: ${hindAddOns}`;
       }
 
       const shoeingData = {
@@ -790,8 +816,8 @@ export default function ShoeingForm() {
         "Date of Service": format(values.dateOfService, "MM/dd/yyyy"),
         "Location of Service": values.locationOfService,
         "Base Service": values.baseService,
-        "Front Add-On's": frontAddOns.join(" and "),
-        "Hind Add-On's": hindAddOns.join(" and "),
+        "Front Add-On's": frontAddOns,
+        "Hind Add-On's": hindAddOns,
         "Other Custom Services": values.customServices,
         "Shoe Notes": values.shoeingNotes,
         "Cost of Service": baseServiceCost,
@@ -807,22 +833,46 @@ export default function ShoeingForm() {
 
       console.log("Prepared shoeingData:", shoeingData);
 
-      const { data, error } = await supabase
-        .from("shoeings")
-        .insert([shoeingData])
-        .select();
+      let result;
+      if (editingShoeing) {
+        // Update existing shoeing
+        const { data, error } = await supabase
+          .from("shoeings")
+          .update(shoeingData)
+          .eq("id", editingShoeing.id)
+          .select();
+        result = { data, error };
+        console.log("Updating existing shoeing:", editingShoeing.id);
+      } else {
+        // Insert new shoeing
+        const { data, error } = await supabase
+          .from("shoeings")
+          .insert([shoeingData])
+          .select();
+        result = { data, error };
+        console.log("Inserting new shoeing");
+      }
 
-      console.log("Supabase operation result - data:", data, "error:", error);
+      console.log(
+        "Supabase operation result - data:",
+        result.data,
+        "error:",
+        result.error
+      );
 
-      if (error) throw error;
+      if (result.error) throw result.error;
 
-      if (!data || data.length === 0) {
+      if (!result.data || result.data.length === 0) {
         console.log("No data returned from Supabase operation");
         throw new Error("No data returned from database operation");
       }
 
-      console.log("Shoeing record saved successfully:", data);
-      toast.success("Shoeing record added successfully!");
+      console.log("Shoeing record saved successfully:", result.data);
+      toast.success(
+        editingShoeing
+          ? "Shoeing record updated successfully!"
+          : "Shoeing record added successfully!"
+      );
 
       // Reset form and clear all values
       form.reset({
@@ -839,9 +889,6 @@ export default function ShoeingForm() {
       // Clear any selected values in dropdowns or multi-selects
       setSelectedLocation("");
       setSelectedBaseService("");
-      // If you have state for selected add-ons, reset those too
-      // setSelectedFrontAddOns([]);
-      // setSelectedHindAddOns([]);
 
       // Reset editing state
       setEditingShoeing(null);
@@ -1225,16 +1272,20 @@ export default function ShoeingForm() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Front Add-On's</FormLabel>
-                            <MultiSelect
-                              options={addOns.map((addOn) => ({
-                                value: addOn,
-                                label: addOn,
-                              }))}
-                              onValueChange={(values) => field.onChange(values)}
-                              selected={field.value}
-                              placeholder="Select front add-on's"
-                              key={`front-${forceUpdate}`}
-                            />
+                            <FormControl>
+                              <MultiSelect
+                                {...field}
+                                options={addOns.map((addOn) => ({
+                                  value: addOn,
+                                  label: addOn,
+                                }))}
+                                onValueChange={(values) =>
+                                  field.onChange(values)
+                                }
+                                selected={field.value || []}
+                                placeholder="Select front add-ons"
+                              />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
