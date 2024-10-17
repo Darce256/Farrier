@@ -501,10 +501,6 @@ function SentThisMonth() {
                     <p className="text-sm">{shoeing["Shoe Notes"]}</p>
                   </div>
                 )}
-
-                <p className="text-sm font-semibold mt-2">
-                  Total: ${shoeing["Total Cost"]}
-                </p>
               </CardContent>
             </Card>
           ))}
