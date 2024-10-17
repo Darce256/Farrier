@@ -22,6 +22,7 @@ import { useAuth } from "@/components/Contexts/AuthProvider";
 import { useNavigate } from "react-router-dom";
 import TopSellingServicesChart from "@/components/ui/TopSellingServicesChart";
 import TopSellingAddonsChart from "@/components/ui/TopSellingAddonsChart";
+import LocationRevenueChart from "../ui/LocationRevenueChart";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -256,6 +257,9 @@ export default function Dashboard() {
           </div>
           <div className="w-full">
             <TopSellingAddonsChart />
+          </div>
+          <div className="w-full">
+            <LocationRevenueChart />
           </div>
         </div>
       </div>
