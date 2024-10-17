@@ -124,13 +124,18 @@ export default function Horses() {
     console.log("Error:", queryError);
   }, [fetchedHorses, isLoading, queryError]);
 
-  const sortedHorses = useMemo(
-    () =>
-      fetchedHorses?.sort((a, b) =>
-        (a.Name || "").localeCompare(b.Name || "")
-      ) || [],
-    [fetchedHorses]
-  );
+  const sortedHorses = useMemo(() => {
+    return (
+      fetchedHorses?.sort((a, b) => {
+        // First, sort by alert status
+        if (a.alert && !b.alert) return -1;
+        if (!a.alert && b.alert) return 1;
+
+        // If alert status is the same, sort alphabetically
+        return (a.Name || "").localeCompare(b.Name || "");
+      }) || []
+    );
+  }, [fetchedHorses]);
 
   const uniqueBarnTrainers = useMemo(
     () =>
@@ -677,7 +682,7 @@ const HorseCard = React.memo(
               {horse.alert && (
                 <div className="flex items-start bg-red-100 text-red-700 p-2 rounded-md mt-2 text-xs">
                   <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
-                  <span className="line-clamp-2" title={horse.alert}>
+                  <span className="line-clamp-1" title={horse.alert}>
                     {horse.alert}
                   </span>
                 </div>
