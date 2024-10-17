@@ -57,6 +57,7 @@ interface Shoeing {
   "Date of Service": string;
   "Base Service": string;
   "Front Add-On's": string;
+  "Hind Add-On's": string;
   "Other Custom Services": string;
   "Location of Service": string;
   "Total Cost": number | string | null;
@@ -934,6 +935,12 @@ function HorseDetailsModal({
                           <p>
                             <strong>Front Add-On's:</strong>{" "}
                             {shoeing["Front Add-On's"]}
+                          </p>
+                        )}
+                        {shoeing["Hind Add-On's"] && (
+                          <p>
+                            <strong>Hind Add-On's:</strong>{" "}
+                            {shoeing["Hind Add-On's"]}
                           </p>
                         )}
                         {shoeing["Other Custom Services"] && (
