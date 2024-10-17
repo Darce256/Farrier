@@ -178,7 +178,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
         )}
         {shoeing["Other Custom Services"] && (
           <div className="text-gray-500">
-            <span className=" font-semibold">Custom Services:</span>
+            <span className=" font-semibold">Custom Services: </span>
             {shoeing["Other Custom Services"]}
           </div>
         )}
