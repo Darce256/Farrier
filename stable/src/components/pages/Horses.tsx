@@ -875,6 +875,13 @@ function HorseDetailsModal({
 
       if (shoeingsError) throw shoeingsError;
 
+      // Sort shoeings by date in descending order (most recent first)
+      const sortedShoeings = shoeingsData.sort(
+        (a, b) =>
+          new Date(b["Date of Service"]).getTime() -
+          new Date(a["Date of Service"]).getTime()
+      );
+
       // Process general notes
       const generalNotes = horseNotesData.map((item: any) => {
         const note = item.notes; // Access the nested notes object
@@ -883,7 +890,7 @@ function HorseDetailsModal({
       });
 
       // Process shoeing notes
-      const shoeingNotesArray = shoeingsData
+      const shoeingNotesArray = sortedShoeings
         .filter((shoeing) => shoeing["Shoe Notes"])
         .map(
           (shoeing) =>
@@ -894,7 +901,7 @@ function HorseDetailsModal({
 
       setNotes(generalNotes);
       setShoeingNotes(shoeingNotesArray);
-      setShoeings(shoeingsData);
+      setShoeings(sortedShoeings);
     } catch (error) {
       console.error("Error fetching notes:", error);
       toast.error("Failed to fetch notes");
