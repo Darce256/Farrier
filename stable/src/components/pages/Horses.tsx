@@ -52,7 +52,6 @@ import { FixedSizeGrid as Grid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { AlertCircle } from "lucide-react";
 import { useAuth } from "@/components/Contexts/AuthProvider";
-import { cp } from "fs";
 
 interface Shoeing {
   id: string;
@@ -64,10 +63,6 @@ interface Shoeing {
   "Location of Service": string;
   "Total Cost": number | string | null;
   "Shoe Notes": string;
-}
-
-interface XRayImagesResponse {
-  "x-ray-images": string[];
 }
 
 export default function Horses() {
@@ -819,6 +814,10 @@ function HorseDetailsModal({
     }
   }, [isOpen, horse]);
 
+  interface XRayData {
+    "x-ray-images"?: string[];
+  }
+
   async function fetchXRayImages() {
     try {
       const { data, error } = await supabase
@@ -829,17 +828,22 @@ function HorseDetailsModal({
 
       if (error) throw error;
 
-      // if (data && Array.isArray(data["x-ray-images"] as string[])) {
-      //   setXRayImages(data["x-ray-images"] as string[]);
-      // } else {
-      //   setXRayImages([]);
-      // }
+      if (data && isXRayData(data) && Array.isArray(data["x-ray-images"])) {
+        setXRayImages(data["x-ray-images"]);
+      } else {
+        setXRayImages([]);
+      }
     } catch (error) {
       console.error("Error fetching X-ray images:", error);
       setXRayImages([]);
     } finally {
       setIsLoadingXRays(false);
     }
+  }
+
+  // Add this type guard function
+  function isXRayData(obj: any): obj is XRayData {
+    return obj && typeof obj === "object" && "x-ray-images" in obj;
   }
 
   async function fetchAllNotes() {
@@ -1113,24 +1117,42 @@ function HorseDetailsModal({
                   <Accordion type="multiple" className="w-full">
                     {notes.length > 0 && (
                       <AccordionItem value="general-notes">
-                        <AccordionTrigger>General Notes</AccordionTrigger>
+                        <AccordionTrigger className="font-semibold">
+                          General Notes
+                        </AccordionTrigger>
                         <AccordionContent>
                           {notes.map((note, index) => (
-                            <p key={index} className="mb-2">
-                              {note}
-                            </p>
+                            <div className="border border-gray-400 p-2 rounded-md mb-2">
+                              <p key={index} className=" text-sm">
+                                <span className="font-semibold">
+                                  {note.split(":")[0]}:
+                                </span>{" "}
+                                <span className="text-sm">
+                                  {note.split(":")[1]}
+                                </span>
+                              </p>
+                            </div>
                           ))}
                         </AccordionContent>
                       </AccordionItem>
                     )}
                     {shoeingNotes.length > 0 && (
                       <AccordionItem value="shoeing-notes">
-                        <AccordionTrigger>Shoeing Notes</AccordionTrigger>
+                        <AccordionTrigger className="font-semibold">
+                          Shoeing Notes
+                        </AccordionTrigger>
                         <AccordionContent>
                           {shoeingNotes.map((note, index) => (
-                            <p key={index} className="mb-2">
-                              {note}
-                            </p>
+                            <div className="border border-gray-400 p-2 rounded-md mb-2">
+                              <p key={index} className="text-sm ">
+                                <span className="font-semibold">
+                                  {note.split(":")[0]}:
+                                </span>
+                                <span className="text-sm">
+                                  {note.split(":")[1]}
+                                </span>
+                              </p>
+                            </div>
                           ))}
                         </AccordionContent>
                       </AccordionItem>
@@ -1146,9 +1168,14 @@ function HorseDetailsModal({
                     value={newNote}
                     onChange={(e) => setNewNote(e.target.value)}
                     placeholder="Enter new note..."
-                    className="flex-grow"
+                    className="flex-grow bg-white"
                   />
-                  <Button onClick={handleAddNote}>Add</Button>
+                  <Button
+                    className="hover:bg-black hover:text-white"
+                    onClick={handleAddNote}
+                  >
+                    Add
+                  </Button>
                   <Button
                     variant="outline"
                     onClick={() => setIsAddingNote(false)}
@@ -1158,7 +1185,7 @@ function HorseDetailsModal({
                 </div>
               ) : (
                 <Button
-                  className="absolute bottom-4 right-4 rounded-full p-2"
+                  className="absolute bottom-4 right-4 rounded-full p-2 hover:bg-black hover:text-white"
                   onClick={() => setIsAddingNote(true)}
                 >
                   <Plus size={24} />
