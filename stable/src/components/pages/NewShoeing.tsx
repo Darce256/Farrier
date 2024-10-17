@@ -166,15 +166,20 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
         <div className="text-gray-500">{shoeing["Base Service"]}</div>
         {shoeing["Front Add-On's"] && (
           <div className="text-gray-500">
-            Front: {shoeing["Front Add-On's"]}
+            <span className=" font-semibold"> Front:</span>
+            {shoeing["Front Add-On's"]}
           </div>
         )}
         {shoeing["Hind Add-On's"] && (
-          <div className="text-gray-500">Hind: {shoeing["Hind Add-On's"]}</div>
+          <div className="text-gray-500">
+            <span className=" font-semibold">Hind: </span>
+            {shoeing["Hind Add-On's"]}
+          </div>
         )}
         {shoeing["Other Custom Services"] && (
           <div className="text-gray-500">
-            Custom: {shoeing["Other Custom Services"]}
+            <span className=" font-semibold">Custom Services:</span>
+            {shoeing["Other Custom Services"]}
           </div>
         )}
       </>
@@ -263,17 +268,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                     </span>
                   </td>
                   <td className="px-3 py-4 text-sm text-gray-500">
-                    {shoeing["Shoe Notes"] && (
-                      <div className="mb-2">
-                        <strong>Shoeing Notes:</strong> {shoeing["Shoe Notes"]}
-                      </div>
-                    )}
-                    {shoeing["Other Custom Services"] && (
-                      <div>
-                        <strong>Custom Services:</strong>{" "}
-                        {shoeing["Other Custom Services"]}
-                      </div>
-                    )}
+                    {shoeing["Shoe Notes"]}
                   </td>
                   <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                     <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
@@ -355,14 +350,6 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                     <p className="text-sm font-semibold">Shoeing Notes:</p>
                     <p className="text-sm text-gray-500">
                       {shoeing["Shoe Notes"]}
-                    </p>
-                  </div>
-                )}
-                {shoeing["Other Custom Services"] && (
-                  <div className="mt-2">
-                    <p className="text-sm font-semibold">Custom Services:</p>
-                    <p className="text-sm text-gray-500">
-                      {shoeing["Other Custom Services"]}
                     </p>
                   </div>
                 )}
