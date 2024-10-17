@@ -114,7 +114,7 @@ export default function Calendar() {
   const [selectedLocation, setSelectedLocation] = useState<string | undefined>(
     undefined
   );
-  const [horses, setHorses] = useState<Horse[]>([]);
+  const [horses] = useState<Horse[]>([]);
 
   const fetchAllShoeings = async () => {
     console.log("Fetching all shoeings");
