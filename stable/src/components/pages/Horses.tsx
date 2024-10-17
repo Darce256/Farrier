@@ -800,6 +800,7 @@ function HorseDetailsModal({
   const [xRayImages, setXRayImages] = useState<string[]>([]);
   const [shoeings, setShoeings] = useState<Shoeing[]>([]);
   const [notes, setNotes] = useState<string[]>([]);
+  const [shoeingNotes, setShoeingNotes] = useState<string[]>([]);
   const [isLoadingXRays, setIsLoadingXRays] = useState(true);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null
@@ -846,13 +847,31 @@ function HorseDetailsModal({
     const { data, error } = await supabase
       .from("shoeings")
       .select("*")
-      .eq("Horses", horseIdentifier)
-      .order("Date of Service", { ascending: false });
+      .eq("Horses", horseIdentifier);
 
     if (error) {
       console.error("Error fetching shoeings:", error);
     } else {
-      setShoeings(data || []);
+      // Parse dates and sort
+      const sortedShoeings = (data || []).sort((a, b) => {
+        const dateA = new Date(a["Date of Service"]);
+        const dateB = new Date(b["Date of Service"]);
+        return dateB.getTime() - dateA.getTime(); // Sort in descending order
+      });
+
+      setShoeings(sortedShoeings);
+
+      // Collect all shoeing notes, now in correct order
+      const allShoeingNotes = sortedShoeings
+        .filter((shoeing) => shoeing["Shoe Notes"])
+        .map(
+          (shoeing) =>
+            `${new Date(shoeing["Date of Service"]).toLocaleDateString()}: ${
+              shoeing["Shoe Notes"]
+            }`
+        );
+
+      setShoeingNotes(allShoeingNotes);
     }
   }
 
@@ -921,6 +940,11 @@ function HorseDetailsModal({
                           <p>
                             <strong>Other Custom Services:</strong>{" "}
                             {shoeing["Other Custom Services"]}
+                          </p>
+                        )}
+                        {shoeing["Shoe Notes"] && (
+                          <p>
+                            <strong>Shoe Notes:</strong> {shoeing["Shoe Notes"]}
                           </p>
                         )}
                       </AccordionContent>
@@ -1008,12 +1032,41 @@ function HorseDetailsModal({
           </TabsContent>
           <TabsContent value="notes">
             <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-              {notes.length > 0 ? (
-                notes.map((note, index) => (
-                  <p key={index} className="mb-2">
-                    {note}
-                  </p>
-                ))
+              {notes.length > 0 || shoeingNotes.length > 0 ? (
+                <>
+                  {notes.length > 0 && (
+                    <div className="mb-4">
+                      <h3 className="font-semibold mb-2">General Notes:</h3>
+                      {notes.map((note, index) => (
+                        <p key={index} className="mb-2">
+                          {note}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {shoeingNotes.length > 0 && (
+                    <div>
+                      <h3 className="font-bold mb-2">Shoeing Notes:</h3>
+                      {shoeingNotes.map((note, index) => {
+                        const [date, ...noteParts] = note.split(": ");
+                        const noteText = noteParts.join(": "); // Rejoin in case the note itself contains colons
+                        return (
+                          <div
+                            key={index}
+                            className="mb-2 border border-gray-400 rounded-md p-2"
+                          >
+                            <p key={index} className="mb-2">
+                              <span className="font-semibold text-sm">
+                                {date}:
+                              </span>{" "}
+                              {noteText}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               ) : (
                 <p>No notes available.</p>
               )}
