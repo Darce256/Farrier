@@ -110,7 +110,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
       .from("shoeings")
       .select("*")
       .eq("user_id", user?.id || "")
-      .eq("status", "pending") // Change this line to only fetch pending shoeings
+      .eq("status", "pending")
       .order("Date of Service", { ascending: false });
 
     if (error) {
@@ -189,6 +189,12 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                       {new Date(
                         shoeing["Date of Service"]
                       ).toLocaleDateString()}
+                    </p>
+                    {/* Add Barn/Trainer information */}
+                    <p className="text-sm text-gray-600">
+                      {shoeing.Horses.split(" - ")[1]
+                        ?.replace(/[\[\]]/g, "")
+                        .trim() || "No Barn/Trainer"}
                     </p>
                   </div>
                   <span
@@ -271,10 +277,19 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                   <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                     {new Date(shoeing["Date of Service"]).toLocaleDateString()}
                   </td>
-                  <td className="px-3 py-4 text-sm text-gray-500">
-                    <div className="font-medium">{shoeing["Horse Name"]}</div>
-                    <div>{shoeing["Base Service"]}</div>
-                    <div>{shoeing["Location of Service"]}</div>
+                  <td className="px-3 py-4 text-sm text-black ">
+                    <div className="font-bold">{shoeing["Horse Name"]}</div>
+                    <div className="font-medium">
+                      {shoeing.Horses.split(" - ")[1]
+                        ?.replace(/[\[\]]/g, "")
+                        .trim() || "No Barn/Trainer"}
+                    </div>
+                    <div className="text-gray-500">
+                      {shoeing["Base Service"]}
+                    </div>
+                    <div className="text-gray-500">
+                      {shoeing["Location of Service"]}
+                    </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
                     <span
