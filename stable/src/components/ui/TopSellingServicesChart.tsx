@@ -209,7 +209,7 @@ export default function TopSellingServicesChart({ allShoeings }: Props) {
             setDateRange={setDateRange}
           />
           <div className="text-sm font-semibold">
-            Total Add-on Revenue: ${totalRevenue.toFixed(2)}
+            Total Services Revenue: ${totalRevenue.toFixed(2)}
           </div>
         </div>
       </CardHeader>
