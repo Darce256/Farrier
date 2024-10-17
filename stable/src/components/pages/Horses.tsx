@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { IoFlagOutline, IoFlagSharp } from "react-icons/io5";
-import { Search, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, X, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { getHorses, Horse } from "@/lib/horseService";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,6 +51,8 @@ import React from "react";
 import { FixedSizeGrid as Grid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { AlertCircle } from "lucide-react";
+import { useAuth } from "@/components/Contexts/AuthProvider";
+import { cp } from "fs";
 
 interface Shoeing {
   id: string;
@@ -583,7 +585,6 @@ interface HorseCardProps {
 
 const HorseCard = React.memo(
   ({ horse, onSelect, onViewHorse, onAlertUpdate }: HorseCardProps) => {
-    console.log("Rendering HorseCard:", horse.Name);
     const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
     const [alertText, setAlertText] = useState(horse.alert || "");
 
@@ -806,17 +807,15 @@ function HorseDetailsModal({
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(
     null
   );
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [newNote, setNewNote] = useState("");
+  const { user } = useAuth();
 
   useEffect(() => {
     if (isOpen && horse) {
       setIsLoadingXRays(true);
       fetchXRayImages();
-      setNotes(
-        horse["Note w/ Time Stamps (from History)"]
-          ?.split(",")
-          .filter(Boolean) || []
-      );
-      fetchShoeings();
+      fetchAllNotes();
     }
   }, [isOpen, horse]);
 
@@ -826,15 +825,15 @@ function HorseDetailsModal({
         .from("horses")
         .select("x-ray-images")
         .eq("id", horse.id)
-        .single<XRayImagesResponse>();
+        .single();
 
       if (error) throw error;
 
-      if (data && Array.isArray(data["x-ray-images"])) {
-        setXRayImages(data["x-ray-images"]);
-      } else {
-        setXRayImages([]);
-      }
+      // if (data && Array.isArray(data["x-ray-images"] as string[])) {
+      //   setXRayImages(data["x-ray-images"] as string[]);
+      // } else {
+      //   setXRayImages([]);
+      // }
     } catch (error) {
       console.error("Error fetching X-ray images:", error);
       setXRayImages([]);
@@ -843,27 +842,44 @@ function HorseDetailsModal({
     }
   }
 
-  async function fetchShoeings() {
-    const horseIdentifier = `${horse.Name} - [${horse["Barn / Trainer"]}]`;
-    const { data, error } = await supabase
-      .from("shoeings")
-      .select("*")
-      .eq("Horses", horseIdentifier);
+  async function fetchAllNotes() {
+    try {
+      // Fetch all notes associated with the horse
+      const { data: horseNotesData, error: horseNotesError } = await supabase
+        .from("horse_notes")
+        .select(
+          `
+          notes (
+            id,
+            content,
+            created_at,
+            user_id
+          )
+        `
+        )
+        .eq("horse_id", horse.id)
+        .order("notes(created_at)", { ascending: false });
 
-    if (error) {
-      console.error("Error fetching shoeings:", error);
-    } else {
-      // Parse dates and sort
-      const sortedShoeings = (data || []).sort((a, b) => {
-        const dateA = new Date(a["Date of Service"]);
-        const dateB = new Date(b["Date of Service"]);
-        return dateB.getTime() - dateA.getTime(); // Sort in descending order
+      if (horseNotesError) throw horseNotesError;
+
+      // Fetch all shoeings for the horse
+      const { data: shoeingsData, error: shoeingsError } = await supabase
+        .from("shoeings")
+        .select("*")
+        .eq("Horses", `${horse.Name} - [${horse["Barn / Trainer"]}]`)
+        .order("Date of Service", { ascending: false });
+
+      if (shoeingsError) throw shoeingsError;
+
+      // Process general notes
+      const generalNotes = horseNotesData.map((item: any) => {
+        const note = item.notes; // Access the nested notes object
+        const date = new Date(note.created_at).toLocaleDateString();
+        return `${date}: ${note.content}`;
       });
 
-      setShoeings(sortedShoeings);
-
-      // Collect all shoeing notes, now in correct order
-      const allShoeingNotes = sortedShoeings
+      // Process shoeing notes
+      const shoeingNotesArray = shoeingsData
         .filter((shoeing) => shoeing["Shoe Notes"])
         .map(
           (shoeing) =>
@@ -872,9 +888,62 @@ function HorseDetailsModal({
             }`
         );
 
-      setShoeingNotes(allShoeingNotes);
+      setNotes(generalNotes);
+      setShoeingNotes(shoeingNotesArray);
+      setShoeings(shoeingsData);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+      toast.error("Failed to fetch notes");
     }
   }
+
+  const handleAddNote = async () => {
+    if (!newNote.trim()) {
+      toast.error("Note cannot be empty");
+      return;
+    }
+
+    if (!user) {
+      toast.error("You must be logged in to add a note");
+      return;
+    }
+
+    try {
+      // Insert the new note into the notes table
+      const { data: noteData, error: noteError } = await supabase
+        .from("notes")
+        .insert({
+          content: newNote.trim(),
+          user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (noteError) throw noteError;
+
+      // Insert the relation into the horse_notes table
+      const { error: horseNoteError } = await supabase
+        .from("horse_notes")
+        .insert({
+          horse_id: horse.id,
+          note_id: noteData.id,
+        });
+
+      if (horseNoteError) throw horseNoteError;
+
+      // Update the notes state
+      const dateStr = new Date().toLocaleDateString();
+      const fullNote = `${dateStr}: ${newNote.trim()}`;
+      setNotes((prevNotes) => [fullNote, ...prevNotes]);
+
+      setNewNote("");
+      setIsAddingNote(false);
+      toast.success("Note added successfully");
+    } catch (error) {
+      console.error("Error adding note:", error);
+      toast.error("Failed to add note");
+    }
+  };
 
   const handleImageClick = (index: number) => {
     setSelectedImageIndex(index);
@@ -1038,46 +1107,64 @@ function HorseDetailsModal({
             </ScrollArea>
           </TabsContent>
           <TabsContent value="notes">
-            <ScrollArea className="h-[300px] w-full rounded-md border p-4">
-              {notes.length > 0 || shoeingNotes.length > 0 ? (
-                <>
-                  {notes.length > 0 && (
-                    <div className="mb-4">
-                      <h3 className="font-semibold mb-2">General Notes:</h3>
-                      {notes.map((note, index) => (
-                        <p key={index} className="mb-2">
-                          {note}
-                        </p>
-                      ))}
-                    </div>
-                  )}
-                  {shoeingNotes.length > 0 && (
-                    <div>
-                      <h3 className="font-bold mb-2">Shoeing Notes:</h3>
-                      {shoeingNotes.map((note, index) => {
-                        const [date, ...noteParts] = note.split(": ");
-                        const noteText = noteParts.join(": "); // Rejoin in case the note itself contains colons
-                        return (
-                          <div
-                            key={index}
-                            className="mb-2 border border-gray-400 rounded-md p-2"
-                          >
+            <div className="relative h-[300px]">
+              <ScrollArea className="h-full w-full rounded-md border p-4">
+                {notes.length > 0 || shoeingNotes.length > 0 ? (
+                  <Accordion type="multiple" className="w-full">
+                    {notes.length > 0 && (
+                      <AccordionItem value="general-notes">
+                        <AccordionTrigger>General Notes</AccordionTrigger>
+                        <AccordionContent>
+                          {notes.map((note, index) => (
                             <p key={index} className="mb-2">
-                              <span className="font-semibold text-sm">
-                                {date}:
-                              </span>{" "}
-                              {noteText}
+                              {note}
                             </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </>
+                          ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    )}
+                    {shoeingNotes.length > 0 && (
+                      <AccordionItem value="shoeing-notes">
+                        <AccordionTrigger>Shoeing Notes</AccordionTrigger>
+                        <AccordionContent>
+                          {shoeingNotes.map((note, index) => (
+                            <p key={index} className="mb-2">
+                              {note}
+                            </p>
+                          ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    )}
+                  </Accordion>
+                ) : (
+                  <p>No notes available.</p>
+                )}
+              </ScrollArea>
+              {isAddingNote ? (
+                <div className="absolute bottom-4 left-4 right-4 flex gap-2">
+                  <Input
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    placeholder="Enter new note..."
+                    className="flex-grow"
+                  />
+                  <Button onClick={handleAddNote}>Add</Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsAddingNote(false)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
               ) : (
-                <p>No notes available.</p>
+                <Button
+                  className="absolute bottom-4 right-4 rounded-full p-2"
+                  onClick={() => setIsAddingNote(true)}
+                >
+                  <Plus size={24} />
+                </Button>
               )}
-            </ScrollArea>
+            </div>
           </TabsContent>
         </Tabs>
       </DialogContent>
