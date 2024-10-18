@@ -51,6 +51,8 @@ import { CalendarIcon } from "lucide-react"; // Make sure to import this icon
 import { format } from "date-fns"; // You might need to install this package
 import { parse } from "date-fns";
 import LocationsEditor from "./LocationsEditor";
+import PricesTab from "./PricesTab"; // Add this import
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Shoeing {
   id: string;
@@ -825,12 +827,25 @@ export default function ShoeingsApprovalPanel() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
       <Tabs defaultValue="approval" className="w-full">
-        <TabsList className="mb-4 bg-primary text-white">
-          <TabsTrigger value="approval">Shoeing Approval</TabsTrigger>
-          <TabsTrigger value="permissions">Permissions</TabsTrigger>
-          <TabsTrigger value="sent-invoices">Sent Invoices</TabsTrigger>
-          <TabsTrigger value="locations">Locations</TabsTrigger>
-        </TabsList>
+        <ScrollArea className="w-full whitespace-nowrap">
+          <TabsList className="mb-4 bg-primary text-white inline-flex h-auto">
+            <TabsTrigger value="approval" className="px-3 py-2">
+              Shoeing Approval
+            </TabsTrigger>
+            <TabsTrigger value="permissions" className="px-3 py-2">
+              Permissions
+            </TabsTrigger>
+            <TabsTrigger value="sent-invoices" className="px-3 py-2">
+              Sent Invoices
+            </TabsTrigger>
+            <TabsTrigger value="locations" className="px-3 py-2">
+              Locations
+            </TabsTrigger>
+            <TabsTrigger value="prices" className="px-3 py-2">
+              Prices
+            </TabsTrigger>
+          </TabsList>
+        </ScrollArea>
 
         <TabsContent value="approval">
           {renderShoeingApprovalContent()}
@@ -846,6 +861,10 @@ export default function ShoeingsApprovalPanel() {
 
         <TabsContent value="locations">
           <LocationsEditor />
+        </TabsContent>
+
+        <TabsContent value="prices">
+          <PricesTab />
         </TabsContent>
       </Tabs>
     </div>
