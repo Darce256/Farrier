@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trash2, Edit, Plus } from "lucide-react";
+import { Trash2, Edit, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,13 +44,24 @@ const LOCATIONS = [
 
 export default function PricesTab() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useEffect(() => {
+    const filtered = products.filter(
+      (product) =>
+        product.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.Type.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredProducts(filtered);
+  }, [searchTerm, products]);
 
   const fetchProducts = async () => {
     const { data, error } = await supabase.from("prices").select("*");
@@ -145,18 +156,37 @@ export default function PricesTab() {
     setDeletingProduct(product);
   };
 
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Product Admin Panel</h1>
-      <Button className="mt-2 mb-4" onClick={openAddDialog}>
-        <Plus className="mr-2 h-4 w-4" /> Add New Product
-      </Button>
+      <div className="flex items-center mb-4">
+        <Button
+          className="mr-2 hover:bg-black hover:text-white"
+          onClick={openAddDialog}
+        >
+          <Plus className="mr-2 h-4 w-4" /> Add New Product
+        </Button>
+        <div className="relative flex-grow">
+          <Input
+            type="text"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={handleSearch}
+            className="pl-10 bg-white"
+          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        </div>
+      </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {products.map((product) => (
+        {filteredProducts.map((product) => (
           <Card key={product.Name}>
             <CardHeader>
               <CardTitle className="flex justify-between items-center">
-                <span>{product.Name}</span>
+                <span className="text-2xl font-bold">{product.Name}</span>
                 <div>
                   <Button
                     variant="ghost"
@@ -242,7 +272,7 @@ export default function PricesTab() {
                 />
               </div>
             ))}
-            <Button type="submit">
+            <Button className="hover:bg-black hover:text-white" type="submit">
               {editingProduct ? "Update Product" : "Add Product"}
             </Button>
           </form>
