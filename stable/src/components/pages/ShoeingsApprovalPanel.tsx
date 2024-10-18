@@ -50,6 +50,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon } from "lucide-react"; // Make sure to import this icon
 import { format } from "date-fns"; // You might need to install this package
 import { parse } from "date-fns";
+import LocationsEditor from "./LocationsEditor";
 
 interface Shoeing {
   id: string;
@@ -824,10 +825,11 @@ export default function ShoeingsApprovalPanel() {
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
       <Tabs defaultValue="approval" className="w-full">
-        <TabsList className="mb-4  bg-primary text-white">
+        <TabsList className="mb-4 bg-primary text-white">
           <TabsTrigger value="approval">Shoeing Approval</TabsTrigger>
           <TabsTrigger value="permissions">Permissions</TabsTrigger>
           <TabsTrigger value="sent-invoices">Sent Invoices</TabsTrigger>
+          <TabsTrigger value="locations">Locations</TabsTrigger>
         </TabsList>
 
         <TabsContent value="approval">
@@ -840,6 +842,10 @@ export default function ShoeingsApprovalPanel() {
 
         <TabsContent value="sent-invoices">
           <SentInvoicesTab />
+        </TabsContent>
+
+        <TabsContent value="locations">
+          <LocationsEditor />
         </TabsContent>
       </Tabs>
     </div>
