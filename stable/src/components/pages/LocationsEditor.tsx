@@ -186,7 +186,7 @@ export default function LocationsEditor() {
       <div className="mb-4">
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto hover:bg-black hover:text-white">
               <Plus className="mr-2 h-4 w-4" /> Add New Location
             </Button>
           </DialogTrigger>
@@ -236,7 +236,12 @@ export default function LocationsEditor() {
               >
                 Cancel
               </Button>
-              <Button onClick={addLocation}>Save Location</Button>
+              <Button
+                className="hover:bg-black hover:text-white"
+                onClick={addLocation}
+              >
+                Save Location
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
