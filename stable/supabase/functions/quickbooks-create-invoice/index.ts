@@ -182,7 +182,7 @@ async function createInvoice(
       Description: shoeing.invoiceDescription || "Shoeing Service", // Use the cleaned description from the frontend
       SalesItemLineDetail: {
         ItemRef: {
-          value: "19",
+          value: "1310",
           name: "Shoeing Service",
         },
         ServiceDate: serviceDate,
