@@ -112,8 +112,6 @@ interface Location {
 
 // Add these constants at the top of your file
 const QUICKBOOKS_CLIENT_ID = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID;
-const QUICKBOOKS_REDIRECT_URI =
-  "https://bobbysimms.vercel.app/quickbooks-callback";
 
 // If you need to dynamically set the redirect URI based on the current environment:
 const isDevelopment = import.meta.env.MODE === "development";
@@ -244,9 +242,7 @@ export default function ShoeingsApprovalPanel() {
       "com.intuit.quickbooks.accounting openid profile email phone address"
     );
     const state = encodeURIComponent("testState");
-    const authUri = `https://appcenter.intuit.com/connect/oauth2?client_id=${QUICKBOOKS_CLIENT_ID}&redirect_uri=${encodeURIComponent(
-      QUICKBOOKS_REDIRECT_URI
-    )}&response_type=code&scope=${scopes}&state=${state}`;
+    const authUri = `https://appcenter.intuit.com/connect/oauth2?client_id=${QUICKBOOKS_CLIENT_ID}&redirect_uri=${dynamicRedirectUri}&response_type=code&scope=${scopes}&state=${state}`;
     window.location.href = authUri;
   };
 
