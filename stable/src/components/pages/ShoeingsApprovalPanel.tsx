@@ -158,9 +158,27 @@ export default function ShoeingsApprovalPanel() {
 
       if (data && data.items && data.customers) {
         setQuickBooksData({ items: data.items, customers: data.customers });
-        console.log(`Fetched ${data.items.length} items from QuickBooks`);
+
+        // Log detailed information about items
+        console.log("QuickBooks Items:");
+        data.items.forEach((item: any, index: number) => {
+          console.log(`${index + 1}. ${item.name} (ID: ${item.id})`);
+        });
+        console.log(`Total items fetched: ${data.items.length}`);
+
+        // Log detailed information about customers
+        console.log("QuickBooks Customers:");
+        data.customers.forEach((customer: any, index: number) => {
+          console.log(
+            `${index + 1}. ${customer.displayName} (ID: ${customer.id})`
+          );
+        });
+        console.log(`Total customers fetched: ${data.customers.length}`);
+
+        // Log the number of items in the customer select
+        const customerSelectItems = quickBooksData?.customers.length || 0;
         console.log(
-          `Fetched ${data.customers.length} customers from QuickBooks`
+          `Number of items in customer select: ${customerSelectItems}`
         );
       } else {
         throw new Error("Invalid response structure from Edge Function");
@@ -169,7 +187,7 @@ export default function ShoeingsApprovalPanel() {
       console.error("Error fetching QuickBooks data:", error);
       toast.error("Failed to fetch QuickBooks data");
     }
-  }, [user]);
+  }, [user, quickBooksData]);
 
   const checkQuickBooksConnection = useCallback(async () => {
     if (!user) return;
@@ -831,6 +849,14 @@ export default function ShoeingsApprovalPanel() {
       </>
     );
   }
+
+  useEffect(() => {
+    if (quickBooksData) {
+      console.log(
+        `Number of items in customer select: ${quickBooksData.customers.length}`
+      );
+    }
+  }, [quickBooksData]);
 
   return (
     <div className="container mx-auto p-4">
