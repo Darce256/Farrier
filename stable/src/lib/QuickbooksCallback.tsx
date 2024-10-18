@@ -12,6 +12,9 @@ export default function QuickBooksCallback() {
       const code = urlParams.get("code");
       const realmId = urlParams.get("realmId");
 
+      console.log("Received code:", code);
+      console.log("Received realmId:", realmId);
+
       if (code && realmId) {
         try {
           const { data, error } = await supabase.functions.invoke(
@@ -21,9 +24,9 @@ export default function QuickBooksCallback() {
             }
           );
 
-          if (error) throw error;
+          console.log("Raw response from Edge Function:", data);
 
-          console.log("Received data from Edge Function:", data);
+          if (error) throw error;
 
           if (data.error) {
             throw new Error(
@@ -31,7 +34,16 @@ export default function QuickBooksCallback() {
             );
           }
 
+          // Check if data.data exists
+          if (!data.data) {
+            throw new Error("Missing data object in response");
+          }
+
           const { access_token, refresh_token, expires_in } = data.data;
+
+          console.log("access_token:", access_token);
+          console.log("refresh_token:", refresh_token);
+          console.log("expires_in:", expires_in);
 
           if (!access_token || !refresh_token || !expires_in) {
             throw new Error("Missing required token data");
@@ -77,6 +89,7 @@ export default function QuickBooksCallback() {
           navigate("/shoeings-approval-panel", { replace: true });
         } catch (error: any) {
           console.error("Error processing QuickBooks connection:", error);
+          console.error("Error details:", error.message);
           toast.error(error.message || "Failed to connect QuickBooks");
           navigate("/", { replace: true });
         }

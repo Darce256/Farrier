@@ -162,13 +162,13 @@ export default function PricesTab() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Product Admin Panel</h1>
+      <h1 className="text-2xl font-bold mb-4">Service Admin Panel</h1>
       <div className="flex items-center mb-4">
         <Button
           className="mr-2 hover:bg-black hover:text-white"
           onClick={openAddDialog}
         >
-          <Plus className="mr-2 h-4 w-4" /> Add New Product
+          <Plus className="mr-2 h-4 w-4" /> Add New Service
         </Button>
         <div className="relative flex-grow">
           <Input
@@ -226,7 +226,7 @@ export default function PricesTab() {
         <DialogContent className="sm:max-w-[425px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingProduct ? "Edit Product" : "Add New Product"}
+              {editingProduct ? "Edit Service" : "Add New Service"}
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -273,7 +273,7 @@ export default function PricesTab() {
               </div>
             ))}
             <Button className="hover:bg-black hover:text-white" type="submit">
-              {editingProduct ? "Update Product" : "Add Product"}
+              {editingProduct ? "Update Service" : "Add Service"}
             </Button>
           </form>
         </DialogContent>
