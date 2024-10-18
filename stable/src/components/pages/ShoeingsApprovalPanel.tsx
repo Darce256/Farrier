@@ -158,6 +158,10 @@ export default function ShoeingsApprovalPanel() {
 
       if (data && data.items && data.customers) {
         setQuickBooksData({ items: data.items, customers: data.customers });
+        console.log(`Fetched ${data.items.length} items from QuickBooks`);
+        console.log(
+          `Fetched ${data.customers.length} customers from QuickBooks`
+        );
       } else {
         throw new Error("Invalid response structure from Edge Function");
       }

@@ -256,27 +256,45 @@ async function createInvoice(
 // Helper functions to fetch items and customers
 async function fetchItems(apiBase, realm_id, access_token) {
   console.log("Fetching items...");
-  const response = await fetch(
-    `${apiBase}/${realm_id}/query?query=select * from Item where Active = true`,
-    {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-        Accept: "application/json",
-      },
-    }
-  );
+  let allItems = [];
+  let startPosition = 1;
+  const maxResults = 1000; // QuickBooks allows up to 1000 results per query
+  let moreItems = true;
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    console.error("QuickBooks API error response for items:", errorBody);
-    throw new Error(
-      `QuickBooks API error for items: ${response.status} ${response.statusText}\n${errorBody}`
+  while (moreItems) {
+    const query = `select * from Item where Active = true STARTPOSITION ${startPosition} MAXRESULTS ${maxResults}`;
+    const response = await fetch(
+      `${apiBase}/${realm_id}/query?query=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          Accept: "application/json",
+        },
+      }
     );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error("QuickBooks API error response for items:", errorBody);
+      throw new Error(
+        `QuickBooks API error for items: ${response.status} ${response.statusText}\n${errorBody}`
+      );
+    }
+
+    const data = await response.json();
+    console.log(`Fetched ${data.QueryResponse.Item.length} items`);
+
+    allItems = allItems.concat(data.QueryResponse.Item);
+
+    if (data.QueryResponse.Item.length < maxResults) {
+      moreItems = false;
+    } else {
+      startPosition += maxResults;
+    }
   }
 
-  const data = await response.json();
-  console.log("Items data received:", JSON.stringify(data));
-  return data.QueryResponse.Item.map((item: any) => ({
+  console.log(`Total items fetched: ${allItems.length}`);
+  return allItems.map((item: any) => ({
     id: item.Id,
     name: item.Name,
     description: item.Description,
