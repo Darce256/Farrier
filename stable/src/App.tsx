@@ -21,6 +21,7 @@ import ShoeingsApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
 import ProtectedRoute from "@/lib/ProtectedRoute";
 import QuickBooksCallback from "@/lib/QuickbooksCallback";
 import { ProtectedAdminRoute } from "./components/ProtectedAdminRoute";
+import EULA from "./components/pages/EULA";
 
 function AppRoutes() {
   return (
@@ -54,6 +55,17 @@ function AppRoutes() {
               <>
                 <Navbar />
                 <SignUpPage />
+                <Footer />
+              </>
+            }
+          />
+          {/* Add the EULA route */}
+          <Route
+            path="/eula"
+            element={
+              <>
+                <Navbar />
+                <EULA />
                 <Footer />
               </>
             }

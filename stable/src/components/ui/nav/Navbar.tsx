@@ -14,7 +14,7 @@ export default function NavBar() {
   const location = useLocation();
 
   // List of public routes where the navbar should always be shown
-  const publicRoutes = ["/", "/login", "/signup"];
+  const publicRoutes = ["/", "/login", "/signup", "/eula"];
 
   // Check if the current route is a public route
   const isPublicRoute = publicRoutes.includes(location.pathname);
