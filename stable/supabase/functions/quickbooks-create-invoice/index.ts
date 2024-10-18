@@ -104,7 +104,7 @@ serve(async (req) => {
     // QuickBooks API base URL
     const apiBase =
       Deno.env.get("QUICKBOOKS_API_URL") ||
-      "https://sandbox-quickbooks.api.intuit.com/v3/company";
+      "https://quickbooks.api.intuit.com/v3/company";
     console.log("Using API base URL:", apiBase);
 
     let invoiceResponse = null;
@@ -285,27 +285,45 @@ async function fetchItems(apiBase, realm_id, access_token) {
 
 async function fetchCustomers(apiBase, realm_id, access_token) {
   console.log("Fetching customers...");
-  const response = await fetch(
-    `${apiBase}/${realm_id}/query?query=select * from Customer where Active = true`,
-    {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-        Accept: "application/json",
-      },
-    }
-  );
+  let allCustomers = [];
+  let startPosition = 1;
+  const maxResults = 1000; // QuickBooks allows up to 1000 results per query
+  let moreCustomers = true;
 
-  if (!response.ok) {
-    const errorBody = await response.text();
-    console.error("QuickBooks API error response for customers:", errorBody);
-    throw new Error(
-      `QuickBooks API error for customers: ${response.status} ${response.statusText}\n${errorBody}`
+  while (moreCustomers) {
+    const query = `select * from Customer where Active = true STARTPOSITION ${startPosition} MAXRESULTS ${maxResults}`;
+    const response = await fetch(
+      `${apiBase}/${realm_id}/query?query=${encodeURIComponent(query)}`,
+      {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          Accept: "application/json",
+        },
+      }
     );
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      console.error("QuickBooks API error response for customers:", errorBody);
+      throw new Error(
+        `QuickBooks API error for customers: ${response.status} ${response.statusText}\n${errorBody}`
+      );
+    }
+
+    const data = await response.json();
+    console.log(`Fetched ${data.QueryResponse.Customer.length} customers`);
+
+    allCustomers = allCustomers.concat(data.QueryResponse.Customer);
+
+    if (data.QueryResponse.Customer.length < maxResults) {
+      moreCustomers = false;
+    } else {
+      startPosition += maxResults;
+    }
   }
 
-  const data = await response.json();
-  console.log("Customers data received:", JSON.stringify(data));
-  return data.QueryResponse.Customer.map((customer: any) => ({
+  console.log(`Total customers fetched: ${allCustomers.length}`);
+  return allCustomers.map((customer: any) => ({
     id: customer.Id,
     displayName: customer.DisplayName,
     companyName: customer.CompanyName,
