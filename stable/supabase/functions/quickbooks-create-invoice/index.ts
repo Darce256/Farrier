@@ -157,100 +157,137 @@ async function createInvoice(
   console.log("Creating invoice...");
   console.log("Shoeings data:", JSON.stringify(shoeings, null, 2));
 
-  const invoiceLines = shoeings.map((shoeing) => {
-    let amount = 0;
-    if (typeof shoeing["Total Cost"] === "string") {
-      amount = parseFloat(shoeing["Total Cost"].replace(/[^0-9.-]+/g, ""));
-    } else if (typeof shoeing["Total Cost"] === "number") {
-      amount = shoeing["Total Cost"];
-    }
+  // Get the highest invoice number and increment it
+  let highestInvoiceNumber = await getLatestInvoiceNumber(
+    apiBase,
+    realm_id,
+    access_token
+  );
+  let newInvoiceNumber;
+  let attempts = 0;
+  const maxAttempts = 5;
 
-    if (isNaN(amount)) {
-      console.warn(
-        `Invalid Total Cost for shoeing: ${JSON.stringify(shoeing)}`
-      );
-      amount = 0;
-    }
+  while (attempts < maxAttempts) {
+    highestInvoiceNumber++;
+    newInvoiceNumber = highestInvoiceNumber.toString().padStart(5, "0");
 
-    const serviceDate = shoeing["Date of Service"]
-      ? new Date(shoeing["Date of Service"]).toISOString().split("T")[0]
-      : new Date().toISOString().split("T")[0];
+    const invoiceLines = shoeings.map((shoeing) => {
+      let amount = 0;
+      if (typeof shoeing["Total Cost"] === "string") {
+        amount = parseFloat(shoeing["Total Cost"].replace(/[^0-9.-]+/g, ""));
+      } else if (typeof shoeing["Total Cost"] === "number") {
+        amount = shoeing["Total Cost"];
+      }
 
-    return {
-      DetailType: "SalesItemLineDetail",
-      Amount: amount,
-      Description: shoeing.invoiceDescription || "Shoeing Service", // Use the cleaned description from the frontend
-      SalesItemLineDetail: {
-        ItemRef: {
-          value: "1310",
-          name: "Shoeing Service",
+      if (isNaN(amount)) {
+        console.warn(
+          `Invalid Total Cost for shoeing: ${JSON.stringify(shoeing)}`
+        );
+        amount = 0;
+      }
+
+      const serviceDate = shoeing["Date of Service"]
+        ? new Date(shoeing["Date of Service"]).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0];
+
+      return {
+        DetailType: "SalesItemLineDetail",
+        Amount: amount,
+        Description: shoeing.invoiceDescription || "Shoeing Service",
+        SalesItemLineDetail: {
+          ItemRef: {
+            value: "1310",
+            name: "Shoeing Service",
+          },
+          ServiceDate: serviceDate,
+          Qty: 1,
+          UnitPrice: amount,
         },
-        ServiceDate: serviceDate,
-        Qty: 1,
-        UnitPrice: amount,
-      },
-    };
-  });
-
-  const invoiceData = {
-    Line: invoiceLines,
-    CustomerRef: {
-      value: customerId,
-    },
-  };
-
-  console.log("Invoice data to be sent:", JSON.stringify(invoiceData, null, 2));
-
-  try {
-    const response = await fetch(`${apiBase}/${realm_id}/invoice`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(invoiceData),
+      };
     });
 
-    const responseText = await response.text();
-    console.log("Raw response from QuickBooks API:", responseText);
+    const invoiceData = {
+      DocNumber: newInvoiceNumber,
+      Line: invoiceLines,
+      CustomerRef: {
+        value: customerId,
+      },
+      SalesTermRef: {
+        value: "1", // Assuming "3" is the correct ID for "Due on Receipt"
+      },
+    };
 
-    if (!response.ok) {
-      console.error(
-        "QuickBooks API error response for invoice creation:",
-        responseText
-      );
-      throw new Error(
-        `QuickBooks API error for invoice creation: ${response.status} ${response.statusText}\n${responseText}`
-      );
-    }
+    console.log(
+      "Invoice data to be sent:",
+      JSON.stringify(invoiceData, null, 2)
+    );
 
-    let data;
-    if (responseText.trim().startsWith("<")) {
-      // Parse XML response
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(responseText, "text/xml");
-      const invoice = xmlDoc.querySelector("Invoice");
-      if (invoice) {
-        data = {
-          Id: invoice.querySelector("Id")?.textContent,
-          DocNumber: invoice.querySelector("DocNumber")?.textContent,
-          TotalAmt: invoice.querySelector("TotalAmt")?.textContent,
-        };
+    try {
+      const response = await fetch(`${apiBase}/${realm_id}/invoice`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(invoiceData),
+      });
+
+      const responseText = await response.text();
+      console.log("Raw response from QuickBooks API:", responseText);
+
+      if (response.ok) {
+        // Invoice created successfully
+        let data;
+        if (responseText.trim().startsWith("<")) {
+          // Parse XML response
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(responseText, "text/xml");
+          const invoice = xmlDoc.querySelector("Invoice");
+          if (invoice) {
+            data = {
+              Id: invoice.querySelector("Id")?.textContent,
+              DocNumber: invoice.querySelector("DocNumber")?.textContent,
+              TotalAmt: invoice.querySelector("TotalAmt")?.textContent,
+            };
+          } else {
+            throw new Error("Failed to parse XML response from QuickBooks API");
+          }
+        } else {
+          // Parse JSON response
+          data = JSON.parse(responseText);
+        }
+
+        console.log(
+          "Invoice created successfully:",
+          JSON.stringify(data, null, 2)
+        );
+        return data;
+      } else if (
+        response.status === 400 &&
+        responseText.includes("Duplicate Document Number Error")
+      ) {
+        // If it's a duplicate number, we'll try the next number
+        console.log(
+          `Invoice number ${newInvoiceNumber} already exists, trying next number.`
+        );
+        attempts++;
       } else {
-        throw new Error("Failed to parse XML response from QuickBooks API");
+        // If it's any other error, throw it
+        throw new Error(
+          `QuickBooks API error for invoice creation: ${response.status} ${response.statusText}\n${responseText}`
+        );
       }
-    } else {
-      // Parse JSON response
-      data = JSON.parse(responseText);
+    } catch (error) {
+      console.error("Error in createInvoice:", error);
+      throw error;
     }
-
-    console.log("Invoice created successfully:", JSON.stringify(data, null, 2));
-    return data;
-  } catch (error) {
-    console.error("Error in createInvoice:", error);
-    throw error;
   }
+
+  // If we've exhausted all attempts
+  throw new Error(
+    `Failed to create invoice after ${maxAttempts} attempts. Last tried invoice number: ${newInvoiceNumber}`
+  );
 }
 
 // Helper functions to fetch items and customers
@@ -347,4 +384,37 @@ async function fetchCustomers(apiBase, realm_id, access_token) {
     companyName: customer.CompanyName,
     email: customer.PrimaryEmailAddr?.Address,
   }));
+}
+
+async function getLatestInvoiceNumber(apiBase, realm_id, access_token) {
+  const query = `SELECT DocNumber FROM Invoice ORDER BY MetaData.CreateTime DESC MAXRESULTS 1000`;
+  const response = await fetch(
+    `${apiBase}/${realm_id}/query?query=${encodeURIComponent(query)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch latest invoices: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  let highestNumber = 22388; // Start from the known last number
+
+  if (data.QueryResponse.Invoice && data.QueryResponse.Invoice.length > 0) {
+    for (const invoice of data.QueryResponse.Invoice) {
+      if (!invoice.DocNumber.startsWith("M-")) {
+        const numericPart = parseInt(invoice.DocNumber, 10);
+        if (!isNaN(numericPart) && numericPart > highestNumber) {
+          highestNumber = numericPart;
+        }
+      }
+    }
+  }
+
+  return highestNumber;
 }

@@ -659,11 +659,8 @@ export default function ShoeingsApprovalPanel() {
               <AccordionContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {groupedShoeings.noCustomer.shoeings.map((shoeing) => (
-                    <Card
-                      key={shoeing.id}
-                      className="grid grid-rows-[auto_1fr_auto] h-full"
-                    >
-                      <CardContent className="p-4">
+                    <Card key={shoeing.id} className="flex flex-col h-full">
+                      <CardContent className="flex-grow p-4 flex flex-col">
                         {/* Render shoeing details */}
                         <h3 className="font-semibold text-lg mb-2">
                           {shoeing["Horse Name"]}
@@ -672,19 +669,21 @@ export default function ShoeingsApprovalPanel() {
                         <p>Barn: {shoeing["Barn / Trainer"]}</p>
                         <p>Location: {shoeing["Location of Service"]}</p>
                         <p>Total Cost: ${shoeing["Total Cost"]}</p>
-                        <p>
+                        <p className="mb-4">
                           <strong>Description:</strong> {shoeing.Description}
                         </p>
+                      </CardContent>
+                      <div className="p-4 mt-auto">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleEditShoeing(shoeing)}
-                          className="mt-2 w-full bg-primary text-white hover:bg-black hover:text-white"
+                          className="w-full bg-primary text-white hover:bg-black hover:text-white"
                         >
                           <Pencil className="w-4 h-4 mr-2" /> Edit
                         </Button>
-                      </CardContent>
-                      <div className="p-4 bg-white">
+                      </div>
+                      <div className="p-4">
                         <Select
                           onValueChange={(value) =>
                             handleCustomerSelect(shoeing.id, value)
@@ -749,9 +748,9 @@ export default function ShoeingsApprovalPanel() {
                         {shoeings.map((shoeing) => (
                           <Card
                             key={shoeing.id}
-                            className="grid grid-rows-[auto_1fr_auto] h-full"
+                            className="flex flex-col h-full"
                           >
-                            <CardContent className="p-4">
+                            <CardContent className="flex-grow p-4 flex flex-col">
                               {/* Render shoeing details */}
                               <h3 className="font-semibold text-lg mb-2">
                                 {shoeing["Horse Name"]}
@@ -760,19 +759,21 @@ export default function ShoeingsApprovalPanel() {
                               <p>Barn: {shoeing["Barn / Trainer"]}</p>
                               <p>Location: {shoeing["Location of Service"]}</p>
                               <p>Total Cost: ${shoeing["Total Cost"]}</p>
-                              <p>
+                              <p className="mb-4">
                                 <strong>Description:</strong>{" "}
                                 {shoeing.Description}
                               </p>
+                            </CardContent>
+                            <div className="p-4 mt-auto">
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleEditShoeing(shoeing)}
-                                className="mt-2 w-full bg-primary text-white hover:bg-black hover:text-white"
+                                className="w-full bg-primary text-white hover:bg-black hover:text-white"
                               >
                                 <Pencil className="w-4 h-4 mr-2" /> Edit
                               </Button>
-                            </CardContent>
+                            </div>
                           </Card>
                         ))}
                       </div>
