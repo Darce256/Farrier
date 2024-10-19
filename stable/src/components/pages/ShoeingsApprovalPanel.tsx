@@ -284,6 +284,34 @@ export default function ShoeingsApprovalPanel() {
     fetchLocations();
   }, [checkQuickBooksConnection]);
 
+  useEffect(() => {
+    if (quickBooksData && groupedShoeings) {
+      const newSelectedCustomers = { ...selectedCustomers };
+      Object.entries(groupedShoeings).forEach(
+        ([key, { displayName, shoeings }]) => {
+          if (key !== "noCustomer") {
+            const matchingCustomer = quickBooksData.customers.find(
+              (customer) =>
+                customer.displayName.toLowerCase() === displayName.toLowerCase()
+            );
+            if (matchingCustomer) {
+              newSelectedCustomers[key] = matchingCustomer.id; // Set for the group key
+              shoeings.forEach((shoeing) => {
+                newSelectedCustomers[shoeing.id] = matchingCustomer.id; // Set for each shoeing
+              });
+            }
+          }
+        }
+      );
+      setSelectedCustomers(newSelectedCustomers);
+      console.log("Initial selectedCustomers:", newSelectedCustomers);
+    }
+  }, [quickBooksData, groupedShoeings]);
+
+  useEffect(() => {
+    console.log("selectedCustomers updated:", selectedCustomers);
+  }, [selectedCustomers]);
+
   const refreshQuickBooksToken = async (refreshToken: string) => {
     try {
       // Call your token refresh function (you might need to implement this)
@@ -582,7 +610,18 @@ export default function ShoeingsApprovalPanel() {
   };
 
   const handleCustomerSelect = (key: string, customerId: string) => {
-    setSelectedCustomers((prev) => ({ ...prev, [key]: customerId }));
+    console.log(`Selecting customer for key ${key}: ${customerId}`);
+    setSelectedCustomers((prev) => {
+      const newState = { ...prev };
+      newState[key] = customerId; // Update the group key
+      if (groupedShoeings[key]) {
+        groupedShoeings[key].shoeings.forEach((shoeing) => {
+          newState[shoeing.id] = customerId; // Update each shoeing in the group
+        });
+      }
+      console.log("Updated selectedCustomers:", newState);
+      return newState;
+    });
   };
 
   const handleEditShoeing = (shoeing: Shoeing) => {
@@ -825,6 +864,12 @@ export default function ShoeingsApprovalPanel() {
           {Object.entries(groupedShoeings).map(
             ([key, { displayName, shoeings }]) => {
               if (key !== "noCustomer") {
+                const selectedCustomerId = selectedCustomers[key] || "";
+                console.log(
+                  `Rendering Select for ${key}, selected value:`,
+                  selectedCustomerId
+                );
+
                 return (
                   <AccordionItem key={key} value={key}>
                     <AccordionTrigger className="text-lg font-semibold flex items-center justify-between w-full">
@@ -886,13 +931,17 @@ export default function ShoeingsApprovalPanel() {
                             )}
                           </Button>
                           <Select
-                            value={selectedCustomers[key] || ""}
+                            value={selectedCustomerId}
                             onValueChange={(value) =>
                               handleCustomerSelect(key, value)
                             }
                           >
                             <SelectTrigger className="w-[200px] bg-white">
-                              <SelectValue placeholder="Select customer" />
+                              <SelectValue>
+                                {quickBooksData?.customers.find(
+                                  (c) => c.id === selectedCustomerId
+                                )?.displayName || "Select customer"}
+                              </SelectValue>
                             </SelectTrigger>
                             <FilteredVirtualizedSelectContent className="min-w-[300px]">
                               {quickBooksData?.customers.map((customer) => (
