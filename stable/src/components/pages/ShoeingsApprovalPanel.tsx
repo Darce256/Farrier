@@ -492,9 +492,12 @@ export default function ShoeingsApprovalPanel() {
 
       console.log("Data from Edge Function:", data);
       if (data.invoice && data.invoice.Invoice) {
-        // Update shoeing status and QB Customers in your database
+        // Get current date in MM/DD/YYYY format
+        const currentDate = format(new Date(), "MM/dd/yyyy");
+
+        // Update shoeing status, QB Customers, and Date Sent in your database
         console.log(
-          "Updating shoeing status and QB Customers:",
+          "Updating shoeing status, QB Customers, and Date Sent:",
           data.invoice.Invoice.Id
         );
         const { error: updateError } = await supabase
@@ -503,14 +506,12 @@ export default function ShoeingsApprovalPanel() {
             status: "completed",
             Invoice: data.invoice.Invoice.DocNumber,
             "QB Customers": selectedCustomer.displayName,
+            "Date Sent": currentDate, // Add this line to update Date Sent
           })
           .eq("id", shoeingId);
 
         if (updateError) {
-          console.error(
-            "Error updating shoeing status and QB Customers:",
-            updateError
-          );
+          console.error("Error updating shoeing:", updateError);
           throw updateError;
         }
 
@@ -661,6 +662,8 @@ export default function ShoeingsApprovalPanel() {
       if (error) throw error;
 
       if (data.invoice && data.invoice.Invoice) {
+        const currentDate = format(new Date(), "MM/dd/yyyy");
+
         // Update all shoeings in this group
         const updatePromises = shoeingsToAccept.map((shoeing) =>
           supabase
@@ -669,6 +672,7 @@ export default function ShoeingsApprovalPanel() {
               status: "completed",
               Invoice: data.invoice.Invoice.DocNumber,
               "QB Customers": groupedShoeings[key].displayName,
+              "Date Sent": currentDate, // Add this line to update Date Sent
             })
             .eq("id", shoeing.id)
         );
