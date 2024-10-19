@@ -128,50 +128,6 @@ function formatInvoiceDescription(description: string): string {
 }
 
 // Add this new component for virtualized select items
-const VirtualizedSelectContent = React.forwardRef<
-  HTMLDivElement,
-  { children: React.ReactNode }
->(({ children, ...other }, ref) => {
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const options = React.Children.toArray(children);
-
-  const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "ArrowDown") {
-      setSelectedIndex((prev) => Math.min(prev + 1, options.length - 1));
-    } else if (event.key === "ArrowUp") {
-      setSelectedIndex((prev) => Math.max(prev - 1, 0));
-    }
-  };
-
-  const itemHeight = 35;
-  const height = Math.min(300, itemHeight * options.length);
-
-  return (
-    <div ref={ref} onKeyDown={handleKeyDown} {...other}>
-      <List
-        height={height}
-        itemCount={options.length}
-        itemSize={itemHeight}
-        width="100%"
-        overscanCount={5}
-      >
-        {({ index, style }) => (
-          <div style={style}>
-            {React.cloneElement(options[index] as React.ReactElement, {
-              onMouseEnter: () => setSelectedIndex(index),
-              style: {
-                backgroundColor:
-                  index === selectedIndex
-                    ? "rgba(0, 0, 0, 0.08)"
-                    : "transparent",
-              },
-            })}
-          </div>
-        )}
-      </List>
-    </div>
-  );
-});
 
 const FilteredVirtualizedSelectContent = React.forwardRef<
   HTMLDivElement,
