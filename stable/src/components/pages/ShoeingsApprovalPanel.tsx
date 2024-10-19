@@ -53,6 +53,9 @@ import { parse } from "date-fns";
 import LocationsEditor from "./LocationsEditor";
 import PricesTab from "./PricesTab"; // Add this import
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { FixedSizeList as List } from "react-window";
+import { useInView } from "react-intersection-observer";
+import React from "react";
 
 interface Shoeing {
   id: string;
@@ -123,6 +126,126 @@ const dynamicRedirectUri = isDevelopment
 function formatInvoiceDescription(description: string): string {
   return `${description}`.trim();
 }
+
+// Add this new component for virtualized select items
+const VirtualizedSelectContent = React.forwardRef<
+  HTMLDivElement,
+  { children: React.ReactNode }
+>(({ children, ...other }, ref) => {
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const options = React.Children.toArray(children);
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "ArrowDown") {
+      setSelectedIndex((prev) => Math.min(prev + 1, options.length - 1));
+    } else if (event.key === "ArrowUp") {
+      setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    }
+  };
+
+  const itemHeight = 35;
+  const height = Math.min(300, itemHeight * options.length);
+
+  return (
+    <div ref={ref} onKeyDown={handleKeyDown} {...other}>
+      <List
+        height={height}
+        itemCount={options.length}
+        itemSize={itemHeight}
+        width="100%"
+        overscanCount={5}
+      >
+        {({ index, style }) => (
+          <div style={style}>
+            {React.cloneElement(options[index] as React.ReactElement, {
+              onMouseEnter: () => setSelectedIndex(index),
+              style: {
+                backgroundColor:
+                  index === selectedIndex
+                    ? "rgba(0, 0, 0, 0.08)"
+                    : "transparent",
+              },
+            })}
+          </div>
+        )}
+      </List>
+    </div>
+  );
+});
+
+const FilteredVirtualizedSelectContent = React.forwardRef<
+  HTMLDivElement,
+  { children: React.ReactNode; className?: string }
+>(({ children, className, ...props }, ref) => {
+  const [filter, setFilter] = useState("");
+  const options = React.Children.toArray(children).filter((child) =>
+    (child as React.ReactElement).props.children
+      .toLowerCase()
+      .includes(filter.toLowerCase())
+  );
+
+  const [selectedIndex, setSelectedIndex] = useState(0);
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === "ArrowDown") {
+      setSelectedIndex((prev) => Math.min(prev + 1, options.length - 1));
+    } else if (event.key === "ArrowUp") {
+      setSelectedIndex((prev) => Math.max(prev - 1, 0));
+    }
+  };
+
+  const itemHeight = 35;
+  const height = Math.min(300, itemHeight * options.length);
+
+  return (
+    <SelectContent ref={ref} className={`p-0 ${className}`} {...props}>
+      <div onKeyDown={handleKeyDown} className="p-2">
+        <Input
+          placeholder="Search customers..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          className="mb-2"
+        />
+        <List
+          height={height}
+          itemCount={options.length}
+          itemSize={itemHeight}
+          width="100%"
+          overscanCount={5}
+        >
+          {({ index, style }) => (
+            <div style={{ ...style, width: "100%" }}>
+              {React.cloneElement(options[index] as React.ReactElement, {
+                onMouseEnter: () => setSelectedIndex(index),
+                style: {
+                  backgroundColor:
+                    index === selectedIndex
+                      ? "rgba(0, 0, 0, 0.08)"
+                      : "transparent",
+                  width: "100%",
+                  padding: "8px",
+                },
+              })}
+            </div>
+          )}
+        </List>
+      </div>
+    </SelectContent>
+  );
+});
+
+const LazyAccordionContent = ({ children }: { children: React.ReactNode }) => {
+  const { ref, inView } = useInView({
+    triggerOnce: true,
+    rootMargin: "200px 0px",
+  });
+
+  return (
+    <div ref={ref}>
+      {inView ? children : <div style={{ height: "200px" }}>Loading...</div>}
+    </div>
+  );
+};
 
 export default function ShoeingsApprovalPanel() {
   const [groupedShoeings, setGroupedShoeings] = useState<GroupedShoeings>(
@@ -657,79 +780,85 @@ export default function ShoeingsApprovalPanel() {
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {groupedShoeings.noCustomer.shoeings.map((shoeing) => (
-                    <Card key={shoeing.id} className="flex flex-col h-full">
-                      <CardContent className="flex-grow p-4 flex flex-col">
-                        {/* Render shoeing details */}
-                        <h3 className="font-semibold text-lg mb-2">
-                          {shoeing["Horse Name"]}
-                        </h3>
-                        <p>Date: {shoeing["Date of Service"]}</p>
-                        <p>Barn: {shoeing["Barn / Trainer"]}</p>
-                        <p>Location: {shoeing["Location of Service"]}</p>
-                        <p>Total Cost: ${shoeing["Total Cost"]}</p>
-                        <p className="mb-4">
-                          <strong>Description:</strong> {shoeing.Description}
-                        </p>
-                      </CardContent>
-                      <div className="p-4 mt-auto">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditShoeing(shoeing)}
-                          className="w-full bg-primary text-white hover:bg-black hover:text-white"
-                        >
-                          <Pencil className="w-4 h-4 mr-2" /> Edit
-                        </Button>
-                      </div>
-                      <div className="p-4">
-                        <Select
-                          onValueChange={(value) =>
-                            handleCustomerSelect(shoeing.id, value)
-                          }
-                          value={selectedCustomers[shoeing.id] || ""}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select QuickBooks Customer" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {quickBooksData?.customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.displayName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="p-4 flex justify-between">
-                        <Button
-                          onClick={() => handleAccept(shoeing.id)}
-                          disabled={
-                            !selectedCustomers[shoeing.id] ||
-                            isAccepting === shoeing.id
-                          }
-                          className="w-1/2 mr-2"
-                        >
-                          {isAccepting === shoeing.id ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Check className="mr-2 h-4 w-4" />
-                          )}
-                          Accept
-                        </Button>
-                        <Button
-                          onClick={() => handleReject(shoeing.id)}
-                          variant="destructive"
-                          className="w-1/2 ml-2"
-                        >
-                          <X className="mr-2 h-4 w-4" />
-                          Reject
-                        </Button>
-                      </div>
-                    </Card>
-                  ))}
-                </div>
+                <LazyAccordionContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {groupedShoeings.noCustomer.shoeings.map((shoeing) => (
+                      <Card key={shoeing.id} className="flex flex-col h-full">
+                        <CardContent className="flex-grow p-4 flex flex-col">
+                          {/* Render shoeing details */}
+                          <h3 className="font-semibold text-lg mb-2">
+                            {shoeing["Horse Name"]}
+                          </h3>
+                          <p>Date: {shoeing["Date of Service"]}</p>
+                          <p>Barn: {shoeing["Barn / Trainer"]}</p>
+                          <p>Location: {shoeing["Location of Service"]}</p>
+                          <p>Total Cost: ${shoeing["Total Cost"]}</p>
+                          <p className="mb-4">
+                            <strong>Description:</strong> {shoeing.Description}
+                          </p>
+                        </CardContent>
+                        <div className="p-4 mt-auto">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditShoeing(shoeing)}
+                            className="w-full bg-primary text-white hover:bg-black hover:text-white"
+                          >
+                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                          </Button>
+                        </div>
+                        <div className="p-4">
+                          <Select
+                            onValueChange={(value) =>
+                              handleCustomerSelect(shoeing.id, value)
+                            }
+                            value={selectedCustomers[shoeing.id] || ""}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select QuickBooks Customer" />
+                            </SelectTrigger>
+                            <FilteredVirtualizedSelectContent className="min-w-[300px]">
+                              {quickBooksData?.customers.map((customer) => (
+                                <SelectItem
+                                  key={customer.id}
+                                  value={customer.id}
+                                  className="whitespace-nowrap"
+                                >
+                                  {customer.displayName}
+                                </SelectItem>
+                              ))}
+                            </FilteredVirtualizedSelectContent>
+                          </Select>
+                        </div>
+                        <div className="p-4 flex justify-between">
+                          <Button
+                            onClick={() => handleAccept(shoeing.id)}
+                            disabled={
+                              !selectedCustomers[shoeing.id] ||
+                              isAccepting === shoeing.id
+                            }
+                            className="w-1/2 mr-2"
+                          >
+                            {isAccepting === shoeing.id ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="mr-2 h-4 w-4" />
+                            )}
+                            Accept
+                          </Button>
+                          <Button
+                            onClick={() => handleReject(shoeing.id)}
+                            variant="destructive"
+                            className="w-1/2 ml-2"
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            Reject
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </LazyAccordionContent>
               </AccordionContent>
             </AccordionItem>
           )}
@@ -744,73 +873,81 @@ export default function ShoeingsApprovalPanel() {
                       </span>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {shoeings.map((shoeing) => (
-                          <Card
-                            key={shoeing.id}
-                            className="flex flex-col h-full"
+                      <LazyAccordionContent>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {shoeings.map((shoeing) => (
+                            <Card
+                              key={shoeing.id}
+                              className="flex flex-col h-full"
+                            >
+                              <CardContent className="flex-grow p-4 flex flex-col">
+                                {/* Render shoeing details */}
+                                <h3 className="font-semibold text-lg mb-2">
+                                  {shoeing["Horse Name"]}
+                                </h3>
+                                <p>Date: {shoeing["Date of Service"]}</p>
+                                <p>Barn: {shoeing["Barn / Trainer"]}</p>
+                                <p>
+                                  Location: {shoeing["Location of Service"]}
+                                </p>
+                                <p>Total Cost: ${shoeing["Total Cost"]}</p>
+                                <p className="mb-4">
+                                  <strong>Description:</strong>{" "}
+                                  {shoeing.Description}
+                                </p>
+                              </CardContent>
+                              <div className="p-4 mt-auto">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditShoeing(shoeing)}
+                                  className="w-full bg-primary text-white hover:bg-black hover:text-white"
+                                >
+                                  <Pencil className="w-4 h-4 mr-2" /> Edit
+                                </Button>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                        <div className="flex items-center mt-4 space-x-4">
+                          <Button
+                            onClick={() => handleAcceptAll(key)}
+                            disabled={
+                              !selectedCustomers[key] || isAccepting === key
+                            }
                           >
-                            <CardContent className="flex-grow p-4 flex flex-col">
-                              {/* Render shoeing details */}
-                              <h3 className="font-semibold text-lg mb-2">
-                                {shoeing["Horse Name"]}
-                              </h3>
-                              <p>Date: {shoeing["Date of Service"]}</p>
-                              <p>Barn: {shoeing["Barn / Trainer"]}</p>
-                              <p>Location: {shoeing["Location of Service"]}</p>
-                              <p>Total Cost: ${shoeing["Total Cost"]}</p>
-                              <p className="mb-4">
-                                <strong>Description:</strong>{" "}
-                                {shoeing.Description}
-                              </p>
-                            </CardContent>
-                            <div className="p-4 mt-auto">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditShoeing(shoeing)}
-                                className="w-full bg-primary text-white hover:bg-black hover:text-white"
-                              >
-                                <Pencil className="w-4 h-4 mr-2" /> Edit
-                              </Button>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                      <div className="flex items-center mt-4 space-x-4">
-                        <Button
-                          onClick={() => handleAcceptAll(key)}
-                          disabled={
-                            !selectedCustomers[key] || isAccepting === key
-                          }
-                        >
-                          {isAccepting === key ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Sending to QuickBooks...
-                            </>
-                          ) : (
-                            "Accept All"
-                          )}
-                        </Button>
-                        <Select
-                          value={selectedCustomers[key] || ""}
-                          onValueChange={(value) =>
-                            handleCustomerSelect(key, value)
-                          }
-                        >
-                          <SelectTrigger className="w-[200px] bg-white">
-                            <SelectValue placeholder="Select customer" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {quickBooksData?.customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.displayName}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                            {isAccepting === key ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Sending to QuickBooks...
+                              </>
+                            ) : (
+                              "Accept All"
+                            )}
+                          </Button>
+                          <Select
+                            value={selectedCustomers[key] || ""}
+                            onValueChange={(value) =>
+                              handleCustomerSelect(key, value)
+                            }
+                          >
+                            <SelectTrigger className="w-[200px] bg-white">
+                              <SelectValue placeholder="Select customer" />
+                            </SelectTrigger>
+                            <FilteredVirtualizedSelectContent className="min-w-[300px]">
+                              {quickBooksData?.customers.map((customer) => (
+                                <SelectItem
+                                  key={customer.id}
+                                  value={customer.id}
+                                  className="whitespace-nowrap"
+                                >
+                                  {customer.displayName}
+                                </SelectItem>
+                              ))}
+                            </FilteredVirtualizedSelectContent>
+                          </Select>
+                        </div>
+                      </LazyAccordionContent>
                     </AccordionContent>
                   </AccordionItem>
                 );
