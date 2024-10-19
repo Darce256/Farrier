@@ -56,6 +56,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { FixedSizeList as List } from "react-window";
 import { useInView } from "react-intersection-observer";
 import React from "react";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 interface Shoeing {
   id: string;
@@ -230,6 +231,8 @@ export default function ShoeingsApprovalPanel() {
   const [editingShoeing, setEditingShoeing] = useState<Shoeing | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [isAccepting, setIsAccepting] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("approval");
+  const isMobile = useIsMobile();
 
   const fetchQuickBooksData = useCallback(async () => {
     if (!user) return;
@@ -983,49 +986,69 @@ export default function ShoeingsApprovalPanel() {
     );
   }
 
+  const tabOptions = [
+    { value: "approval", label: "Shoeing Approval" },
+    { value: "permissions", label: "Permissions" },
+    { value: "sent-invoices", label: "Sent Invoices" },
+    { value: "locations", label: "Locations" },
+    { value: "prices", label: "Prices" },
+  ];
+
+  const renderTabContent = () => (
+    <>
+      <TabsContent value="approval">
+        {renderShoeingApprovalContent()}
+      </TabsContent>
+      <TabsContent value="permissions">
+        <PermissionsTab />
+      </TabsContent>
+      <TabsContent value="sent-invoices">
+        <SentInvoicesTab />
+      </TabsContent>
+      <TabsContent value="locations">
+        <LocationsEditor />
+      </TabsContent>
+      <TabsContent value="prices">
+        <PricesTab />
+      </TabsContent>
+    </>
+  );
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
-      <Tabs defaultValue="approval" className="w-full">
-        <ScrollArea className="w-full whitespace-nowrap">
-          <TabsList className="mb-4 bg-primary text-white inline-flex h-auto">
-            <TabsTrigger value="approval" className="px-3 py-2">
-              Shoeing Approval
-            </TabsTrigger>
-            <TabsTrigger value="permissions" className="px-3 py-2">
-              Permissions
-            </TabsTrigger>
-            <TabsTrigger value="sent-invoices" className="px-3 py-2">
-              Sent Invoices
-            </TabsTrigger>
-            <TabsTrigger value="locations" className="px-3 py-2">
-              Locations
-            </TabsTrigger>
-            <TabsTrigger value="prices" className="px-3 py-2">
-              Prices
-            </TabsTrigger>
-          </TabsList>
-        </ScrollArea>
-
-        <TabsContent value="approval">
-          {renderShoeingApprovalContent()}
-        </TabsContent>
-
-        <TabsContent value="permissions">
-          <PermissionsTab />
-        </TabsContent>
-
-        <TabsContent value="sent-invoices">
-          <SentInvoicesTab />
-        </TabsContent>
-
-        <TabsContent value="locations">
-          <LocationsEditor />
-        </TabsContent>
-
-        <TabsContent value="prices">
-          <PricesTab />
-        </TabsContent>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        {isMobile ? (
+          <div className="mb-4">
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="w-full bg-white">
+                <SelectValue placeholder="Select tab" />
+              </SelectTrigger>
+              <SelectContent>
+                {tabOptions.map((tab) => (
+                  <SelectItem key={tab.value} value={tab.value}>
+                    {tab.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <ScrollArea className="w-full whitespace-nowrap">
+            <TabsList className="mb-4 bg-primary text-white inline-flex h-auto">
+              {tabOptions.map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="px-3 py-2"
+                >
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </ScrollArea>
+        )}
+        {renderTabContent()}
       </Tabs>
     </div>
   );
