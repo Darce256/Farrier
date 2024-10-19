@@ -41,7 +41,9 @@ export default function NavBar() {
             <Link to="/" className="flex-shrink-0">
               <LiaHorseHeadSolid className="h-8 w-8 text-white " />
             </Link>
-            <h1 className="text-white text-2xl ml-4 font-bold">Farrier</h1>
+            <Link to="/" className="flex-shrink-0">
+              <h1 className="text-white text-2xl ml-4 font-bold">Farrier</h1>
+            </Link>
           </div>
 
           {/* Center-aligned navigation links */}
