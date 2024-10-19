@@ -3,8 +3,15 @@ import { LiaHorseHeadSolid } from "react-icons/lia";
 import { TbHorseshoe } from "react-icons/tb";
 import { FaRegCalendarAlt } from "react-icons/fa";
 import heroImage from "@/assets/hero.jpg";
+import { useNavigate } from "react-router-dom";
 
 export default function Home() {
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    navigate("/login");
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <main className="flex-1">
@@ -26,7 +33,10 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                <Button className="w-full sm:w-auto hover:bg-black hover:text-white">
+                <Button
+                  className="w-full sm:w-auto hover:bg-black hover:text-white"
+                  onClick={handleGetStarted}
+                >
                   Get Started
                 </Button>
                 <Button
@@ -90,7 +100,10 @@ export default function Home() {
                 </p>
               </div>
               <div className="w-full max-w-sm space-y-2 ">
-                <Button className="hover:bg-black hover:text-white">
+                <Button
+                  className="hover:bg-black hover:text-white"
+                  onClick={handleGetStarted}
+                >
                   Get Started
                 </Button>
               </div>
