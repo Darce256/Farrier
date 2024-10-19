@@ -26,7 +26,9 @@ export default function Home() {
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                <Button className="w-full sm:w-auto">Get Started</Button>
+                <Button className="w-full sm:w-auto hover:bg-black hover:text-white">
+                  Get Started
+                </Button>
                 <Button
                   variant="outline"
                   className="w-full sm:w-auto bg-white/20 text-white hover:bg-white/30"
@@ -87,8 +89,10 @@ export default function Home() {
                   their equine management needs. Try Farrier today!
                 </p>
               </div>
-              <div className="w-full max-w-sm space-y-2">
-                <Button>Get Started</Button>
+              <div className="w-full max-w-sm space-y-2 ">
+                <Button className="hover:bg-black hover:text-white">
+                  Get Started
+                </Button>
               </div>
             </div>
           </div>

@@ -152,7 +152,11 @@ export default function SignUpPage() {
             {error && <p className="text-red-500 text-sm">{error}</p>}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button className="w-full" type="submit" disabled={isLoading}>
+            <Button
+              className="w-full hover:bg-black hover:text-white"
+              type="submit"
+              disabled={isLoading}
+            >
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

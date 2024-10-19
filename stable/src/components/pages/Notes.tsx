@@ -191,7 +191,11 @@ export default function Notes() {
               )}
             />
           </MentionsInput>
-          <Button onClick={handleAddNote} disabled={isLoading}>
+          <Button
+            onClick={handleAddNote}
+            className="hover:bg-black hover:text-white"
+            disabled={isLoading}
+          >
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />

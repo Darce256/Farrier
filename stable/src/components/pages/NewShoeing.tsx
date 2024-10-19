@@ -1390,7 +1390,10 @@ export default function ShoeingForm() {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" className="w-full sm:w-auto">
+                    <Button
+                      type="submit"
+                      className="w-full sm:w-auto hover:bg-black hover:text-white"
+                    >
                       {editingShoeing ? "Update Shoeing" : "Submit New Shoeing"}
                     </Button>
                   </form>
@@ -1527,6 +1530,7 @@ export default function ShoeingForm() {
               Cancel
             </Button>
             <Button
+              className="hover:bg-black hover:text-white"
               type="submit"
               onClick={newHorseForm.handleSubmit(handleAddNewHorse)}
             >

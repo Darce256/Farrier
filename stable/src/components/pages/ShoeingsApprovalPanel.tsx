@@ -766,7 +766,10 @@ export default function ShoeingsApprovalPanel() {
               Please connect to QuickBooks before accessing the Shoeing Approval
               Panel.
             </p>
-            <Button onClick={handleQuickBooksConnect}>
+            <Button
+              onClick={handleQuickBooksConnect}
+              className="hover:bg-black hover:text-white"
+            >
               Connect to QuickBooks
             </Button>
           </DialogContent>

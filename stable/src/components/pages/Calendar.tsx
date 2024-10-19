@@ -523,7 +523,10 @@ export default function Calendar() {
                 Cancel
               </Button>
             )}
-            <Button onClick={toggleDuplication}>
+            <Button
+              onClick={toggleDuplication}
+              className="hover:bg-black hover:text-white"
+            >
               {showCheckboxes ? "Confirm Duplication" : "Duplicate Shoeings"}
             </Button>
           </div>

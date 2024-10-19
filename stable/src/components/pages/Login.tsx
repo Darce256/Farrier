@@ -78,7 +78,10 @@ export default function LoginPage() {
             {error && <p className="text-red-500 text-sm">{error}</p>}
           </CardContent>
           <CardFooter className="flex flex-col space-y-4">
-            <Button className="w-full" type="submit">
+            <Button
+              className="w-full hover:bg-black hover:text-white"
+              type="submit"
+            >
               Log in
             </Button>
             <div className="text-center text-sm">
