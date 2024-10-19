@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -134,13 +134,13 @@ const FilteredVirtualizedSelectContent = React.forwardRef<
   { children: React.ReactNode; className?: string }
 >(({ children, className, ...props }, ref) => {
   const [filter, setFilter] = useState("");
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
   const options = React.Children.toArray(children).filter((child) =>
     (child as React.ReactElement).props.children
       .toLowerCase()
       .includes(filter.toLowerCase())
   );
-
-  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "ArrowDown") {
@@ -153,14 +153,24 @@ const FilteredVirtualizedSelectContent = React.forwardRef<
   const itemHeight = 35;
   const height = Math.min(300, itemHeight * options.length);
 
+  useEffect(() => {
+    // Focus the input when the component mounts
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
   return (
     <SelectContent ref={ref} className={`p-0 ${className}`} {...props}>
       <div onKeyDown={handleKeyDown} className="p-2">
         <Input
+          ref={inputRef}
           placeholder="Search customers..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           className="mb-2"
+          onTouchStart={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         />
         <List
           height={height}
@@ -170,7 +180,7 @@ const FilteredVirtualizedSelectContent = React.forwardRef<
           overscanCount={5}
         >
           {({ index, style }) => (
-            <div style={{ ...style, width: "100%" }}>
+            <div style={style}>
               {React.cloneElement(options[index] as React.ReactElement, {
                 onMouseEnter: () => setSelectedIndex(index),
                 style: {
@@ -178,8 +188,6 @@ const FilteredVirtualizedSelectContent = React.forwardRef<
                     index === selectedIndex
                       ? "rgba(0, 0, 0, 0.08)"
                       : "transparent",
-                  width: "100%",
-                  padding: "8px",
                 },
               })}
             </div>
