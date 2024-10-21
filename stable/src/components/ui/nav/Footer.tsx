@@ -14,15 +14,15 @@ export const Footer = () => {
         <nav className="flex gap-4 sm:gap-6">
           <Link
             className="text-xs hover:underline underline-offset-4"
-            to="/terms"
+            to="/eula"
           >
             Terms of Service
           </Link>
           <Link
             className="text-xs hover:underline underline-offset-4"
-            to="/privacy"
+            to="/privacy-policy"
           >
-            Privacy
+            Privacy Policy
           </Link>
         </nav>
       </div>
