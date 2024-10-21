@@ -774,6 +774,8 @@ export default function ShoeingForm() {
     string | undefined
   >(undefined);
 
+  const [isNewHorse, setIsNewHorse] = useState(false);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     console.log("Starting onSubmit with values:", values);
     try {
@@ -878,6 +880,7 @@ export default function ShoeingForm() {
         Description: description,
         status: "pending",
         user_id: user.id,
+        is_new_horse: isNewHorse,
       };
 
       console.log("Prepared shoeingData:", shoeingData);
@@ -950,6 +953,9 @@ export default function ShoeingForm() {
 
       // Scroll to top of the page
       window.scrollTo(0, 0);
+
+      // Reset isNewHorse after successful submission
+      setIsNewHorse(false);
     } catch (error) {
       console.error("Error saving shoeing record:", error);
       toast.error("Failed to save shoeing record. Please try again.");
@@ -1027,6 +1033,7 @@ export default function ShoeingForm() {
 
         // Set the newly added horse as the selected horse in the main form
         form.setValue("horseName", newHorse.id);
+        setIsNewHorse(true); // Set isNewHorse to true
         console.log("Set new horse in form:", newHorse.id);
 
         // Trigger a re-render of the Select component
