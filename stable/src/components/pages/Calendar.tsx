@@ -80,9 +80,10 @@ interface Shoeing {
 
 interface Horse {
   id: string;
-  name: string;
-  barn: string | null;
-  alert?: string | null;
+  Name: string | null;
+  "Barn / Trainer": string | null;
+  alert: string | null;
+  // Add other fields as needed
 }
 
 const TODAY = new Date();
@@ -108,7 +109,7 @@ export default function Calendar() {
   const [selectedLocation, setSelectedLocation] = useState<string | undefined>(
     undefined
   );
-  const [horses] = useState<Horse[]>([]);
+  const [horses, setHorses] = useState<Horse[]>([]);
 
   const fetchAllShoeings = async () => {
     console.log("Fetching all shoeings");
@@ -160,6 +161,45 @@ export default function Calendar() {
     } else {
       setLocations(data || []);
     }
+  };
+
+  const fetchHorses = async () => {
+    let allHorses: Horse[] = [];
+    let lastId: string | null = null;
+    const pageSize = 1000;
+
+    while (true) {
+      let query = supabase
+        .from("horses")
+        .select('id, Name, "Barn / Trainer", alert')
+        .order("id", { ascending: true })
+        .limit(pageSize);
+
+      if (lastId) {
+        query = query.gt("id", lastId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error("Error fetching horses:", error);
+        toast.error("Failed to fetch horses");
+        break;
+      }
+
+      if (data && data.length > 0) {
+        allHorses = [...allHorses, ...data];
+        lastId = data[data.length - 1].id;
+        console.log(
+          `Fetched ${data.length} horses. Total: ${allHorses.length}`
+        );
+      } else {
+        break;
+      }
+    }
+
+    console.log(`Total horses fetched: ${allHorses.length}`);
+    setHorses(allHorses);
   };
 
   const getDaysInMonth = (date: Date) => {
@@ -247,7 +287,7 @@ export default function Calendar() {
     const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
 
     // Check if the horse has an alert
-    const horse = horses.find((h) => h.name === horseName);
+    const horse = horses.find((h) => h.Name === horseName);
     const hasAlert = horse && horse.alert;
 
     return (
@@ -293,7 +333,7 @@ export default function Calendar() {
           const shoeingsForDay = day ? getShoeingsForDate(day) : [];
           const hasAlert = shoeingsForDay.some((shoeing) => {
             const [horseName] = shoeing.Horses.split(" - ");
-            const horse = horses.find((h) => h.name === horseName);
+            const horse = horses.find((h) => h.Name === horseName);
             return horse && horse.alert;
           });
 
@@ -341,7 +381,7 @@ export default function Calendar() {
           const shoeingsForDay = getShoeingsForDate(day);
           const hasAlert = shoeingsForDay.some((shoeing) => {
             const [horseName] = shoeing.Horses.split(" - ");
-            const horse = horses.find((h) => h.name === horseName);
+            const horse = horses.find((h) => h.Name === horseName);
             return horse && horse.alert;
           });
 
@@ -533,7 +573,7 @@ export default function Calendar() {
                   shoeing["Location of Service"]
                 );
                 const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
-                const horse = horses.find((h) => h.name === horseName);
+                const horse = horses.find((h) => h.Name === horseName);
                 const hasAlert = horse && horse.alert;
                 return (
                   <div
@@ -644,6 +684,7 @@ export default function Calendar() {
 
     loadAllShoeings();
     fetchLocations();
+    fetchHorses(); // This will now fetch all horses
   }, []);
 
   useEffect(() => {
