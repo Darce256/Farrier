@@ -16,7 +16,7 @@ import Inbox from "./components/pages/Inbox";
 import { NotificationProvider } from "@/components/Contexts/NotificationProvider";
 import Calendar from "./components/pages/Calendar";
 import HorseProfile from "./components/pages/HorseProfile";
-import { QueryClient, QueryClientProvider } from "react-query";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ShoeingsApprovalPanel from "./components/pages/ShoeingsApprovalPanel";
 import ProtectedRoute from "@/lib/ProtectedRoute";
 import QuickBooksCallback from "@/lib/QuickbooksCallback";
