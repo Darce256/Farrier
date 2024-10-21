@@ -88,6 +88,12 @@ interface Horse {
 
 const TODAY = new Date();
 
+const Spinner = () => (
+  <div className="flex justify-center items-center h-full">
+    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+  </div>
+);
+
 export default function Calendar() {
   const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
   const [currentMonthShoeings, setCurrentMonthShoeings] = useState<Shoeing[]>(
@@ -110,6 +116,7 @@ export default function Calendar() {
     undefined
   );
   const [horses, setHorses] = useState<Horse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const fetchAllShoeings = async () => {
     console.log("Fetching all shoeings");
@@ -341,7 +348,7 @@ export default function Calendar() {
             <div
               key={index}
               className={`bg-white p-1 sm:p-2 h-24 sm:h-32 md:h-40 flex flex-col ${
-                day && isToday(day) ? "border-2 border-primary/70" : ""
+                day && isToday(day) ? "border-2 border-primary" : ""
               } ${hasAlert ? "border-2 border-red-500" : ""}`}
               onClick={() => {
                 if (day) {
@@ -389,7 +396,7 @@ export default function Calendar() {
             <div
               key={index}
               className={`bg-white p-1 sm:p-2 flex flex-col h-full ${
-                isToday(day) ? "border-2 border-primary/70" : ""
+                isToday(day) ? "border-2 border-primary" : ""
               } ${hasAlert ? "border-2 border-red-500" : ""}`}
               onClick={() => {
                 setCurrentDate(day);
@@ -651,7 +658,7 @@ export default function Calendar() {
   const goToToday = () => {
     const today = new Date();
     setCurrentDate(today);
-    setViewMode("month");
+    setViewMode("day");
   };
 
   useEffect(() => {
@@ -677,14 +684,22 @@ export default function Calendar() {
   }, []);
 
   useEffect(() => {
-    const loadAllShoeings = async () => {
-      const shoeings = await fetchAllShoeings();
-      setAllShoeings(shoeings);
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const shoeings = await fetchAllShoeings();
+        setAllShoeings(shoeings);
+        await fetchLocations();
+        await fetchHorses();
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast.error("Failed to load calendar data");
+      } finally {
+        setIsLoading(false);
+      }
     };
 
-    loadAllShoeings();
-    fetchLocations();
-    fetchHorses(); // This will now fetch all horses
+    loadData();
   }, []);
 
   useEffect(() => {
@@ -700,69 +715,73 @@ export default function Calendar() {
   return (
     <Card className="w-full min-h-[calc(100vh-4rem)] shadow-lg flex flex-col">
       <CardContent className="p-4 sm:p-6 flex flex-col flex-grow">
-        <div className="flex flex-col h-full">
-          <div className="flex flex-col sm:flex-row justify-between items-center mb-4 space-y-2 sm:space-y-0">
-            <h2 className="text-2xl font-bold">
-              {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
-            </h2>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => navigatePeriod("prev")}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => navigatePeriod("next")}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                className="hidden sm:inline-flex"
-                onClick={goToToday}
-              >
-                Today
-              </Button>
+        {isLoading ? (
+          <Spinner />
+        ) : (
+          <div className="flex flex-col h-full">
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-4 space-y-2 sm:space-y-0">
+              <h2 className="text-2xl font-bold">
+                {MONTHS[currentDate.getMonth()]} {currentDate.getFullYear()}
+              </h2>
               <div className="flex items-center space-x-2">
                 <Button
                   variant="outline"
-                  className="sm:hidden"
+                  size="icon"
+                  onClick={() => navigatePeriod("prev")}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => navigatePeriod("next")}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="hidden sm:inline-flex"
                   onClick={goToToday}
                 >
                   Today
                 </Button>
-                <Select
-                  value={viewMode}
-                  onValueChange={(value: "month" | "week" | "day") =>
-                    setViewMode(value)
-                  }
-                >
-                  <SelectTrigger className="w-[100px] sm:w-[180px]">
-                    <SelectValue placeholder="View" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="month">Month</SelectItem>
-                    <SelectItem value="week">Week</SelectItem>
-                    <SelectItem value="day">Day</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    className="sm:hidden"
+                    onClick={goToToday}
+                  >
+                    Today
+                  </Button>
+                  <Select
+                    value={viewMode}
+                    onValueChange={(value: "month" | "week" | "day") =>
+                      setViewMode(value)
+                    }
+                  >
+                    <SelectTrigger className="w-[100px] sm:w-[180px]">
+                      <SelectValue placeholder="View" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="month">Month</SelectItem>
+                      <SelectItem value="week">Week</SelectItem>
+                      <SelectItem value="day">Day</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
+            <div
+              className={`flex-grow grid ${
+                viewMode === "day" ? "grid-cols-1" : "grid-cols-7"
+              } gap-px bg-gray-200 overflow-y-auto h-[calc(100vh-12rem)]`}
+              style={{ maxHeight: "calc(100vh - 12rem)" }}
+              key={currentDate.toISOString()}
+            >
+              {renderCalendarContent()}
+            </div>
           </div>
-          <div
-            className={`flex-grow grid ${
-              viewMode === "day" ? "grid-cols-1" : "grid-cols-7"
-            } gap-px bg-gray-200 overflow-y-auto h-[calc(100vh-12rem)]`}
-            style={{ maxHeight: "calc(100vh - 12rem)" }} // Set max height
-            key={currentDate.toISOString()}
-          >
-            {renderCalendarContent()}
-          </div>
-        </div>
+        )}
       </CardContent>
       <Dialog
         open={isDuplicateDialogOpen}
