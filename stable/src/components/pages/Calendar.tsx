@@ -35,8 +35,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider"; // Adjust the import path as necessary
-import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
@@ -90,6 +88,7 @@ interface Horse {
 const TODAY = new Date();
 
 export default function Calendar() {
+  const [allShoeings, setAllShoeings] = useState<Shoeing[]>([]);
   const [currentMonthShoeings, setCurrentMonthShoeings] = useState<Shoeing[]>(
     []
   );
@@ -111,7 +110,6 @@ export default function Calendar() {
   );
   const [horses] = useState<Horse[]>([]);
 
-  // Define the fetchAllShoeings function
   const fetchAllShoeings = async () => {
     console.log("Fetching all shoeings");
     let allShoeings: Shoeing[] = [];
@@ -152,13 +150,6 @@ export default function Calendar() {
     console.log(`Total shoeings fetched: ${allShoeings.length}`);
     return allShoeings;
   };
-
-  // Use the useQuery hook with the defined function
-  const { data: allShoeings, isLoading } = useQuery({
-    queryKey: ["shoeings"],
-    queryFn: fetchAllShoeings,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
 
   const fetchLocations = async () => {
     const { data, error } = await supabase
@@ -435,12 +426,12 @@ export default function Calendar() {
     let successCount = 0;
     let errorCount = 0;
 
-    const shoeingsToDuplicate = allShoeings?.filter((shoeing) =>
+    const shoeingsToDuplicate = allShoeings.filter((shoeing) =>
       selectedShoeings.includes(shoeing.id)
     );
 
     console.log("Shoeings to duplicate:", shoeingsToDuplicate);
-    if (!shoeingsToDuplicate) return;
+
     for (const shoeing of shoeingsToDuplicate) {
       const newShoeingDate = format(duplicateDate, "M/d/yyyy");
       console.log("New shoeing date:", newShoeingDate);
@@ -646,53 +637,24 @@ export default function Calendar() {
   }, []);
 
   useEffect(() => {
+    const loadAllShoeings = async () => {
+      const shoeings = await fetchAllShoeings();
+      setAllShoeings(shoeings);
+    };
+
+    loadAllShoeings();
     fetchLocations();
   }, []);
 
   useEffect(() => {
-    if (allShoeings) {
-      const shoeingsForMonth = filterShoeingsForMonth(allShoeings, currentDate);
-      setCurrentMonthShoeings(shoeingsForMonth);
-    }
+    const shoeingsForMonth = filterShoeingsForMonth(allShoeings, currentDate);
+    setCurrentMonthShoeings(shoeingsForMonth);
   }, [allShoeings, currentDate]);
 
   useEffect(() => {
     console.log("Shoeings updated:", allShoeings);
     console.log("Location colors:", locationColors);
   }, [allShoeings, locationColors]);
-
-  // Add this new function to render the skeleton loader
-  const renderSkeletonLoader = () => {
-    return (
-      <Card className="w-full min-h-[calc(100vh-4rem)] shadow-lg flex flex-col">
-        <CardContent className="p-4 sm:p-6 flex flex-col flex-grow">
-          <div className="flex flex-col h-full">
-            <div className="flex justify-between items-center mb-4">
-              <Skeleton className="h-8 w-48" />
-              <div className="flex space-x-2">
-                <Skeleton className="h-10 w-10" />
-                <Skeleton className="h-10 w-10" />
-                <Skeleton className="h-10 w-24" />
-                <Skeleton className="h-10 w-32" />
-              </div>
-            </div>
-            <div className="grid grid-cols-7 gap-px bg-gray-200 flex-grow">
-              {Array(35)
-                .fill(null)
-                .map((_, index) => (
-                  <Skeleton key={index} className="h-32" />
-                ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
-  // Modify the return statement to include the skeleton loader
-  if (isLoading) {
-    return renderSkeletonLoader();
-  }
 
   return (
     <Card className="w-full min-h-[calc(100vh-4rem)] shadow-lg flex flex-col">
