@@ -16,6 +16,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { LiaHorseHeadSolid } from "react-icons/lia";
 import { Loader2 } from "lucide-react"; // Import the spinner icon
 import toast, { Toaster } from "react-hot-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { EULAContent } from "./EULA";
 
 export default function SignUpPage() {
   const [name, setName] = useState("");
@@ -26,6 +34,7 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false); // New state for loading
   const navigate = useNavigate();
+  const [isEulaOpen, setIsEulaOpen] = useState(false);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,9 +153,23 @@ export default function SignUpPage() {
                 className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
                 I agree to the{" "}
-                <a href="#" className="text-primary hover:underline">
-                  terms and conditions
-                </a>
+                <Dialog open={isEulaOpen} onOpenChange={setIsEulaOpen}>
+                  <DialogTrigger asChild>
+                    <button
+                      type="button"
+                      className="text-primary hover:underline"
+                      onClick={() => setIsEulaOpen(true)}
+                    >
+                      terms and conditions
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Terms and Conditions</DialogTitle>
+                    </DialogHeader>
+                    <EULAContent />
+                  </DialogContent>
+                </Dialog>
               </label>
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
