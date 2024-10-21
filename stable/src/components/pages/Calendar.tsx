@@ -33,12 +33,6 @@ import {
 
 import { Card, CardContent } from "@/components/ui/card";
 import { supabase } from "@/lib/supabaseClient";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider"; // Adjust the import path as necessary
 
@@ -534,86 +528,77 @@ export default function Calendar() {
         <div className="flex-grow overflow-y-auto no-scrollbar p-2 sm:p-4">
           <div className="space-y-2 h-[calc(100vh-12rem)] overflow-y-auto no-scrollbar">
             {shoeingsForDate.length > 0 ? (
-              <Accordion type="single" collapsible className="w-full">
-                {shoeingsForDate.map((shoeing, index) => {
-                  const bgColor = getLocationColor(
-                    shoeing["Location of Service"]
-                  );
-                  const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
-                  const horse = horses.find((h) => h.name === horseName);
-                  const hasAlert = horse && horse.alert;
-                  return (
-                    <AccordionItem
-                      key={shoeing.id}
-                      value={`item-${index}`}
-                      className={`rounded-md mb-2 ${
-                        hasAlert ? "border-2 border-red-500" : ""
-                      }`}
-                      style={{ backgroundColor: bgColor }}
-                    >
-                      <AccordionTrigger className="w-full hover:no-underline">
-                        <div className="flex flex-col w-full">
-                          <div className="flex items-center w-full">
-                            {showCheckboxes && (
-                              <Checkbox
-                                checked={selectedShoeings.includes(shoeing.id)}
-                                onCheckedChange={() =>
-                                  handleShoeingSelection(shoeing.id)
-                                }
-                                className="mr-2 ml-2 flex-shrink-0 text-white border-black bg-transparent"
-                              />
-                            )}
-                            <div className="flex-grow text-left">
-                              <span className="text-lg font-semibold ml-2">
-                                {horseName}
-                              </span>
-                              <div className="flex items-center text-sm">
-                                <House className="w-3 h-3 mr-1 flex-shrink-0 ml-2" />
-                                <span className="truncate ml-2">
-                                  {barnTrainer?.replace(/[\[\]]/g, "").trim() ||
-                                    ""}
-                                </span>
-                              </div>
-                              <span className="text-xs mt-1 block ml-2">
-                                {shoeing["Location of Service"]}
-                              </span>
-                            </div>
-                          </div>
-                          {hasAlert && (
-                            <div className="flex items-start bg-red-100 ml-2  text-red-700 p-2 rounded-md mt-2 text-xs w-full">
-                              <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
-                              <span
-                                className="line-clamp-2"
-                                title={horse.alert || ""}
-                              >
-                                {horse.alert}
-                              </span>
-                            </div>
-                          )}
+              shoeingsForDate.map((shoeing) => {
+                const bgColor = getLocationColor(
+                  shoeing["Location of Service"]
+                );
+                const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
+                const horse = horses.find((h) => h.name === horseName);
+                const hasAlert = horse && horse.alert;
+                return (
+                  <div
+                    key={shoeing.id}
+                    className={`rounded-md mb-2 p-4 ${
+                      hasAlert ? "border-2 border-red-500" : ""
+                    }`}
+                    style={{ backgroundColor: bgColor }}
+                  >
+                    <div className="flex items-center w-full mb-2">
+                      {showCheckboxes && (
+                        <Checkbox
+                          checked={selectedShoeings.includes(shoeing.id)}
+                          onCheckedChange={() =>
+                            handleShoeingSelection(shoeing.id)
+                          }
+                          className="mr-2 flex-shrink-0 text-white border-black bg-transparent"
+                        />
+                      )}
+                      <div className="flex-grow">
+                        <span className="text-lg font-semibold">
+                          {horseName}
+                        </span>
+                        <div className="flex items-center text-sm">
+                          <House className="w-3 h-3 mr-1 flex-shrink-0" />
+                          <span className="truncate">
+                            {barnTrainer?.replace(/[\[\]]/g, "").trim() || ""}
+                          </span>
                         </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-4 py-2">
+                        <span className="text-xs mt-1 block">
+                          {shoeing["Location of Service"]}
+                        </span>
+                      </div>
+                    </div>
+                    {hasAlert && (
+                      <div className="flex items-start bg-red-100 text-red-700 p-2 rounded-md mb-2 text-xs">
+                        <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
+                        <span
+                          className="line-clamp-2"
+                          title={horse.alert || ""}
+                        >
+                          {horse.alert}
+                        </span>
+                      </div>
+                    )}
+                    <div className="text-sm">
+                      <p>
+                        <strong>Base Service:</strong> {shoeing["Base Service"]}
+                      </p>
+                      {shoeing["Front Add-On's"] && (
                         <p>
-                          <strong>Base Service:</strong>{" "}
-                          {shoeing["Base Service"]}
+                          <strong>Front Add-On's:</strong>{" "}
+                          {shoeing["Front Add-On's"]}
                         </p>
-                        {shoeing["Front Add-On's"] && (
-                          <p>
-                            <strong>Front Add-On's:</strong>{" "}
-                            {shoeing["Front Add-On's"]}
-                          </p>
-                        )}
-                        {shoeing["Other Custom Services"] && (
-                          <p>
-                            <strong>Other Custom Services:</strong>{" "}
-                            {shoeing["Other Custom Services"]}
-                          </p>
-                        )}
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-              </Accordion>
+                      )}
+                      {shoeing["Other Custom Services"] && (
+                        <p>
+                          <strong>Other Custom Services:</strong>{" "}
+                          {shoeing["Other Custom Services"]}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
             ) : (
               <p>No shoeings for this day.</p>
             )}
