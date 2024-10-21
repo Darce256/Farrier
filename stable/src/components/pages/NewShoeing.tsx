@@ -744,18 +744,20 @@ export default function ShoeingForm() {
   }
 
   const filteredHorses = useMemo(() => {
-    const filtered = horses.filter((horse) =>
-      horse.name!.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    return horses
+      .filter(
+        (horse) =>
+          horse.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          horse.barn?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+      .sort((a, b) => {
+        // First, sort by alert status
+        if (a.alert && !b.alert) return -1;
+        if (!a.alert && b.alert) return 1;
 
-    return filtered.sort((a, b) => {
-      // First, sort by alert status
-      if (a.alert && !b.alert) return -1;
-      if (!a.alert && b.alert) return 1;
-
-      // If alert status is the same, sort alphabetically
-      return a.name!.localeCompare(b.name!);
-    });
+        // If alert status is the same, sort alphabetically
+        return a.name!.localeCompare(b.name!);
+      });
   }, [horses, searchQuery]);
 
   const filteredBarns = useMemo(() => {
@@ -1138,7 +1140,7 @@ export default function ShoeingForm() {
                                           <div className="relative">
                                             <Input
                                               type="text"
-                                              placeholder="Search horses..."
+                                              placeholder="Search horses or barns..."
                                               value={searchQuery}
                                               onChange={(e) =>
                                                 setSearchQuery(e.target.value)
