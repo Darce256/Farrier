@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Pencil,
   Loader2,
+  AlertCircle,
+  Edit,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider";
@@ -57,6 +59,7 @@ import { FixedSizeList as List } from "react-window";
 import { useInView } from "react-intersection-observer";
 import React from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
+import { Badge } from "@/components/ui/badge";
 
 interface Shoeing {
   id: string;
@@ -80,6 +83,7 @@ interface Shoeing {
     Horses: string;
   };
   alert?: string | null; // Add this line
+  is_new_horse?: boolean; // Add this line
 }
 
 interface GroupedShoeings {
@@ -121,7 +125,7 @@ const QUICKBOOKS_CLIENT_ID = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID;
 const isDevelopment = import.meta.env.MODE === "development";
 const dynamicRedirectUri = isDevelopment
   ? "http://localhost:5173/quickbooks-callback"
-  : "https://bobbysimms.vercel.app/quickbooks-callback";
+  : "https://jtesimms.com/quickbooks-callback";
 
 // Add this helper function at the top of your file, outside of the component
 function formatInvoiceDescription(description: string): string {
@@ -234,6 +238,14 @@ export default function ShoeingsApprovalPanel() {
   const [activeTab, setActiveTab] = useState("approval");
   const isMobile = useIsMobile();
 
+  // Add this new state
+  const [reviewingHorse, setReviewingHorse] = useState<Shoeing | null>(null);
+
+  // Add this new function
+  const handleOpenReviewModal = (shoeing: Shoeing) => {
+    setReviewingHorse(shoeing);
+  };
+
   const fetchQuickBooksData = useCallback(async () => {
     if (!user) return;
     try {
@@ -252,7 +264,6 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("Invalid response structure from Edge Function");
       }
     } catch (error) {
-      console.error("Error fetching QuickBooks data:", error);
       toast.error("Failed to fetch QuickBooks data");
     }
   }, [user]);
@@ -370,7 +381,7 @@ export default function ShoeingsApprovalPanel() {
       const { data: pendingShoeings, error: pendingShoeingsError } =
         await supabase
           .from("shoeings")
-          .select("*")
+          .select("*, is_new_horse") // Add is_new_horse to the selection
           .eq("status", "pending")
           .order("Date of Service", { ascending: false });
 
@@ -750,6 +761,45 @@ export default function ShoeingsApprovalPanel() {
     }
   };
 
+  const handleAcceptNewHorse = async (shoeingId: string) => {
+    try {
+      const { error } = await supabase
+        .from("shoeings")
+        .update({ is_new_horse: false })
+        .eq("id", shoeingId);
+
+      if (error) throw error;
+
+      toast.success("New horse accepted");
+      fetchPendingShoeings(); // Refresh the shoeings list
+    } catch (error) {
+      console.error("Error accepting new horse:", error);
+      toast.error("Failed to accept new horse");
+    }
+  };
+
+  const handleRejectNewHorse = async (shoeingId: string) => {
+    try {
+      const { error } = await supabase
+        .from("shoeings")
+        .update({ status: "rejected" })
+        .eq("id", shoeingId);
+
+      if (error) throw error;
+
+      toast.success("New horse rejected");
+      fetchPendingShoeings(); // Refresh the shoeings list
+    } catch (error) {
+      console.error("Error rejecting new horse:", error);
+      toast.error("Failed to reject new horse");
+    }
+  };
+
+  const handleEditNewHorse = (shoeing: Shoeing) => {
+    // This function will open the edit modal
+    setEditingShoeing(shoeing);
+  };
+
   function renderShoeingApprovalContent() {
     if (isQuickBooksConnected === null || isLoading) {
       return <SkeletonLoader />;
@@ -795,81 +845,100 @@ export default function ShoeingsApprovalPanel() {
               <AccordionContent>
                 <LazyAccordionContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {groupedShoeings.noCustomer.shoeings.map((shoeing) => (
-                      <Card key={shoeing.id} className="flex flex-col h-full">
-                        <CardContent className="flex-grow p-4 flex flex-col">
-                          {/* Render shoeing details */}
-                          <h3 className="font-semibold text-lg mb-2">
-                            {shoeing["Horse Name"]}
-                          </h3>
-                          <p>Date: {shoeing["Date of Service"]}</p>
-                          <p>Barn: {shoeing["Barn / Trainer"]}</p>
-                          <p>Location: {shoeing["Location of Service"]}</p>
-                          <p>Total Cost: ${shoeing["Total Cost"]}</p>
-                          <p className="mb-4">
-                            <strong>Description:</strong> {shoeing.Description}
-                          </p>
-                        </CardContent>
-                        <div className="p-4 mt-auto">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditShoeing(shoeing)}
-                            className="w-full bg-primary text-white hover:bg-black hover:text-white"
+                    {groupedShoeings.noCustomer.shoeings.map(
+                      (shoeing) => (
+                        console.log(shoeing),
+                        (
+                          <Card
+                            key={shoeing.id}
+                            className="flex flex-col h-full"
                           >
-                            <Pencil className="w-4 h-4 mr-2" /> Edit
-                          </Button>
-                        </div>
-                        <div className="p-4">
-                          <Select
-                            onValueChange={(value) =>
-                              handleCustomerSelect(shoeing.id, value)
-                            }
-                            value={selectedCustomers[shoeing.id] || ""}
-                          >
-                            <SelectTrigger className="w-full">
-                              <SelectValue placeholder="Select QuickBooks Customer" />
-                            </SelectTrigger>
-                            <FilteredVirtualizedSelectContent className="min-w-[300px]">
-                              {quickBooksData?.customers.map((customer) => (
-                                <SelectItem
-                                  key={customer.id}
-                                  value={customer.id}
-                                  className="whitespace-nowrap"
+                            <CardContent className="flex-grow p-4 flex flex-col">
+                              {/* Render shoeing details */}
+                              <h3 className="font-semibold text-lg mb-2">
+                                {shoeing["Horse Name"]}
+                              </h3>
+
+                              {shoeing.is_new_horse && (
+                                <Badge
+                                  variant="outline"
+                                  className="bg-yellow-100 text-yellow-800 border-yellow-300 mb-2"
                                 >
-                                  {customer.displayName}
-                                </SelectItem>
-                              ))}
-                            </FilteredVirtualizedSelectContent>
-                          </Select>
-                        </div>
-                        <div className="p-4 flex justify-between">
-                          <Button
-                            onClick={() => handleAccept(shoeing.id)}
-                            disabled={
-                              !selectedCustomers[shoeing.id] ||
-                              isAccepting === shoeing.id
-                            }
-                            className="w-1/2 mr-2"
-                          >
-                            {isAccepting === shoeing.id ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Check className="mr-2 h-4 w-4" />
-                            )}
-                            Accept
-                          </Button>
-                          <Button
-                            onClick={() => handleReject(shoeing.id)}
-                            variant="destructive"
-                            className="w-1/2 ml-2"
-                          >
-                            <X className="mr-2 h-4 w-4" />
-                            Reject
-                          </Button>
-                        </div>
-                      </Card>
-                    ))}
+                                  <AlertCircle className="w-4 h-4 mr-1" />
+                                  New Horse
+                                </Badge>
+                              )}
+                              <p>Date: {shoeing["Date of Service"]}</p>
+                              <p>Barn: {shoeing["Barn / Trainer"]}</p>
+                              <p>Location: {shoeing["Location of Service"]}</p>
+                              <p>Total Cost: ${shoeing["Total Cost"]}</p>
+                              <p className="mb-4">
+                                <strong>Description:</strong>{" "}
+                                {shoeing.Description}
+                              </p>
+                            </CardContent>
+                            <div className="p-4 mt-auto">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditShoeing(shoeing)}
+                                className="w-full bg-primary text-white hover:bg-black hover:text-white"
+                              >
+                                <Pencil className="w-4 h-4 mr-2" /> Edit
+                              </Button>
+                            </div>
+                            <div className="p-4">
+                              <Select
+                                onValueChange={(value) =>
+                                  handleCustomerSelect(shoeing.id, value)
+                                }
+                                value={selectedCustomers[shoeing.id] || ""}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select QuickBooks Customer" />
+                                </SelectTrigger>
+                                <FilteredVirtualizedSelectContent className="min-w-[300px]">
+                                  {quickBooksData?.customers.map((customer) => (
+                                    <SelectItem
+                                      key={customer.id}
+                                      value={customer.id}
+                                      className="whitespace-nowrap"
+                                    >
+                                      {customer.displayName}
+                                    </SelectItem>
+                                  ))}
+                                </FilteredVirtualizedSelectContent>
+                              </Select>
+                            </div>
+                            <div className="p-4 flex justify-between">
+                              <Button
+                                onClick={() => handleAccept(shoeing.id)}
+                                disabled={
+                                  !selectedCustomers[shoeing.id] ||
+                                  isAccepting === shoeing.id
+                                }
+                                className="w-1/2 mr-2"
+                              >
+                                {isAccepting === shoeing.id ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="mr-2 h-4 w-4" />
+                                )}
+                                Accept
+                              </Button>
+                              <Button
+                                onClick={() => handleReject(shoeing.id)}
+                                variant="destructive"
+                                className="w-1/2 ml-2"
+                              >
+                                <X className="mr-2 h-4 w-4" />
+                                Reject
+                              </Button>
+                            </div>
+                          </Card>
+                        )
+                      )
+                    )}
                   </div>
                 </LazyAccordionContent>
               </AccordionContent>
@@ -879,10 +948,6 @@ export default function ShoeingsApprovalPanel() {
             ([key, { displayName, shoeings }]) => {
               if (key !== "noCustomer") {
                 const selectedCustomerId = selectedCustomers[key] || "";
-                console.log(
-                  `Rendering Select for ${key}, selected value:`,
-                  selectedCustomerId
-                );
 
                 return (
                   <AccordionItem key={key} value={key}>
@@ -900,10 +965,61 @@ export default function ShoeingsApprovalPanel() {
                               className="flex flex-col h-full"
                             >
                               <CardContent className="flex-grow p-4 flex flex-col">
+                                <div className="flex justify-between items-center mb-2">
+                                  <h3 className="font-semibold text-lg">
+                                    {shoeing["Horse Name"]}
+                                  </h3>
+                                  {shoeing.is_new_horse && (
+                                    <div className="flex items-center">
+                                      <Badge
+                                        variant="outline"
+                                        className="bg-yellow-100 text-yellow-800 border-yellow-300 mr-2"
+                                      >
+                                        <AlertCircle className="w-4 h-4 mr-1" />
+                                        New Horse -
+                                        <Button
+                                          variant="link"
+                                          className="text-blue-600 hover:underline p-0 h-auto"
+                                          onClick={() =>
+                                            handleOpenReviewModal(shoeing)
+                                          }
+                                        >
+                                          review?
+                                        </Button>
+                                      </Badge>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="mr-1"
+                                        onClick={() =>
+                                          handleAcceptNewHorse(shoeing.id)
+                                        }
+                                      >
+                                        <Check className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="mr-1"
+                                        onClick={() =>
+                                          handleRejectNewHorse(shoeing.id)
+                                        }
+                                      >
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          handleEditNewHorse(shoeing)
+                                        }
+                                      >
+                                        <Edit className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
                                 {/* Render shoeing details */}
-                                <h3 className="font-semibold text-lg mb-2">
-                                  {shoeing["Horse Name"]}
-                                </h3>
                                 <p>Date: {shoeing["Date of Service"]}</p>
                                 <p>Barn: {shoeing["Barn / Trainer"]}</p>
                                 <p>
@@ -985,6 +1101,12 @@ export default function ShoeingsApprovalPanel() {
           onSave={handleSaveEdit}
           locations={locations}
         />
+        {reviewingHorse && (
+          <ReviewHorseModal
+            horse={reviewingHorse}
+            onClose={() => setReviewingHorse(null)}
+          />
+        )}
       </>
     );
   }
@@ -1086,7 +1208,6 @@ function SentInvoicesTab() {
         setInvoices(data.invoices);
         setTotalCount(data.totalCount);
       } catch (err) {
-        console.error("Error fetching invoices:", err);
         setError("Failed to fetch invoices. Please try again later.");
       } finally {
         setLoading(false);
@@ -1409,6 +1530,26 @@ function EditShoeingModal({
             Save Changes
           </Button>
         </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// Add this new component at the end of the file
+interface ReviewHorseModalProps {
+  horse: Shoeing;
+  onClose: () => void;
+}
+
+function ReviewHorseModal({ horse, onClose }: ReviewHorseModalProps) {
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Review New Horse: {horse["Horse Name"]}</DialogTitle>
+        </DialogHeader>
+        {/* We'll add the content of the modal here in the next step */}
+        <p>Horse details will be displayed here.</p>
       </DialogContent>
     </Dialog>
   );
