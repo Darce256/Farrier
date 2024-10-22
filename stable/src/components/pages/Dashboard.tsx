@@ -201,7 +201,6 @@ export default function Dashboard() {
           return sum + totalCost;
         } else {
         }
-      } else {
       }
       return sum;
     }, 0);
@@ -300,12 +299,6 @@ export default function Dashboard() {
             hindAddOnCostString
           );
         }
-      } else {
-        console.log(
-          `Excluding shoeing ${index}:`,
-          dateOfService,
-          "outside date range"
-        );
       }
       return sum;
     }, 0);
@@ -475,11 +468,6 @@ export default function Dashboard() {
           );
         }
       } else {
-        console.log(
-          `Excluding shoeing ${index}:`,
-          dateOfService,
-          "outside date range"
-        );
       }
       return sum;
     }, 0);
@@ -650,12 +638,6 @@ export default function Dashboard() {
             hindAddOnCostString
           );
         }
-      } else {
-        console.log(
-          `Excluding shoeing ${index}:`,
-          dateOfService,
-          "outside date range"
-        );
       }
       return sum;
     }, 0);
