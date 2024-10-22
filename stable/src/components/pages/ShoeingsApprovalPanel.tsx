@@ -125,7 +125,7 @@ const QUICKBOOKS_CLIENT_ID = import.meta.env.VITE_QUICKBOOKS_CLIENT_ID;
 const isDevelopment = import.meta.env.MODE === "development";
 const dynamicRedirectUri = isDevelopment
   ? "http://localhost:5173/quickbooks-callback"
-  : "https://jtesimms.com/quickbooks-callback";
+  : "https://www.jtesimms.com/quickbooks-callback";
 
 // Add this helper function at the top of your file, outside of the component
 function formatInvoiceDescription(description: string): string {
