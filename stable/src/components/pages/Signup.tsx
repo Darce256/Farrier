@@ -13,7 +13,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { LiaHorseHeadSolid } from "react-icons/lia";
 import { Loader2 } from "lucide-react"; // Import the spinner icon
 import toast, { Toaster } from "react-hot-toast";
 import {
@@ -24,6 +23,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EULAContent } from "./EULA";
+
+// Import the logo image
+import bsLogo from "@/assets/bslogo.png";
 
 export default function SignUpPage() {
   const [name, setName] = useState("");
@@ -86,16 +88,17 @@ export default function SignUpPage() {
       <Card className="w-full max-w-md bg-white/90 backdrop-blur-sm border">
         <CardHeader className="space-y-1">
           <div className="flex items-center justify-center mb-4">
-            <LiaHorseHeadSolid className="h-12 w-12 text-primary" />
+            {/* Replace the LiaHorseHeadSolid icon with the bslogo image */}
+            <img src={bsLogo} alt="BS Logo" className="h-12 w-auto" />
             <span className="ml-2 text-3xl font-bold text-primary">
-              Farrier
+              Bobby Simms
             </span>
           </div>
           <CardTitle className="text-2xl font-bold text-center">
             Create an account
           </CardTitle>
           <CardDescription className="text-center">
-            Sign up to start managing your horses with Farrier
+            Sign up to start managing your horses!
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleSignUp}>

@@ -4,9 +4,11 @@ import { Menu, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { LiaHorseHeadSolid } from "react-icons/lia";
 
 import { useAuth } from "@/components/Contexts/AuthProvider";
+
+// Import the logo image
+import bsLogo from "@/assets/bslogo.png";
 
 export default function NavBar() {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -39,10 +41,13 @@ export default function NavBar() {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="flex-shrink-0">
-              <LiaHorseHeadSolid className="h-8 w-8 text-white " />
+              {/* Replace the LiaHorseHeadSolid icon with the bslogo image */}
+              <img src={bsLogo} alt="BS Logo" className="h-8 w-auto" />
             </Link>
             <Link to="/" className="flex-shrink-0">
-              <h1 className="text-white text-2xl ml-4 font-bold">Farrier</h1>
+              <h1 className="text-white text-2xl ml-4 font-bold">
+                Bobby Simms
+              </h1>
             </Link>
           </div>
 
