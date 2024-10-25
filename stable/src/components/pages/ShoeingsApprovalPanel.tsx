@@ -401,14 +401,22 @@ function ReviewHorseModal({ horse, onClose, onUpdate }: ReviewHorseModalProps) {
 
       if (horseError) throw horseError;
 
-      // Update the shoeing record with the new Horses format
+      // Get the existing description's service part (after the hyphen)
+      const descriptionParts = horse.Description?.split(" - ");
+      const servicePart = descriptionParts?.[1] || "";
+
+      // Create new description with updated horse name
+      const newDescription = `${editedDetails.Name} - ${servicePart}`;
+
+      // Update the shoeing record
       const newHorsesFormat = `${editedDetails.Name} - [${editedDetails["Barn / Trainer"]}]`;
       const { data: updatedShoeing, error: shoeingError } = await supabase
         .from("shoeings")
         .update({
           Horses: newHorsesFormat,
-          "Horse Name": editedDetails.Name, // Add the horse name
-          "Owner Email": editedDetails["Owner Email"], // Add the owner email
+          "Horse Name": editedDetails.Name,
+          "Owner Email": editedDetails["Owner Email"],
+          Description: newDescription, // Add the updated description
         })
         .eq("id", horse.id)
         .select()
