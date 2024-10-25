@@ -62,6 +62,7 @@ import { useIsMobile } from "@/hooks/useIsMobile";
 import { Badge } from "@/components/ui/badge";
 
 interface Shoeing {
+  Horses: any;
   id: string;
   "Date of Service": string;
   "Horse Name": string;
@@ -215,6 +216,455 @@ const LazyAccordionContent = ({ children }: { children: React.ReactNode }) => {
     </div>
   );
 };
+
+// Add this interface for the horse data
+interface Horse {
+  Name: string;
+  "Barn / Trainer": string;
+  "Owner Email": string | null;
+  "Owner Phone": string | null;
+  History: string | null;
+  "Horse Notes History": string | null;
+  "Note w/ Time Stamps (from History)": string | null;
+  id: string;
+  status: string;
+  alert: string | null;
+  created_at: string;
+}
+
+// Update the ReviewHorseModal component
+interface ReviewHorseModalProps {
+  horse: Shoeing;
+  onClose: () => void;
+  onUpdate?: (updatedHorse: Shoeing) => void; // Add this prop
+}
+
+// Add this helper function for phone number formatting
+const formatPhoneNumber = (value: string) => {
+  // Remove all non-numeric characters
+  const cleaned = value.replace(/\D/g, "");
+
+  // Format as (XXX) XXX-XXXX
+  if (cleaned.length >= 10) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(
+      6,
+      10
+    )}`;
+  } else if (cleaned.length > 6) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(
+      6
+    )}`;
+  } else if (cleaned.length > 3) {
+    return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3)}`;
+  } else if (cleaned.length > 0) {
+    return `(${cleaned}`;
+  }
+  return cleaned;
+};
+
+// Add this helper function to validate email
+const isValidEmail = (email: string | null): boolean => {
+  if (!email) return true; // Allow empty email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+function ReviewHorseModal({ horse, onClose, onUpdate }: ReviewHorseModalProps) {
+  const [horseDetails, setHorseDetails] = useState<Horse | null>(null);
+  const [editedDetails, setEditedDetails] = useState<Horse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [barns, setBarns] = useState<string[]>([]);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  // Fetch unique barns
+  useEffect(() => {
+    async function fetchBarns() {
+      try {
+        const { data, error } = await supabase
+          .from("horses")
+          .select('"Barn / Trainer"') // Added double quotes
+          .not('"Barn / Trainer"', "is", null); // Added double quotes here too
+
+        if (error) throw error;
+
+        // Get unique barns and sort them
+        const uniqueBarns = Array.from(
+          new Set(data.map((item) => item["Barn / Trainer"]))
+        )
+          .filter(Boolean)
+          .sort();
+
+        setBarns(uniqueBarns);
+      } catch (err) {
+        console.error("Error fetching barns:", err);
+      }
+    }
+
+    fetchBarns();
+  }, []);
+
+  useEffect(() => {
+    async function fetchHorseDetails() {
+      try {
+        // If we already have horse details and an ID, use that instead of parsing the horse string
+        if (horseDetails?.id) {
+          const { data, error } = await supabase
+            .from("horses")
+            .select("*")
+            .eq("id", horseDetails.id)
+            .single();
+
+          if (error) throw error;
+          if (!data) throw new Error("Horse not found");
+
+          setHorseDetails(data);
+          setEditedDetails(data);
+          return;
+        }
+
+        // Initial fetch using the horse string
+        const [horseName, barnTrainer] = horse.Horses.split(" - ");
+        const cleanBarnTrainer = barnTrainer.replace(/[\[\]]/g, "");
+        const { data, error } = await supabase
+          .from("horses")
+          .select("*")
+          .eq("Name", horseName)
+          .eq('"Barn / Trainer"', cleanBarnTrainer)
+          .single();
+
+        if (error) throw error;
+        if (!data) throw new Error("Horse not found");
+
+        setHorseDetails(data);
+        setEditedDetails(data);
+      } catch (err) {
+        console.error("Error fetching horse details:", err);
+        setError("Failed to load horse details");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchHorseDetails();
+  }, [horse, horseDetails?.id]); // Add horseDetails?.id to dependencies
+
+  // Update the handleInputChange function
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    if (!editedDetails) return;
+
+    const { id, value } = e.target;
+
+    // Validate email when it changes
+    if (id === "Owner Email" && value) {
+      if (!isValidEmail(value)) {
+        setEmailError("Please enter a valid email address");
+      } else {
+        setEmailError(null);
+      }
+    }
+
+    setEditedDetails((prev) => ({
+      ...prev!,
+      [id]: value,
+    }));
+  };
+
+  const handleBarnChange = (value: string) => {
+    if (!editedDetails) return;
+    setEditedDetails((prev) => ({
+      ...prev!,
+      "Barn / Trainer": value,
+    }));
+  };
+
+  const handleSave = async () => {
+    if (!editedDetails) return;
+
+    try {
+      // Update the horse record
+      const { error: horseError } = await supabase
+        .from("horses")
+        .update({
+          Name: editedDetails.Name,
+          "Barn / Trainer": editedDetails["Barn / Trainer"],
+          "Owner Email": editedDetails["Owner Email"],
+          "Owner Phone": editedDetails["Owner Phone"],
+          alert: editedDetails.alert,
+          History: editedDetails.History,
+          "Horse Notes History": editedDetails["Horse Notes History"],
+        })
+        .eq("id", editedDetails.id);
+
+      if (horseError) throw horseError;
+
+      // Update the shoeing record with the new Horses format
+      const newHorsesFormat = `${editedDetails.Name} - [${editedDetails["Barn / Trainer"]}]`;
+      const { data: updatedShoeing, error: shoeingError } = await supabase
+        .from("shoeings")
+        .update({
+          Horses: newHorsesFormat,
+          "Horse Name": editedDetails.Name, // Add the horse name
+          "Owner Email": editedDetails["Owner Email"], // Add the owner email
+        })
+        .eq("id", horse.id)
+        .select()
+        .single();
+
+      if (shoeingError) throw shoeingError;
+
+      setHorseDetails(editedDetails);
+      setIsEditing(false);
+
+      // Call the onUpdate callback with the updated shoeing
+      if (onUpdate && updatedShoeing) {
+        onUpdate(updatedShoeing);
+      }
+
+      toast.success("Horse details updated successfully");
+    } catch (err) {
+      console.error("Error updating horse:", err);
+      toast.error("Failed to update horse details");
+    }
+  };
+
+  const handleCancelEdit = () => {
+    // Reset editedDetails back to original horseDetails
+    setEditedDetails(horseDetails);
+    setIsEditing(false);
+  };
+
+  if (loading) {
+    return (
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Loading horse details...</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center p-4">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  if (error) {
+    return (
+      <Dialog open={true} onOpenChange={onClose}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Error</DialogTitle>
+          </DialogHeader>
+          <p className="text-red-500">{error}</p>
+          <DialogFooter>
+            <Button onClick={onClose}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Review New Horse: {horse["Horse Name"]}</DialogTitle>
+        </DialogHeader>
+
+        {editedDetails && (
+          <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Name</Label>
+                {isEditing ? (
+                  <Input
+                    id="Name"
+                    value={editedDetails.Name}
+                    onChange={handleInputChange}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p className="text-sm">{editedDetails.Name}</p>
+                )}
+              </div>
+              <div>
+                <Label>Barn / Trainer</Label>
+                {isEditing ? (
+                  <Select
+                    value={editedDetails["Barn / Trainer"]}
+                    onValueChange={handleBarnChange}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue placeholder="Select a barn" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {barns.map((barn) => (
+                        <SelectItem key={barn} value={barn}>
+                          {barn}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm">{editedDetails["Barn / Trainer"]}</p>
+                )}
+              </div>
+              <div>
+                <Label>Owner Email</Label>
+                {isEditing ? (
+                  <div className="space-y-1">
+                    <Input
+                      id="Owner Email"
+                      type="email"
+                      value={editedDetails["Owner Email"] || ""}
+                      onChange={handleInputChange}
+                      className={`mt-1 ${emailError ? "border-red-500" : ""}`}
+                      placeholder="email@example.com"
+                      onBlur={(e) => {
+                        if (e.target.value && !isValidEmail(e.target.value)) {
+                          setEmailError("Please enter a valid email address");
+                        }
+                      }}
+                    />
+                    {emailError && (
+                      <p className="text-sm text-red-500">{emailError}</p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm">
+                    {editedDetails["Owner Email"] || "N/A"}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label>Owner Phone</Label>
+                {isEditing ? (
+                  <Input
+                    id="Owner Phone"
+                    type="tel" // Change to tel type
+                    value={editedDetails["Owner Phone"] || ""}
+                    onChange={(e) => {
+                      const formatted = formatPhoneNumber(e.target.value);
+                      setEditedDetails((prev) => ({
+                        ...prev!,
+                        "Owner Phone": formatted,
+                      }));
+                    }}
+                    className="mt-1"
+                    placeholder="(123) 456-7890"
+                  />
+                ) : (
+                  <p className="text-sm">
+                    {editedDetails["Owner Phone"] || "N/A"}
+                  </p>
+                )}
+              </div>
+              <div>
+                <Label>Status</Label>
+                <p className="text-sm">{editedDetails.status}</p>
+              </div>
+              <div>
+                <Label>Created At</Label>
+                <p className="text-sm">
+                  {new Date(editedDetails.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-2">
+              <Label>Alert</Label>
+              {isEditing ? (
+                <Input
+                  id="alert"
+                  value={editedDetails.alert || ""}
+                  onChange={handleInputChange}
+                  className="mt-1"
+                />
+              ) : (
+                editedDetails.alert && (
+                  <p className="text-sm text-red-500">{editedDetails.alert}</p>
+                )
+              )}
+            </div>
+
+            <div className="mt-2">
+              <Label>History</Label>
+              {isEditing ? (
+                <Textarea
+                  id="History"
+                  value={editedDetails.History || ""}
+                  onChange={handleInputChange}
+                  className="mt-1"
+                />
+              ) : (
+                editedDetails.History && (
+                  <p className="text-sm whitespace-pre-wrap">
+                    {editedDetails.History}
+                  </p>
+                )
+              )}
+            </div>
+
+            <div className="mt-2">
+              <Label>Horse Notes History</Label>
+              {isEditing ? (
+                <Textarea
+                  id="Horse Notes History"
+                  value={editedDetails["Horse Notes History"] || ""}
+                  onChange={handleInputChange}
+                  className="mt-1"
+                />
+              ) : (
+                editedDetails["Horse Notes History"] && (
+                  <p className="text-sm whitespace-pre-wrap">
+                    {editedDetails["Horse Notes History"]}
+                  </p>
+                )
+              )}
+            </div>
+          </div>
+        )}
+
+        <DialogFooter className="mt-4">
+          {isEditing ? (
+            <>
+              <Button variant="outline" onClick={handleCancelEdit}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                className="hover:bg-black hover:text-white"
+                disabled={
+                  Boolean(emailError) ||
+                  (Boolean(editedDetails?.["Owner Email"]) &&
+                    !isValidEmail(editedDetails?.["Owner Email"] || ""))
+                }
+              >
+                Save Changes
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={onClose}>
+                Close
+              </Button>
+              <Button
+                className="hover:bg-black hover:text-white"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit
+              </Button>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function ShoeingsApprovalPanel() {
   const [groupedShoeings, setGroupedShoeings] = useState<GroupedShoeings>(
@@ -827,6 +1277,49 @@ export default function ShoeingsApprovalPanel() {
       );
     }
 
+    const handleHorseUpdate = (updatedHorse: Shoeing) => {
+      // Create a new copy of groupedShoeings
+      const newGroupedShoeings = { ...groupedShoeings };
+
+      // Find the group that contains this horse
+      for (const groupKey of Object.keys(newGroupedShoeings)) {
+        const group = newGroupedShoeings[groupKey];
+        const shoeingIndex = group.shoeings.findIndex(
+          (s) => s.id === updatedHorse.id
+        );
+
+        if (shoeingIndex !== -1) {
+          // Remove from old group
+          group.shoeings.splice(shoeingIndex, 1);
+
+          // If group is empty and not the default group, remove it
+          if (group.shoeings.length === 0 && groupKey !== "noCustomer") {
+            delete newGroupedShoeings[groupKey];
+          }
+
+          // Determine new group based on QB Customers
+          const newGroupKey = updatedHorse["QB Customers"] || "noCustomer";
+          const newDisplayName = updatedHorse["QB Customers"] || "No Customer";
+
+          // Create new group if it doesn't exist
+          if (!newGroupedShoeings[newGroupKey]) {
+            newGroupedShoeings[newGroupKey] = {
+              displayName: newDisplayName,
+              shoeings: [],
+            };
+          }
+
+          // Add to new group
+          newGroupedShoeings[newGroupKey].shoeings.push(updatedHorse);
+          break;
+        }
+      }
+
+      // Update state
+      setGroupedShoeings(newGroupedShoeings);
+      setReviewingHorse(updatedHorse);
+    };
+
     return (
       <>
         <h1 className="text-2xl font-bold mb-4">Shoeing Management</h1>
@@ -862,10 +1355,19 @@ export default function ShoeingsApprovalPanel() {
                               {shoeing.is_new_horse && (
                                 <Badge
                                   variant="outline"
-                                  className="bg-yellow-100 text-yellow-800 border-yellow-300 mb-2"
+                                  className="bg-yellow-100 text-yellow-800 border-yellow-300 mr-2"
                                 >
-                                  <AlertCircle className="w-4 h-4 mr-1" />
-                                  New Horse
+                                  <AlertCircle className="w-4 h-4 mr-2" />
+                                  New Horse -
+                                  <Button
+                                    variant="link"
+                                    className="text-yellow-800 ml-1 hover:underline p-0 h-auto"
+                                    onClick={() =>
+                                      handleOpenReviewModal(shoeing)
+                                    }
+                                  >
+                                    review?
+                                  </Button>
                                 </Badge>
                               )}
                               <p>Date: {shoeing["Date of Service"]}</p>
@@ -1105,6 +1607,7 @@ export default function ShoeingsApprovalPanel() {
           <ReviewHorseModal
             horse={reviewingHorse}
             onClose={() => setReviewingHorse(null)}
+            onUpdate={handleHorseUpdate}
           />
         )}
       </>
@@ -1539,18 +2042,5 @@ function EditShoeingModal({
 interface ReviewHorseModalProps {
   horse: Shoeing;
   onClose: () => void;
-}
-
-function ReviewHorseModal({ horse, onClose }: ReviewHorseModalProps) {
-  return (
-    <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Review New Horse: {horse["Horse Name"]}</DialogTitle>
-        </DialogHeader>
-        {/* We'll add the content of the modal here in the next step */}
-        <p>Horse details will be displayed here.</p>
-      </DialogContent>
-    </Dialog>
-  );
+  onUpdate?: (updatedHorse: Shoeing) => void; // Add this prop
 }
