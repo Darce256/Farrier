@@ -1434,7 +1434,7 @@ export default function ShoeingsApprovalPanel() {
                                   !selectedCustomers[shoeing.id] ||
                                   isAccepting === shoeing.id
                                 }
-                                className="w-1/2 mr-2"
+                                className="w-1/2 mr-2 hover:bg-black hover:text-white"
                               >
                                 {isAccepting === shoeing.id ? (
                                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1446,7 +1446,7 @@ export default function ShoeingsApprovalPanel() {
                               <Button
                                 onClick={() => handleReject(shoeing.id)}
                                 variant="destructive"
-                                className="w-1/2 ml-2"
+                                className="w-1/2 ml-2 "
                               >
                                 <X className="mr-2 h-4 w-4" />
                                 Reject
@@ -1570,6 +1570,7 @@ export default function ShoeingsApprovalPanel() {
                         </div>
                         <div className="flex items-center mt-4 space-x-4">
                           <Button
+                            className="hover:bg-black hover:text-white"
                             onClick={() => handleAcceptAll(key)}
                             disabled={
                               !selectedCustomers[key] || isAccepting === key
