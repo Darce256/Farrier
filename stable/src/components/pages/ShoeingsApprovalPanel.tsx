@@ -1359,7 +1359,6 @@ export default function ShoeingsApprovalPanel() {
                               <h3 className="font-semibold text-lg mb-2">
                                 {shoeing["Horse Name"]}
                               </h3>
-
                               {shoeing.is_new_horse && (
                                 <Badge
                                   variant="outline"
@@ -1379,7 +1378,14 @@ export default function ShoeingsApprovalPanel() {
                                 </Badge>
                               )}
                               <p>Date: {shoeing["Date of Service"]}</p>
-                              <p>Barn: {shoeing["Barn / Trainer"]}</p>
+                              <p>
+                                Barn:{" "}
+                                {shoeing.Horses.split(" - ")[1]?.replace(
+                                  /[\[\]]/g,
+                                  ""
+                                )}
+                              </p>{" "}
+                              {/* Add this line */}
                               <p>Location: {shoeing["Location of Service"]}</p>
                               <p>Total Cost: ${shoeing["Total Cost"]}</p>
                               <p className="mb-4">
@@ -1531,7 +1537,14 @@ export default function ShoeingsApprovalPanel() {
                                 </div>
                                 {/* Render shoeing details */}
                                 <p>Date: {shoeing["Date of Service"]}</p>
-                                <p>Barn: {shoeing["Barn / Trainer"]}</p>
+                                <p>
+                                  Barn:{" "}
+                                  {shoeing.Horses.split(" - ")[1]?.replace(
+                                    /[\[\]]/g,
+                                    ""
+                                  )}
+                                </p>{" "}
+                                {/* Add this line */}
                                 <p>
                                   Location: {shoeing["Location of Service"]}
                                 </p>
