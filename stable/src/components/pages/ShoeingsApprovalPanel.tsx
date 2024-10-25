@@ -943,7 +943,6 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("Shoeing not found");
       }
 
-      // For grouped shoeings, use the group name (key) as the customer
       const groupKey = Object.keys(groupedShoeings).find((key) =>
         groupedShoeings[key].shoeings.some((s) => s.id === shoeingId)
       );
@@ -960,7 +959,6 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("QuickBooks data not loaded");
       }
 
-      // Find the selected customer's display name
       const selectedCustomer =
         groupKey !== "noCustomer"
           ? {
@@ -975,7 +973,6 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("Selected customer not found");
       }
 
-      // Prepare the shoeing data with description and Owner Email
       const shoeingWithDescription = {
         ...shoeing,
         invoiceDescription: formatInvoiceDescription(shoeing.Description),
@@ -993,35 +990,39 @@ export default function ShoeingsApprovalPanel() {
         }
       );
 
-      if (error) {
-        console.error("Error from Edge Function:", error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log("Data from Edge Function:", data);
       if (data.invoice && data.invoice.Invoice) {
-        // Get current date in MM/DD/YYYY format
         const currentDate = format(new Date(), "MM/dd/yyyy");
 
-        // Update shoeing status, QB Customers, and Date Sent in your database
-        console.log(
-          "Updating shoeing status, QB Customers, and Date Sent:",
-          data.invoice.Invoice.Id
-        );
-        const { error: updateError } = await supabase
+        // Update shoeing status, QB Customers, and is_new_horse
+        const { error: shoeingUpdateError } = await supabase
           .from("shoeings")
           .update({
             status: "completed",
             Invoice: data.invoice.Invoice.DocNumber,
             "QB Customers": selectedCustomer.displayName,
-            "Date Sent": currentDate, // Add this line to update Date Sent
+            "Date Sent": currentDate,
+            is_new_horse: false, // Add this line to update is_new_horse
           })
           .eq("id", shoeingId);
 
-        if (updateError) {
-          console.error("Error updating shoeing:", updateError);
-          throw updateError;
-        }
+        if (shoeingUpdateError) throw shoeingUpdateError;
+
+        // Update the horse's QB Customers field
+        // First get the horse details from the Horses column
+        const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
+        const cleanBarnTrainer = barnTrainer.replace(/[\[\]]/g, "");
+
+        const { error: horseUpdateError } = await supabase
+          .from("horses")
+          .update({
+            Customers: selectedCustomer.displayName,
+          })
+          .eq("Name", horseName)
+          .eq('"Barn / Trainer"', cleanBarnTrainer);
+
+        if (horseUpdateError) throw horseUpdateError;
 
         const invoiceNumber =
           data.invoice.Invoice.DocNumber ||
