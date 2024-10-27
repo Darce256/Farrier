@@ -540,7 +540,6 @@ export default function ShoeingForm() {
   const [addOns, setAddOns] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [existingBarns, setExistingBarns] = useState<string[]>([]);
-  const [barnSearchQuery, setBarnSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const selectRef = useRef<HTMLButtonElement>(null);
 
@@ -760,12 +759,6 @@ export default function ShoeingForm() {
       });
   }, [horses, searchQuery]);
 
-  const filteredBarns = useMemo(() => {
-    return existingBarns.filter((barn) =>
-      barn.toLowerCase().includes(barnSearchQuery.toLowerCase())
-    );
-  }, [existingBarns, barnSearchQuery]);
-
   // Add these new state variables
   const [selectedLocation, setSelectedLocation] = useState<string | undefined>(
     undefined
@@ -779,15 +772,42 @@ export default function ShoeingForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     console.log("Starting onSubmit with values:", values);
     try {
+      let horseId = values.horseName;
+
+      // If this is a new horse, create it first
+      if (isNewHorse) {
+        const selectedHorse = horses.find((h) => h.id === values.horseName);
+        if (!selectedHorse) {
+          throw new Error("Selected horse not found");
+        }
+
+        // Create the new horse in the database
+        const { data: horseData, error: horseError } = await supabase
+          .from("horses")
+          .insert([
+            {
+              Name: selectedHorse.name,
+              "Barn / Trainer": selectedHorse.barn,
+              "Owner Email": selectedHorse.ownerEmail,
+              "Owner Phone": selectedHorse.ownerPhone,
+            },
+          ])
+          .select()
+          .single();
+
+        if (horseError) throw horseError;
+
+        // Use the new horse's real ID
+        horseId = horseData.id;
+      }
+
       if (!user) {
         console.log("No user found, aborting submission");
         toast.error("You must be logged in to submit a shoeing record.");
         return;
       }
 
-      const selectedHorse = horses.find(
-        (horse) => horse.id === values.horseName
-      );
+      const selectedHorse = horses.find((horse) => horse.id === horseId);
       if (!selectedHorse) {
         console.log("Selected horse not found, aborting submission");
         throw new Error("Selected horse not found");
@@ -971,83 +991,46 @@ export default function ShoeingForm() {
     setIsModalOpen(true);
   };
 
+  // Add a new state for selected horse
+  const [selectedHorseId, setSelectedHorseId] = useState<string>("");
+
   const handleAddNewHorse = async (values: NewHorseFormValues) => {
-    console.log("Starting handleAddNewHorse with values:", values);
-    try {
-      // Trim the barn name
-      const trimmedBarnName = values.barnName.trim();
+    console.log("Storing temporary new horse data:", values);
 
-      // Check if horse with same name and barn already exists
-      const existingHorse = horses.find(
-        (horse) =>
-          horse.name?.toLowerCase() === values.horseName.toLowerCase() &&
-          horse.barn?.toLowerCase().trim() === trimmedBarnName.toLowerCase()
-      );
+    // Check if horse with same name and barn already exists
+    const existingHorse = horses.find(
+      (horse) =>
+        horse.name?.toLowerCase() === values.horseName.toLowerCase() &&
+        horse.barn?.toLowerCase().trim() === values.barnName.toLowerCase()
+    );
 
-      if (existingHorse) {
-        console.log("Horse already exists:", existingHorse);
-        toast.error("A horse with this name and barn/trainer already exists.");
-        return;
-      }
-
-      console.log("Inserting new horse into database");
-      const { data: horseData, error: horseError } = await supabase
-        .from("horses")
-        .insert([
-          {
-            Name: values.horseName,
-            "Barn / Trainer": trimmedBarnName,
-            "Owner Email": values.ownerEmail,
-          },
-        ])
-        .select();
-
-      if (horseError) {
-        console.error("Error adding new horse:", horseError);
-        toast.error("Failed to add new horse. Please try again.");
-        return;
-      }
-
-      console.log("Horse added successfully:", horseData);
-
-      if (horseData && horseData.length > 0) {
-        const newHorse: Horse = {
-          id: horseData[0].id,
-          name: horseData[0].Name,
-          barn: horseData[0]["Barn / Trainer"],
-          ownerEmail: horseData[0]["Owner Email"],
-          ownerPhone: horseData[0]["Owner Phone"],
-          customerName: horseData[0]["Customers"],
-        };
-
-        console.log("New horse object:", newHorse);
-
-        setHorses((prevHorses) => {
-          const updatedHorses = [...prevHorses, newHorse];
-          console.log("Updated horses state:", updatedHorses);
-          return updatedHorses;
-        });
-
-        // Close the modal
-        setIsModalOpen(false);
-
-        // Set the newly added horse as the selected horse in the main form
-        form.setValue("horseName", newHorse.id);
-        setIsNewHorse(true); // Set isNewHorse to true
-        console.log("Set new horse in form:", newHorse.id);
-
-        // Trigger a re-render of the Select component
-        setForceUpdate((prev) => !prev);
-
-        toast.success("New horse added successfully.");
-      } else {
-        console.error("No horse data returned from database");
-        toast.error("Failed to add new horse. Please try again.");
-      }
-    } catch (error) {
-      console.error("Unexpected error in handleAddNewHorse:", error);
-      toast.error("An unexpected error occurred. Please try again.");
+    if (existingHorse) {
+      console.log("Horse already exists:", existingHorse);
+      toast.error("A horse with this name and barn/trainer already exists.");
+      return;
     }
+
+    const tempHorse: Horse = {
+      id: `temp_${Date.now()}`,
+      name: values.horseName,
+      barn: values.barnName,
+      ownerEmail: values.ownerEmail || null,
+      ownerPhone: values.ownerPhone || null,
+      customerName: null,
+    };
+
+    setHorses((prev) => [...prev, tempHorse]);
+
+    // Update both the form value and the selected horse state
+    form.setValue("horseName", tempHorse.id, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+    setSelectedHorseId(tempHorse.id);
+
+    setIsNewHorse(true);
+    setIsModalOpen(false);
   };
 
   const handlePhoneInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1112,9 +1095,10 @@ export default function ShoeingForm() {
                                       key={`horse-select-${forceUpdate}`}
                                       open={isDropdownOpen}
                                       onOpenChange={setIsDropdownOpen}
-                                      value={field.value || ""}
+                                      value={selectedHorseId || field.value}
                                       onValueChange={(value) => {
                                         field.onChange(value);
+                                        setSelectedHorseId(value);
                                       }}
                                     >
                                       <FormControl>
@@ -1463,40 +1447,21 @@ export default function ShoeingForm() {
                 name="barnName"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Barn Name*</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          {...field}
-                          placeholder="Enter barn name"
-                          onChange={(e) => {
-                            const trimmedValue = e.target.value.trim();
-                            field.onChange(trimmedValue);
-                            setBarnSearchQuery(trimmedValue);
-                          }}
-                          onBlur={(e) => {
-                            const trimmedValue = e.target.value.trim();
-                            field.onChange(trimmedValue);
-                          }}
-                        />
-                        {barnSearchQuery && (
-                          <ul className="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-60 overflow-auto">
-                            {filteredBarns.map((barn, index) => (
-                              <li
-                                key={index}
-                                className="px-4 py-2 hover:bg-gray-100 cursor-pointer"
-                                onClick={() => {
-                                  field.onChange(barn.trim());
-                                  setBarnSearchQuery("");
-                                }}
-                              >
-                                {barn}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    </FormControl>
+                    <FormLabel>Barn / Trainer*</FormLabel>
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a Barn/Trainer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {existingBarns.map((barn) => (
+                          <SelectItem key={barn} value={barn}>
+                            {barn}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
