@@ -50,6 +50,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { IoFlagSharp } from "react-icons/io5";
 import { AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useMediaQuery } from "@/hooks/useMediaQuery"; // You'll need to create this hook
 
 const formSchema = z.object({
   horseName: z.string({
@@ -1083,6 +1084,64 @@ export default function ShoeingForm() {
                           const selectedHorse = horses.find(
                             (horse) => horse.id === field.value
                           );
+                          const isMobile = useMediaQuery("(max-width: 640px)");
+                          const [isSearchOpen, setIsSearchOpen] =
+                            useState(false);
+
+                          // Define searchContent here
+                          const searchContent = (
+                            <div className="space-y-4">
+                              <div className="relative">
+                                <Input
+                                  type="text"
+                                  placeholder="Search horses or barns..."
+                                  value={searchQuery}
+                                  onChange={(e) =>
+                                    setSearchQuery(e.target.value)
+                                  }
+                                  className="pr-8"
+                                  autoFocus
+                                />
+                                <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                              </div>
+                              <div className="max-h-[300px] overflow-y-auto">
+                                {filteredHorses.map((horse) => (
+                                  <div
+                                    key={horse.id}
+                                    className="flex items-center p-2 hover:bg-gray-100 cursor-pointer rounded-md"
+                                    onClick={() => {
+                                      field.onChange(horse.id);
+                                      setSelectedHorseId(horse.id);
+                                      setIsSearchOpen(false);
+                                    }}
+                                  >
+                                    <div className="flex items-center w-full">
+                                      {horse.alert && (
+                                        <IoFlagSharp
+                                          className="text-red-500 mr-2 flex-shrink-0"
+                                          size={20}
+                                        />
+                                      )}
+                                      <div className="flex flex-col sm:flex-row sm:items-center w-full">
+                                        <span className="font-bold">
+                                          {horse.name}
+                                        </span>
+                                        <span className="ml-0 sm:ml-2 mt-1 sm:mt-0 bg-primary text-white text-xs font-semibold px-2.5 py-0.5 rounded">
+                                          {horse.barn || "No Barn Available"}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                                {filteredHorses.length === 0 && (
+                                  <div className="text-center text-gray-500 py-4">
+                                    No horses found
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+
                           return (
                             <FormItem>
                               <FormLabel>Horse Name*</FormLabel>
@@ -1090,95 +1149,140 @@ export default function ShoeingForm() {
                                 <Skeleton className="h-10 w-full" />
                               ) : (
                                 <>
-                                  <div className="flex items-center space-x-2">
-                                    <Select
-                                      key={`horse-select-${forceUpdate}`}
-                                      open={isDropdownOpen}
-                                      onOpenChange={setIsDropdownOpen}
-                                      value={selectedHorseId || field.value}
-                                      onValueChange={(value) => {
-                                        field.onChange(value);
-                                        setSelectedHorseId(value);
-                                      }}
-                                    >
-                                      <FormControl>
-                                        <SelectTrigger ref={selectRef}>
-                                          <SelectValue placeholder="Select a Horse">
-                                            {field.value ? (
-                                              <div className="flex items-center">
-                                                <span className="font-bold">
-                                                  {selectedHorse?.name}
-                                                </span>
-                                                <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-                                                  {selectedHorse?.barn ||
-                                                    "No Barn Available"}
-                                                </span>
-                                                {selectedHorse?.alert && (
-                                                  <IoFlagSharp
-                                                    className="text-red-500"
-                                                    size={20}
-                                                  />
-                                                )}
-                                              </div>
-                                            ) : (
-                                              "Select a Horse"
-                                            )}
-                                          </SelectValue>
-                                        </SelectTrigger>
-                                      </FormControl>
-                                      <SelectContent>
-                                        <div className="p-2">
-                                          <div className="relative">
-                                            <Input
-                                              type="text"
-                                              placeholder="Search horses or barns..."
-                                              value={searchQuery}
-                                              onChange={(e) =>
-                                                setSearchQuery(e.target.value)
-                                              }
-                                              className="pr-8"
-                                            />
-                                            <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                          </div>
-                                        </div>
-                                        <List
-                                          height={200}
-                                          itemCount={filteredHorses.length}
-                                          itemSize={35}
-                                          width="100%"
+                                  <div className="flex flex-col space-y-2">
+                                    {isMobile ? (
+                                      <>
+                                        <div
+                                          className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
+                                          onClick={() => setIsSearchOpen(true)}
                                         >
-                                          {({ index, style }) => (
-                                            <SelectItem
-                                              key={filteredHorses[index].id}
-                                              value={filteredHorses[index].id}
-                                              style={style}
-                                            >
-                                              <div className="flex items-center">
-                                                {filteredHorses[index]
-                                                  .alert && (
-                                                  <IoFlagSharp
-                                                    className="text-red-500 mr-2"
-                                                    size={20}
-                                                  />
-                                                )}
-                                                <span className="font-bold">
-                                                  {filteredHorses[index].name}
-                                                </span>
-                                                <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
-                                                  {filteredHorses[index].barn ||
-                                                    "No Barn Available"}
-                                                </span>
-                                              </div>
-                                            </SelectItem>
+                                          {selectedHorse ? (
+                                            <div className="flex items-center">
+                                              <span className="font-bold">
+                                                {selectedHorse.name}
+                                              </span>
+                                              <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                                {selectedHorse.barn ||
+                                                  "No Barn Available"}
+                                              </span>
+                                            </div>
+                                          ) : (
+                                            "Select a Horse"
                                           )}
-                                        </List>
-                                      </SelectContent>
-                                    </Select>
+                                        </div>
+                                        <Dialog
+                                          open={isSearchOpen}
+                                          onOpenChange={setIsSearchOpen}
+                                        >
+                                          <DialogContent className="sm:max-w-[425px] mx-auto rounded-lg sm:rounded-lg p-4 sm:p-6 w-[calc(100%-2rem)] sm:w-full">
+                                            {searchContent}
+                                          </DialogContent>
+                                        </Dialog>
+                                      </>
+                                    ) : (
+                                      <Select
+                                        key={`horse-select-${forceUpdate}`}
+                                        open={isDropdownOpen}
+                                        onOpenChange={setIsDropdownOpen}
+                                        value={selectedHorseId || field.value}
+                                        onValueChange={(value) => {
+                                          field.onChange(value);
+                                          setSelectedHorseId(value);
+                                        }}
+                                      >
+                                        <FormControl>
+                                          <SelectTrigger ref={selectRef}>
+                                            <SelectValue placeholder="Select a Horse">
+                                              {field.value ? (
+                                                <div className="flex items-center">
+                                                  <span className="font-bold">
+                                                    {selectedHorse?.name}
+                                                  </span>
+                                                  <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                                    {selectedHorse?.barn ||
+                                                      "No Barn Available"}
+                                                  </span>
+                                                  {selectedHorse?.alert && (
+                                                    <IoFlagSharp
+                                                      className="text-red-500"
+                                                      size={20}
+                                                    />
+                                                  )}
+                                                </div>
+                                              ) : (
+                                                "Select a Horse"
+                                              )}
+                                            </SelectValue>
+                                          </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent
+                                          className="sm:max-h-[300px]"
+                                          position="item-aligned" // This will make it work better on mobile
+                                          sideOffset={8} // Add some offset from the trigger
+                                        >
+                                          <div
+                                            className="p-2"
+                                            onClick={(e) => e.stopPropagation()}
+                                          >
+                                            <div className="relative">
+                                              <Input
+                                                type="text"
+                                                placeholder="Search horses or barns..."
+                                                value={searchQuery}
+                                                onChange={(e) => {
+                                                  e.stopPropagation();
+                                                  setSearchQuery(
+                                                    e.target.value
+                                                  );
+                                                }}
+                                                onPointerDown={(e) => {
+                                                  e.stopPropagation();
+                                                }}
+                                                className="pr-8"
+                                              />
+                                              <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                            </div>
+                                          </div>
+                                          <List
+                                            height={200}
+                                            itemCount={filteredHorses.length}
+                                            itemSize={35}
+                                            width="100%"
+                                          >
+                                            {({ index, style }) => (
+                                              <SelectItem
+                                                key={filteredHorses[index].id}
+                                                value={filteredHorses[index].id}
+                                                style={style}
+                                              >
+                                                <div className="flex items-center">
+                                                  {filteredHorses[index]
+                                                    .alert && (
+                                                    <IoFlagSharp
+                                                      className="text-red-500 mr-2"
+                                                      size={20}
+                                                    />
+                                                  )}
+                                                  <span className="font-bold">
+                                                    {filteredHorses[index].name}
+                                                  </span>
+                                                  <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                                    {filteredHorses[index]
+                                                      .barn ||
+                                                      "No Barn Available"}
+                                                  </span>
+                                                </div>
+                                              </SelectItem>
+                                            )}
+                                          </List>
+                                        </SelectContent>
+                                      </Select>
+                                    )}
                                     <Button
-                                      type="button" // Explicitly set type to "button"
+                                      type="button"
                                       variant="outline"
                                       size="sm"
-                                      className="whitespace-nowrap bg-primary text-white hover:bg-primary hover:text-white"
+                                      className="whitespace-nowrap bg-primary text-white hover:bg-primary hover:text-white w-full sm:w-auto"
                                       onClick={handleAddNewHorseClick}
                                     >
                                       <PlusCircle className="h-4 w-4 mr-2" />
