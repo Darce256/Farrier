@@ -1237,13 +1237,16 @@ export default function ShoeingForm() {
                                           </SelectTrigger>
                                         </FormControl>
                                         <SelectContent
-                                          className="sm:max-h-[300px]"
-                                          position="item-aligned" // This will make it work better on mobile
-                                          sideOffset={8} // Add some offset from the trigger
+                                          className="sm:max-h-[300px] w-[var(--radix-select-trigger-width)]"
+                                          position="popper"
+                                          sideOffset={4}
                                         >
                                           <div
-                                            className="p-2"
+                                            className="sticky top-0 p-2 bg-white z-10 border-b"
                                             onClick={(e) => e.stopPropagation()}
+                                            onPointerDown={(e) =>
+                                              e.stopPropagation()
+                                            }
                                           >
                                             <div className="relative">
                                               <Input
@@ -1256,46 +1259,55 @@ export default function ShoeingForm() {
                                                     e.target.value
                                                   );
                                                 }}
-                                                onPointerDown={(e) => {
-                                                  e.stopPropagation();
-                                                }}
                                                 className="pr-8"
                                               />
-                                              <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                              <Search className="absolute right-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
                                             </div>
                                           </div>
-                                          <List
-                                            height={200}
-                                            itemCount={filteredHorses.length}
-                                            itemSize={35}
-                                            width="100%"
-                                          >
-                                            {({ index, style }) => (
-                                              <SelectItem
-                                                key={filteredHorses[index].id}
-                                                value={filteredHorses[index].id}
-                                                style={style}
-                                              >
-                                                <div className="flex items-center">
-                                                  {filteredHorses[index]
-                                                    .alert && (
-                                                    <IoFlagSharp
-                                                      className="text-red-500 mr-2"
-                                                      size={20}
-                                                    />
-                                                  )}
-                                                  <span className="font-bold">
-                                                    {filteredHorses[index].name}
-                                                  </span>
-                                                  <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+
+                                          {filteredHorses.length > 0 ? (
+                                            <List
+                                              height={200}
+                                              itemCount={filteredHorses.length}
+                                              itemSize={35}
+                                              width="100%"
+                                            >
+                                              {({ index, style }) => (
+                                                <SelectItem
+                                                  key={filteredHorses[index].id}
+                                                  value={
+                                                    filteredHorses[index].id
+                                                  }
+                                                  style={style}
+                                                >
+                                                  <div className="flex items-center">
                                                     {filteredHorses[index]
-                                                      .barn ||
-                                                      "No Barn Available"}
-                                                  </span>
-                                                </div>
-                                              </SelectItem>
-                                            )}
-                                          </List>
+                                                      .alert && (
+                                                      <IoFlagSharp
+                                                        className="text-red-500 mr-2"
+                                                        size={20}
+                                                      />
+                                                    )}
+                                                    <span className="font-bold">
+                                                      {
+                                                        filteredHorses[index]
+                                                          .name
+                                                      }
+                                                    </span>
+                                                    <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                                      {filteredHorses[index]
+                                                        .barn ||
+                                                        "No Barn Available"}
+                                                    </span>
+                                                  </div>
+                                                </SelectItem>
+                                              )}
+                                            </List>
+                                          ) : (
+                                            <div className="p-2 text-center text-gray-500">
+                                              No horses found
+                                            </div>
+                                          )}
                                         </SelectContent>
                                       </Select>
                                     )}
