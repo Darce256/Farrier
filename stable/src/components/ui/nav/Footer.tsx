@@ -18,7 +18,18 @@ export const Footer = () => {
     <footer className="w-full bg-white dark:bg-gray-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col sm:flex-row justify-between items-center">
         <div className="flex items-center mb-4 sm:mb-0">
-          <img src={jteLogo} alt="JT Evolutions Logo" className="h-8 w-auto" />
+          <a
+            href="https://jtevolutions.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:opacity-80 transition-opacity"
+          >
+            <img
+              src={jteLogo}
+              alt="JT Evolutions Logo"
+              className="h-8 w-auto"
+            />
+          </a>
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 sm:mb-0">
           © 2024 JTE, Inc. All rights reserved.
