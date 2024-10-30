@@ -1203,7 +1203,8 @@ export default function ShoeingForm() {
                                               <span className="font-bold">
                                                 {selectedHorse.name}
                                               </span>
-                                              <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                              <span className="ml-2 bg-primary text-white text-xs font-semibold px-2.5 py-0.5 rounded flex items-center">
+                                                <House className="h-3 w-3 mr-1" />
                                                 {selectedHorse.barn ||
                                                   "No Barn Available"}
                                               </span>
