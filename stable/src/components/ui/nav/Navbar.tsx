@@ -30,8 +30,6 @@ export default function NavBar() {
 
   const navItems = [
     { name: "Home", href: "/" },
-    { name: "About", href: "/about" },
-    { name: "Services", href: "/services" },
     { name: "Contact", href: "/contact" },
   ];
 
@@ -122,13 +120,13 @@ export default function NavBar() {
                     <Link to="/login" onClick={() => setIsOpen(false)}>
                       <Button
                         variant="outline"
-                        className="w-full text-primary border-white hover:bg-primary"
+                        className="w-full bg-white text-primary border-white hover:bg-primary"
                       >
                         Login
                       </Button>
                     </Link>
                     <Link to="/signup" onClick={() => setIsOpen(false)}>
-                      <Button className="w-full bg-white text-red-600 hover:bg-gray-100">
+                      <Button className="w-full bg-white text-primary hover:bg-gray-100">
                         Sign Up
                       </Button>
                     </Link>
