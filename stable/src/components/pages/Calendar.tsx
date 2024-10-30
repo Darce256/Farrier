@@ -267,7 +267,19 @@ export default function Calendar() {
 
   const navigatePeriod = (direction: "prev" | "next") => {
     const newDate = new Date(currentDate);
-    newDate.setMonth(newDate.getMonth() + (direction === "next" ? 1 : -1));
+
+    switch (viewMode) {
+      case "month":
+        newDate.setMonth(newDate.getMonth() + (direction === "next" ? 1 : -1));
+        break;
+      case "week":
+        newDate.setDate(newDate.getDate() + (direction === "next" ? 7 : -7));
+        break;
+      case "day":
+        newDate.setDate(newDate.getDate() + (direction === "next" ? 1 : -1));
+        break;
+    }
+
     setCurrentDate(newDate);
   };
 
