@@ -1020,6 +1020,7 @@ export default function ShoeingForm() {
       customerName: null,
     };
 
+    // Add the new horse to the horses array
     setHorses((prev) => [...prev, tempHorse]);
 
     // Update both the form value and the selected horse state
@@ -1029,9 +1030,19 @@ export default function ShoeingForm() {
       shouldTouch: true,
     });
     setSelectedHorseId(tempHorse.id);
-
     setIsNewHorse(true);
     setIsModalOpen(false);
+
+    // Force update to refresh the select component
+    setForceUpdate((prev) => !prev);
+
+    // Trigger a re-render of the select component
+    setTimeout(() => {
+      const selectEvent = new Event("change", { bubbles: true });
+      if (selectRef.current) {
+        selectRef.current.dispatchEvent(selectEvent);
+      }
+    }, 0);
   };
 
   const handlePhoneInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1516,6 +1527,7 @@ export default function ShoeingForm() {
       {/* Modal for adding new horse */}
       <Dialog
         open={isModalOpen}
+        modal={false}
         onOpenChange={(open) => {
           if (!open) {
             // Reset form when closing the modal
@@ -1558,6 +1570,7 @@ export default function ShoeingForm() {
                           <SelectValue placeholder="Select a Barn/Trainer" />
                         </SelectTrigger>
                       </FormControl>
+
                       <SelectContent>
                         {existingBarns.map((barn) => (
                           <SelectItem key={barn} value={barn}>
@@ -1608,7 +1621,7 @@ export default function ShoeingForm() {
               Cancel
             </Button>
             <Button
-              className="hover:bg-black hover:text-white"
+              className="hover:bg-black hover:text-white mb-4"
               type="submit"
               onClick={newHorseForm.handleSubmit(handleAddNewHorse)}
             >
