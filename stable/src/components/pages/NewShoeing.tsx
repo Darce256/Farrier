@@ -481,6 +481,32 @@ function SentLastThirtyDays() {
     setIsLoading(false);
   }
 
+  const renderServices = (shoeing: any) => {
+    return (
+      <div className="space-y-1">
+        <p className="text-sm font-medium">{shoeing["Base Service"]}</p>
+        {shoeing["Front Add-On's"] && (
+          <div className="text-sm">
+            <span className="font-semibold">Front: </span>
+            {shoeing["Front Add-On's"]}
+          </div>
+        )}
+        {shoeing["Hind Add-On's"] && (
+          <div className="text-sm">
+            <span className="font-semibold">Hind: </span>
+            {shoeing["Hind Add-On's"]}
+          </div>
+        )}
+        {shoeing["Other Custom Services"] && (
+          <div className="text-sm">
+            <span className="font-semibold">Custom Services: </span>
+            {shoeing["Other Custom Services"]}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="w-full">
       {isLoading ? (
@@ -503,17 +529,8 @@ function SentLastThirtyDays() {
                   </div>
                   <Badge variant="success">Completed</Badge>
                 </div>
-                <p className="text-sm">{shoeing["Base Service"]}</p>
-                <p className="text-sm">{shoeing["Location of Service"]}</p>
-
-                {shoeing["Other Custom Services"] && (
-                  <div className="mt-2">
-                    <p className="text-sm font-semibold">Custom Services:</p>
-                    <p className="text-sm">
-                      {shoeing["Other Custom Services"]}
-                    </p>
-                  </div>
-                )}
+                {renderServices(shoeing)}
+                <p className="text-sm mt-2">{shoeing["Location of Service"]}</p>
 
                 {shoeing["Shoe Notes"] && (
                   <div className="mt-2">
