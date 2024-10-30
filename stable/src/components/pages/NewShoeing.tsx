@@ -54,9 +54,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery"; // You'll need to create 
 import { House } from "lucide-react";
 
 const formSchema = z.object({
-  horseName: z.string({
-    required_error: "Please select a horse.",
-  }),
+  horseName: z.string().min(1, "Please select a horse."),
   dateOfService: z.date({
     required_error: "A date of service is required.",
   }),
@@ -587,9 +585,16 @@ export default function ShoeingForm() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      horseName: "", // Provide a default value
-      // ... other default values ...
+      horseName: "",
+      dateOfService: new Date(),
+      locationOfService: "",
+      baseService: "",
+      frontAddOns: [],
+      hindAddOns: [],
+      customServices: "",
+      shoeingNotes: "",
     },
+    mode: "onSubmit",
   });
 
   // Separate the new horse form state from the main form
@@ -1103,7 +1108,7 @@ export default function ShoeingForm() {
                       <FormField
                         control={form.control}
                         name="horseName"
-                        render={({ field }) => {
+                        render={({ field, fieldState }) => {
                           const selectedHorse = horses.find(
                             (horse) => horse.id === field.value
                           );
@@ -1336,7 +1341,9 @@ export default function ShoeingForm() {
                                   )}
                                 </>
                               )}
-                              <FormMessage />
+                              <FormMessage>
+                                {fieldState.error?.message}
+                              </FormMessage>
                             </FormItem>
                           );
                         }}
