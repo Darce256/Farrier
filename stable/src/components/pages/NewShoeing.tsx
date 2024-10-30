@@ -1167,7 +1167,8 @@ export default function ShoeingForm() {
                                         <span className="font-bold">
                                           {horse.name}
                                         </span>
-                                        <span className="ml-0 sm:ml-2 mt-1 sm:mt-0 bg-primary text-white text-xs font-semibold px-2.5 py-0.5 rounded">
+                                        <span className="ml-0 sm:ml-2 mt-1 sm:mt-0 bg-primary text-white text-xs font-semibold px-2.5 py-0.5 rounded flex items-center">
+                                          <House className="h-3 w-3 mr-1" />
                                           {horse.barn || "No Barn Available"}
                                         </span>
                                       </div>
@@ -1240,7 +1241,8 @@ export default function ShoeingForm() {
                                                   <span className="font-bold">
                                                     {selectedHorse?.name}
                                                   </span>
-                                                  <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                                  <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded flex items-center">
+                                                    <House className="h-3 w-3 mr-1" />
                                                     {selectedHorse?.barn ||
                                                       "No Barn Available"}
                                                   </span>
@@ -1301,7 +1303,7 @@ export default function ShoeingForm() {
                                                   }
                                                   style={style}
                                                 >
-                                                  <div className="flex items-center">
+                                                  <div className="flex items-center w-full">
                                                     {filteredHorses[index]
                                                       .alert && (
                                                       <IoFlagSharp
@@ -1315,7 +1317,8 @@ export default function ShoeingForm() {
                                                           .name
                                                       }
                                                     </span>
-                                                    <span className="ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                                    <span className="flex items-center ml-2 bg-primary text-white text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
+                                                      <House className="h-3 w-3 mr-1" />{" "}
                                                       {filteredHorses[index]
                                                         .barn ||
                                                         "No Barn Available"}
