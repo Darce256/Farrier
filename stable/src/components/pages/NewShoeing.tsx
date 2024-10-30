@@ -1398,18 +1398,23 @@ export default function ShoeingForm() {
                                 field.onChange(value);
                                 setSelectedLocation(value);
                               }}
-                              value={selectedLocation}
+                              value={selectedLocation || undefined}
                               key={`location-${forceUpdate}`}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select a location" />
                               </SelectTrigger>
                               <SelectContent>
-                                {locations.map((location) => (
-                                  <SelectItem key={location} value={location}>
-                                    {location}
-                                  </SelectItem>
-                                ))}
+                                {locations
+                                  .filter(
+                                    (location) =>
+                                      location && location.trim() !== ""
+                                  )
+                                  .map((location) => (
+                                    <SelectItem key={location} value={location}>
+                                      {location}
+                                    </SelectItem>
+                                  ))}
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -1427,18 +1432,23 @@ export default function ShoeingForm() {
                                 field.onChange(value);
                                 setSelectedBaseService(value);
                               }}
-                              value={selectedBaseService}
+                              value={selectedBaseService || undefined}
                               key={`baseService-${forceUpdate}`}
                             >
                               <SelectTrigger>
                                 <SelectValue placeholder="Select a base service" />
                               </SelectTrigger>
                               <SelectContent>
-                                {baseServices.map((service) => (
-                                  <SelectItem key={service} value={service}>
-                                    {service}
-                                  </SelectItem>
-                                ))}
+                                {baseServices
+                                  .filter(
+                                    (service) =>
+                                      service && service.trim() !== ""
+                                  )
+                                  .map((service) => (
+                                    <SelectItem key={service} value={service}>
+                                      {service}
+                                    </SelectItem>
+                                  ))}
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -1590,19 +1600,23 @@ export default function ShoeingForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Barn / Trainer*</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select
+                      value={field.value || undefined}
+                      onValueChange={field.onChange}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a Barn/Trainer" />
                         </SelectTrigger>
                       </FormControl>
-
                       <SelectContent>
-                        {existingBarns.map((barn) => (
-                          <SelectItem key={barn} value={barn}>
-                            {barn}
-                          </SelectItem>
-                        ))}
+                        {existingBarns
+                          .filter((barn) => barn && barn.trim() !== "")
+                          .map((barn) => (
+                            <SelectItem key={barn} value={barn}>
+                              {barn}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
