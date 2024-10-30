@@ -52,6 +52,7 @@ import { FixedSizeGrid as Grid } from "react-window";
 import AutoSizer from "react-virtualized-auto-sizer";
 import { AlertCircle } from "lucide-react";
 import { useAuth } from "@/components/Contexts/AuthProvider";
+import { Home } from "lucide-react";
 
 interface Shoeing {
   id: string;
@@ -670,7 +671,11 @@ const HorseCard = React.memo(
                 <div className="text-sm mb-2">
                   <strong className="font-semibold">Barn / Trainer:</strong>
                   <div className="mt-1">
-                    <Badge variant="default" className="text-xs">
+                    <Badge
+                      variant="default"
+                      className="text-xs flex items-center gap-1"
+                    >
+                      <Home className="h-3 w-3" />
                       {horse["Barn / Trainer"]}
                     </Badge>
                   </div>
