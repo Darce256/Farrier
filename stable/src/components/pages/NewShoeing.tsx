@@ -58,12 +58,8 @@ const formSchema = z.object({
   dateOfService: z.date({
     required_error: "A date of service is required.",
   }),
-  locationOfService: z.string({
-    required_error: "Please select a location.",
-  }),
-  baseService: z.string({
-    required_error: "Please select a base service.",
-  }),
+  locationOfService: z.string().min(1, "Please select a location."),
+  baseService: z.string().min(1, "Please select a base service."),
   frontAddOns: z.array(z.string()).optional(),
   hindAddOns: z.array(z.string()).optional(),
   customServices: z.string().optional(),
@@ -586,7 +582,7 @@ export default function ShoeingForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       horseName: "",
-      dateOfService: new Date(),
+      dateOfService: undefined,
       locationOfService: "",
       baseService: "",
       frontAddOns: [],
@@ -902,7 +898,9 @@ export default function ShoeingForm() {
       const shoeingData = {
         "Horse Name": selectedHorse.name,
         Horses: `${selectedHorse.name} - [${selectedHorse.barn || "No Barn"}]`,
-        "Date of Service": format(values.dateOfService, "MM/dd/yyyy"),
+        "Date of Service": values.dateOfService
+          ? format(values.dateOfService, "MM/dd/yyyy")
+          : null,
         "Location of Service": values.locationOfService,
         "Base Service": values.baseService,
         "Front Add-On's": frontAddOns,
