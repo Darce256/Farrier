@@ -52,6 +52,7 @@ import { AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useMediaQuery } from "@/hooks/useMediaQuery"; // You'll need to create this hook
 import { House } from "lucide-react";
+import { Loader2 } from "lucide-react"; // Make sure this is imported
 
 const formSchema = z.object({
   horseName: z.string().min(1, "Please select a horse."),
@@ -1082,6 +1083,8 @@ export default function ShoeingForm() {
   // Add a state to force re-render
   const [forceUpdate, setForceUpdate] = useState(false);
 
+  const [isLoadingHorses, setIsLoadingHorses] = useState(false);
+
   return (
     <div className="container mx-auto px-0 sm:px-6 lg:px-8">
       <div className="flex items-center gap-2 align-middle mb-6">
@@ -1196,7 +1199,10 @@ export default function ShoeingForm() {
                                       <>
                                         <div
                                           className="flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm"
-                                          onClick={() => setIsSearchOpen(true)}
+                                          onClick={() => {
+                                            setIsLoadingHorses(true);
+                                            setIsSearchOpen(true);
+                                          }}
                                         >
                                           {selectedHorse ? (
                                             <div className="flex items-center">
@@ -1215,10 +1221,26 @@ export default function ShoeingForm() {
                                         </div>
                                         <Dialog
                                           open={isSearchOpen}
-                                          onOpenChange={setIsSearchOpen}
+                                          onOpenChange={(open) => {
+                                            setIsSearchOpen(open);
+                                            if (!open)
+                                              setIsLoadingHorses(false);
+                                          }}
                                         >
-                                          <DialogContent className="sm:max-w-[425px] mx-auto rounded-lg sm:rounded-lg p-4 sm:p-6 w-[calc(100%-2rem)] sm:w-full">
-                                            {searchContent}
+                                          <DialogContent
+                                            className="sm:max-w-[425px] mx-auto rounded-lg sm:rounded-lg p-4 sm:p-6 w-[calc(100%-2rem)] sm:w-full"
+                                            onOpenAutoFocus={(e) => {
+                                              e.preventDefault();
+                                              setIsLoadingHorses(false);
+                                            }}
+                                          >
+                                            {isLoadingHorses ? (
+                                              <div className="flex items-center justify-center py-8">
+                                                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                              </div>
+                                            ) : (
+                                              searchContent
+                                            )}
                                           </DialogContent>
                                         </Dialog>
                                       </>
