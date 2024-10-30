@@ -63,7 +63,9 @@ const formSchema = z.object({
   locationOfService: z.string({
     required_error: "Please select a location.",
   }),
-  baseService: z.string().optional(),
+  baseService: z.string({
+    required_error: "Please select a base service.",
+  }),
   frontAddOns: z.array(z.string()).optional(),
   hindAddOns: z.array(z.string()).optional(),
   customServices: z.string().optional(),
@@ -1390,7 +1392,7 @@ export default function ShoeingForm() {
                         name="locationOfService"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Location of Service</FormLabel>
+                            <FormLabel>Location of Service*</FormLabel>
                             <Select
                               onValueChange={(value) => {
                                 field.onChange(value);
@@ -1419,7 +1421,7 @@ export default function ShoeingForm() {
                         name="baseService"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Base Service</FormLabel>
+                            <FormLabel>Base Service*</FormLabel>
                             <Select
                               onValueChange={(value) => {
                                 field.onChange(value);
