@@ -254,7 +254,10 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                     </div>
                     {renderServices(shoeing)}
                     <div className="mt-1">
-                      <Badge variant="default" className="text-xs">
+                      <Badge
+                        variant="default"
+                        className="text-xs hover:bg-black hover:text-white"
+                      >
                         {shoeing["Location of Service"]}
                       </Badge>
                     </div>
@@ -329,7 +332,10 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                           shoeing["Date of Service"]
                         ).toLocaleDateString()}
                       </p>
-                      <Badge variant="default" className="text-xs">
+                      <Badge
+                        variant="default"
+                        className="text-xs hover:bg-black hover:text-white"
+                      >
                         {shoeing["Location of Service"]}
                       </Badge>
                     </div>
@@ -539,7 +545,10 @@ function SentLastThirtyDays() {
                           shoeing["Date of Service"]
                         ).toLocaleDateString()}
                       </p>
-                      <Badge variant="default" className="text-xs">
+                      <Badge
+                        variant="default"
+                        className="text-xs hover:bg-black hover:text-white"
+                      >
                         {shoeing["Location of Service"]}
                       </Badge>
                     </div>
