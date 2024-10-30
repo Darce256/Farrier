@@ -808,45 +808,20 @@ export default function ShoeingForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     console.log("Starting onSubmit with values:", values);
     try {
-      let horseId = values.horseName;
+      let selectedHorse;
 
-      // If this is a new horse, create it first
-      if (isNewHorse) {
-        const selectedHorse = horses.find((h) => h.id === values.horseName);
-        if (!selectedHorse) {
-          throw new Error("Selected horse not found");
-        }
+      // Always get the selected horse from the form value (horseId)
+      selectedHorse = horses.find((h) => h.id === values.horseName);
 
-        // Create the new horse in the database
-        const { data: horseData, error: horseError } = await supabase
-          .from("horses")
-          .insert([
-            {
-              Name: selectedHorse.name,
-              "Barn / Trainer": selectedHorse.barn,
-              "Owner Email": selectedHorse.ownerEmail,
-              "Owner Phone": selectedHorse.ownerPhone,
-            },
-          ])
-          .select()
-          .single();
-
-        if (horseError) throw horseError;
-
-        // Use the new horse's real ID
-        horseId = horseData.id;
+      if (!selectedHorse) {
+        console.error("Horse not found:", { horseId: values.horseName });
+        throw new Error("Selected horse not found");
       }
 
       if (!user) {
         console.log("No user found, aborting submission");
         toast.error("You must be logged in to submit a shoeing record.");
         return;
-      }
-
-      const selectedHorse = horses.find((horse) => horse.id === horseId);
-      if (!selectedHorse) {
-        console.log("Selected horse not found, aborting submission");
-        throw new Error("Selected horse not found");
       }
 
       console.log("Selected horse:", selectedHorse);
