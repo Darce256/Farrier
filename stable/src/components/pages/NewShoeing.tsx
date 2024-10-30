@@ -147,16 +147,18 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
     setShoeingToDelete(null);
   };
 
-  const filteredShoeings = shoeings.filter(
-    (shoeing: any) =>
-      shoeing["Horse Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-      shoeing["Base Service"]
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      shoeing["Location of Service"]
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase())
-  );
+  const filteredShoeings = shoeings.filter((shoeing: any) => {
+    const horseName = shoeing["Horse Name"]?.toLowerCase() || "";
+    const baseService = shoeing["Base Service"]?.toLowerCase() || "";
+    const location = shoeing["Location of Service"]?.toLowerCase() || "";
+    const searchTermLower = searchTerm.toLowerCase();
+
+    return (
+      horseName.includes(searchTermLower) ||
+      baseService.includes(searchTermLower) ||
+      location.includes(searchTermLower)
+    );
+  });
 
   const renderServices = (shoeing: any) => {
     return (
@@ -785,8 +787,10 @@ export default function ShoeingForm() {
     return horses
       .filter(
         (horse) =>
-          horse.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          horse.barn?.toLowerCase().includes(searchQuery.toLowerCase())
+          (horse.name?.toLowerCase() || "").includes(
+            searchQuery.toLowerCase()
+          ) ||
+          (horse.barn?.toLowerCase() || "").includes(searchQuery.toLowerCase())
       )
       .sort((a, b) => {
         // First, sort by alert status
@@ -794,7 +798,7 @@ export default function ShoeingForm() {
         if (!a.alert && b.alert) return 1;
 
         // If alert status is the same, sort alphabetically
-        return a.name!.localeCompare(b.name!);
+        return (a.name || "").localeCompare(b.name || "");
       });
   }, [horses, searchQuery]);
 
