@@ -638,7 +638,7 @@ export default function Calendar() {
                         </span>
                       </div>
                     )}
-                    <div className="text-sm">
+                    <div className="text-sm space-y-1">
                       <p>
                         <strong>Base Service:</strong> {shoeing["Base Service"]}
                       </p>
@@ -648,10 +648,21 @@ export default function Calendar() {
                           {shoeing["Front Add-On's"]}
                         </p>
                       )}
+                      {shoeing["Hind Add-On's"] && (
+                        <p>
+                          <strong>Hind Add-On's:</strong>{" "}
+                          {shoeing["Hind Add-On's"]}
+                        </p>
+                      )}
                       {shoeing["Other Custom Services"] && (
                         <p>
                           <strong>Other Custom Services:</strong>{" "}
                           {shoeing["Other Custom Services"]}
+                        </p>
+                      )}
+                      {shoeing["Shoe Notes"] && (
+                        <p>
+                          <strong>Notes:</strong> {shoeing["Shoe Notes"]}
                         </p>
                       )}
                     </div>
