@@ -962,10 +962,10 @@ export default function ShoeingForm() {
           : "Shoeing record added successfully!"
       );
 
-      // Reset form and clear all values
+      // Reset form with all fields explicitly set to empty/undefined
       form.reset({
         horseName: "",
-        dateOfService: new Date(),
+        dateOfService: undefined, // Explicitly set to undefined
         locationOfService: "",
         baseService: "",
         frontAddOns: [],
@@ -975,8 +975,9 @@ export default function ShoeingForm() {
       });
 
       // Clear any selected values in dropdowns or multi-selects
-      setSelectedLocation("");
-      setSelectedBaseService("");
+      setSelectedLocation(undefined);
+      setSelectedBaseService(undefined);
+      setSelectedHorseId(""); // Add this line to clear selected horse
 
       // Reset editing state
       setEditingShoeing(null);
