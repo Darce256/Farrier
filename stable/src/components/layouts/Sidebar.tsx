@@ -28,8 +28,9 @@ export default function Sidebar() {
     { name: "Dashboard", icon: StoreIcon, href: "/dashboard", adminOnly: true },
     { name: "Horses", icon: LiaHorseHeadSolid, href: "/horses" },
     { name: "New Shoeings", icon: TbHorseshoe, href: "/new-shoeings" },
-    { name: "Notes", icon: FaRegStickyNote, href: "/notes" },
     { name: "Calendar", icon: IoCalendarNumberOutline, href: "/calendar" },
+    { name: "Notes", icon: FaRegStickyNote, href: "/notes" },
+
     { name: "Inbox", icon: MdMailOutline, href: "/inbox" },
   ];
 

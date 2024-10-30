@@ -46,7 +46,7 @@ export default function NavBar() {
             </Link>
             <Link to="/" className="flex-shrink-0">
               <h1 className="text-white text-2xl ml-4 font-bold">
-                Bobby Simms
+                JTE - Bobby Simms
               </h1>
             </Link>
           </div>

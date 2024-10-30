@@ -164,21 +164,21 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
   const renderServices = (shoeing: any) => {
     return (
       <>
-        <div className="text-gray-500">{shoeing["Base Service"]}</div>
+        <div className="text-black">{shoeing["Base Service"]}</div>
         {shoeing["Front Add-On's"] && (
-          <div className="text-gray-500">
+          <div className="text-black">
             <span className=" font-semibold"> Front:</span>
             {shoeing["Front Add-On's"]}
           </div>
         )}
         {shoeing["Hind Add-On's"] && (
-          <div className="text-gray-500">
+          <div className="text-black">
             <span className=" font-semibold">Hind: </span>
             {shoeing["Hind Add-On's"]}
           </div>
         )}
         {shoeing["Other Custom Services"] && (
-          <div className="text-gray-500">
+          <div className="text-black">
             <span className=" font-semibold">Custom Services: </span>
             {shoeing["Other Custom Services"]}
           </div>
@@ -244,13 +244,13 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                   </td>
                   <td className="px-3 py-4 text-sm text-black ">
                     <div className="font-bold">{shoeing["Horse Name"]}</div>
-                    <div className="font-medium">
+                    <div className="font-medium text-gray-500">
                       {shoeing.Horses.split(" - ")[1]
                         ?.replace(/[\[\]]/g, "")
                         .trim() || "No Barn/Trainer"}
                     </div>
                     {renderServices(shoeing)}
-                    <div className="text-gray-500">
+                    <div className="text-black">
                       {shoeing["Location of Service"]}
                     </div>
                   </td>
@@ -268,7 +268,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                         shoeing.status.slice(1)}
                     </span>
                   </td>
-                  <td className="px-3 py-4 text-sm text-gray-500">
+                  <td className="px-3 py-4 text-sm text-black">
                     {shoeing["Shoe Notes"]}
                   </td>
                   <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -318,7 +318,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                     <p className="text-lg font-bold text-black mb-1">
                       {shoeing["Horse Name"]}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-black">
                       {new Date(
                         shoeing["Date of Service"]
                       ).toLocaleDateString()}
@@ -343,13 +343,13 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                   </span>
                 </div>
                 {renderServices(shoeing)}
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-sm text-black mt-1">
                   {shoeing["Location of Service"]}
                 </p>
                 {shoeing["Shoe Notes"] && (
                   <div className="mt-2">
                     <p className="text-sm font-semibold">Shoeing Notes:</p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-black">
                       {shoeing["Shoe Notes"]}
                     </p>
                   </div>
@@ -495,7 +495,7 @@ function SentLastThirtyDays() {
                     <p className="text-lg font-bold text-black mb-1">
                       {shoeing["Horse Name"]}
                     </p>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-black">
                       {new Date(
                         shoeing["Date of Service"]
                       ).toLocaleDateString()}

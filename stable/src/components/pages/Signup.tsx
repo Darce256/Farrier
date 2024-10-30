@@ -91,7 +91,7 @@ export default function SignUpPage() {
             {/* Replace the LiaHorseHeadSolid icon with the bslogo image */}
             <img src={bsLogo} alt="BS Logo" className="h-12 w-auto" />
             <span className="ml-2 text-3xl font-bold text-primary">
-              Bobby Simms
+              JTE - Bobby Simms
             </span>
           </div>
           <CardTitle className="text-2xl font-bold text-center">
