@@ -1134,6 +1134,7 @@ export default function ShoeingForm() {
                                       field.onChange(horse.id);
                                       setSelectedHorseId(horse.id);
                                       setIsSearchOpen(false);
+                                      setSearchQuery(""); // Clear search query when horse is selected
                                     }}
                                   >
                                     <div className="flex items-center w-full">
@@ -1209,6 +1210,7 @@ export default function ShoeingForm() {
                                         onValueChange={(value) => {
                                           field.onChange(value);
                                           setSelectedHorseId(value);
+                                          setSearchQuery(""); // Clear the search query when a horse is selected
                                         }}
                                       >
                                         <FormControl>
