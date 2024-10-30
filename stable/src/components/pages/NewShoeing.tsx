@@ -51,6 +51,7 @@ import { IoFlagSharp } from "react-icons/io5";
 import { AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useMediaQuery } from "@/hooks/useMediaQuery"; // You'll need to create this hook
+import { House } from "lucide-react";
 
 const formSchema = z.object({
   horseName: z.string({
@@ -163,27 +164,30 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
 
   const renderServices = (shoeing: any) => {
     return (
-      <>
-        <div className="text-black">{shoeing["Base Service"]}</div>
+      <div className="space-y-1">
+        <div className="text-sm">
+          <span className="font-semibold">Base Service: </span>
+          {shoeing["Base Service"]}
+        </div>
         {shoeing["Front Add-On's"] && (
-          <div className="text-black">
-            <span className=" font-semibold"> Front:</span>
+          <div className="text-sm">
+            <span className="font-semibold">Front Add-ons: </span>
             {shoeing["Front Add-On's"]}
           </div>
         )}
         {shoeing["Hind Add-On's"] && (
-          <div className="text-black">
-            <span className=" font-semibold">Hind: </span>
+          <div className="text-sm">
+            <span className="font-semibold">Hind Add-ons: </span>
             {shoeing["Hind Add-On's"]}
           </div>
         )}
         {shoeing["Other Custom Services"] && (
-          <div className="text-black">
-            <span className=" font-semibold">Custom Services: </span>
+          <div className="text-sm">
+            <span className="font-semibold">Custom Services: </span>
             {shoeing["Other Custom Services"]}
           </div>
         )}
-      </>
+      </div>
     );
   };
 
@@ -242,16 +246,19 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                   <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
                     {new Date(shoeing["Date of Service"]).toLocaleDateString()}
                   </td>
-                  <td className="px-3 py-4 text-sm text-black ">
+                  <td className="px-3 py-4 text-sm text-black">
                     <div className="font-bold">{shoeing["Horse Name"]}</div>
-                    <div className="font-medium text-gray-500">
+                    <div className="flex items-center mt-2 font-medium text-gray-500">
+                      <House className="h-4 w-4 mr-1" />
                       {shoeing.Horses.split(" - ")[1]
                         ?.replace(/[\[\]]/g, "")
                         .trim() || "No Barn/Trainer"}
                     </div>
                     {renderServices(shoeing)}
-                    <div className="text-black">
-                      {shoeing["Location of Service"]}
+                    <div className="mt-1">
+                      <Badge variant="default" className="text-xs">
+                        {shoeing["Location of Service"]}
+                      </Badge>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
@@ -318,16 +325,22 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                     <p className="text-lg font-bold text-black mb-1">
                       {shoeing["Horse Name"]}
                     </p>
-                    <p className="text-sm text-black">
-                      {new Date(
-                        shoeing["Date of Service"]
-                      ).toLocaleDateString()}
-                    </p>
-                    <p className="text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-black">
+                        {new Date(
+                          shoeing["Date of Service"]
+                        ).toLocaleDateString()}
+                      </p>
+                      <Badge variant="default" className="text-xs">
+                        {shoeing["Location of Service"]}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center mt-2 text-sm text-gray-600">
+                      <House className="h-4 w-4 mr-1" />
                       {shoeing.Horses.split(" - ")[1]
                         ?.replace(/[\[\]]/g, "")
                         .trim() || "No Barn/Trainer"}
-                    </p>
+                    </div>
                   </div>
                   <span
                     className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${
@@ -343,9 +356,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                   </span>
                 </div>
                 {renderServices(shoeing)}
-                <p className="text-sm text-black mt-1">
-                  {shoeing["Location of Service"]}
-                </p>
+
                 {shoeing["Shoe Notes"] && (
                   <div className="mt-2">
                     <p className="text-sm font-semibold">Shoeing Notes:</p>
@@ -484,16 +495,19 @@ function SentLastThirtyDays() {
   const renderServices = (shoeing: any) => {
     return (
       <div className="space-y-1">
-        <p className="text-sm font-medium">{shoeing["Base Service"]}</p>
+        <div className="text-sm">
+          <span className="font-semibold">Base Service: </span>
+          {shoeing["Base Service"]}
+        </div>
         {shoeing["Front Add-On's"] && (
           <div className="text-sm">
-            <span className="font-semibold">Front: </span>
+            <span className="font-semibold">Front Add-ons: </span>
             {shoeing["Front Add-On's"]}
           </div>
         )}
         {shoeing["Hind Add-On's"] && (
           <div className="text-sm">
-            <span className="font-semibold">Hind: </span>
+            <span className="font-semibold">Hind Add-ons: </span>
             {shoeing["Hind Add-On's"]}
           </div>
         )}
@@ -521,16 +535,20 @@ function SentLastThirtyDays() {
                     <p className="text-lg font-bold text-black mb-1">
                       {shoeing["Horse Name"]}
                     </p>
-                    <p className="text-sm text-black">
-                      {new Date(
-                        shoeing["Date of Service"]
-                      ).toLocaleDateString()}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-black">
+                        {new Date(
+                          shoeing["Date of Service"]
+                        ).toLocaleDateString()}
+                      </p>
+                      <Badge variant="default" className="text-xs">
+                        {shoeing["Location of Service"]}
+                      </Badge>
+                    </div>
                   </div>
                   <Badge variant="success">Completed</Badge>
                 </div>
                 {renderServices(shoeing)}
-                <p className="text-sm mt-2">{shoeing["Location of Service"]}</p>
 
                 {shoeing["Shoe Notes"] && (
                   <div className="mt-2">
