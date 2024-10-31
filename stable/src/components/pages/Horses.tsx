@@ -673,7 +673,7 @@ const HorseCard = React.memo(
                   <div className="mt-1">
                     <Badge
                       variant="default"
-                      className="text-xs flex items-center gap-1"
+                      className="text-xs flex items-center gap-1 hover:bg-black hover:text-white"
                     >
                       <Home className="h-3 w-3" />
                       {horse["Barn / Trainer"]}
