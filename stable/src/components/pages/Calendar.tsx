@@ -547,9 +547,8 @@ export default function Calendar() {
     setDuplicateDate(undefined);
     setSelectedLocation(undefined); // Reset the selected location
 
-    console.log("Refreshing shoeings list...");
-    await fetchAllShoeings();
-    console.log("Shoeings refreshed");
+    const updatedShoeings = await fetchAllShoeings();
+    setAllShoeings(updatedShoeings); // Make sure to update the state with new data
   };
 
   const renderDayView = (date: Date) => {
@@ -845,7 +844,6 @@ export default function Calendar() {
               mode="single"
               selected={duplicateDate}
               onSelect={setDuplicateDate}
-              disabled={(date) => date <= new Date()}
               initialFocus
               className="w-full"
               classNames={{
