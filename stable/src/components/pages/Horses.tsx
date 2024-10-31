@@ -871,6 +871,15 @@ function HorseDetailsModal({
 
       if (horseNotesError) throw horseNotesError;
 
+      // Process general notes - Add null check and filtering
+      const generalNotes = horseNotesData
+        .filter((item: any) => item.notes !== null) // Filter out null notes
+        .map((item: any) => {
+          const note = item.notes;
+          const date = new Date(note.created_at).toLocaleDateString();
+          return `${date}: ${note.content}`;
+        });
+
       // Fetch all shoeings for the horse
       const { data: shoeingsData, error: shoeingsError } = await supabase
         .from("shoeings")
@@ -880,23 +889,9 @@ function HorseDetailsModal({
 
       if (shoeingsError) throw shoeingsError;
 
-      // Sort shoeings by date in descending order (most recent first)
-      const sortedShoeings = shoeingsData.sort(
-        (a, b) =>
-          new Date(b["Date of Service"]).getTime() -
-          new Date(a["Date of Service"]).getTime()
-      );
-
-      // Process general notes
-      const generalNotes = horseNotesData.map((item: any) => {
-        const note = item.notes; // Access the nested notes object
-        const date = new Date(note.created_at).toLocaleDateString();
-        return `${date}: ${note.content}`;
-      });
-
       // Process shoeing notes
-      const shoeingNotesArray = sortedShoeings
-        .filter((shoeing) => shoeing["Shoe Notes"])
+      const shoeingNotesArray = (shoeingsData || [])
+        .filter((shoeing) => shoeing && shoeing["Shoe Notes"])
         .map(
           (shoeing) =>
             `${new Date(shoeing["Date of Service"]).toLocaleDateString()}: ${
@@ -906,7 +901,7 @@ function HorseDetailsModal({
 
       setNotes(generalNotes);
       setShoeingNotes(shoeingNotesArray);
-      setShoeings(sortedShoeings);
+      setShoeings(shoeingsData || []);
     } catch (error) {
       console.error("Error fetching notes:", error);
       toast.error("Failed to fetch notes");

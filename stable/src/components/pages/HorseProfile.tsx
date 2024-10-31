@@ -78,11 +78,29 @@ export default function HorseProfile() {
         const { data, error } = await supabase
           .from("shoeings")
           .select("*")
-          .eq("Horses", horseIdentifier)
-          .order("Date of Service", { ascending: false });
+          .eq("Horses", horseIdentifier);
 
         if (error) throw error;
-        setShoeings(data || []);
+
+        // Parse and sort the shoeings by date
+        const sortedShoeings = (data || []).sort((a, b) => {
+          // Convert MM/DD/YYYY to Date objects
+          const dateA = new Date(
+            a["Date of Service"]
+              .split("/")
+              .map((num: string) => num.padStart(2, "0"))
+              .join("/")
+          );
+          const dateB = new Date(
+            b["Date of Service"]
+              .split("/")
+              .map((num: string) => num.padStart(2, "0"))
+              .join("/")
+          );
+          return dateB.getTime() - dateA.getTime(); // Sort descending (most recent first)
+        });
+
+        setShoeings(sortedShoeings);
       } catch (err) {
         console.error("Error fetching shoeings:", err);
         setError("Failed to load shoeing history");
