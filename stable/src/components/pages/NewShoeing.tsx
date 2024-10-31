@@ -698,6 +698,18 @@ export default function ShoeingForm() {
       setForceUpdate((prev) => !prev);
 
       console.log("Form values after reset:", form.getValues());
+    } else {
+      // Clear the form when editingShoeing is null
+      form.reset({
+        horseName: "",
+        dateOfService: undefined,
+        locationOfService: "",
+        baseService: "",
+        frontAddOns: [],
+        hindAddOns: [],
+        customServices: "",
+        shoeingNotes: "",
+      });
     }
   }, [editingShoeing, form, horses, addOns, parseAddOns]);
 
@@ -1093,7 +1105,15 @@ export default function ShoeingForm() {
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-4 w-full justify-center sm:justify-start bg-primary text-white">
-          <TabsTrigger value="new-shoeing" className="flex-1 sm:flex-initial">
+          <TabsTrigger
+            value="new-shoeing"
+            className="flex-1 sm:flex-initial"
+            onClick={() => {
+              if (editingShoeing) {
+                setEditingShoeing(null);
+              }
+            }}
+          >
             New Shoeing
           </TabsTrigger>
           <TabsTrigger
