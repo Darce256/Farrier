@@ -11,6 +11,7 @@ import {
 import { Horse } from "@/lib/horseService";
 import { supabase } from "@/lib/supabaseClient";
 import { House, AlertCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Shoeing {
   id: string;
@@ -329,32 +330,81 @@ export default function HorseProfile() {
               </div>
             </TabsContent>
             <TabsContent value="notes">
-              <Accordion type="single" collapsible className="w-full">
-                {notes.length > 0 ? (
-                  notes.map((note, index) => (
-                    <AccordionItem key={note.id} value={`note-${index}`}>
-                      <AccordionTrigger className="font-semibold">
-                        {new Date(note.created_at).toLocaleDateString()}
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <p
-                          dangerouslySetInnerHTML={{
-                            __html: note.content.replace(
-                              /@\[(.*?)\](?:\((.*?)\))?/g,
-                              (_match, name) => {
-                                const cleanName = name.split(" - ")[0].trim();
-                                return `<strong>${cleanName}</strong>`;
-                              }
-                            ),
-                          }}
-                        />
-                      </AccordionContent>
-                    </AccordionItem>
-                  ))
+              <ScrollArea className="h-[400px] w-full rounded-md border p-4">
+                {notes.length > 0 || shoeings.length > 0 ? (
+                  <Accordion type="multiple" className="w-full">
+                    {notes.length > 0 && (
+                      <AccordionItem value="general-notes">
+                        <AccordionTrigger className="font-semibold">
+                          General Notes
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          {notes.map((note) => (
+                            <div
+                              key={note.id}
+                              className="border border-gray-400 p-2 rounded-md mb-2"
+                            >
+                              <p className="text-sm">
+                                <span className="font-semibold">
+                                  {new Date(
+                                    note.created_at
+                                  ).toLocaleDateString()}
+                                  :
+                                </span>{" "}
+                                <span
+                                  className="text-sm"
+                                  dangerouslySetInnerHTML={{
+                                    __html: note.content.replace(
+                                      /@\[(.*?)\](?:\((.*?)\))?/g,
+                                      (_match, name) => {
+                                        const cleanName = name
+                                          .split(" - ")[0]
+                                          .trim();
+                                        return `<strong>${cleanName}</strong>`;
+                                      }
+                                    ),
+                                  }}
+                                />
+                              </p>
+                            </div>
+                          ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    )}
+                    {shoeings.length > 0 && (
+                      <AccordionItem value="shoeing-notes">
+                        <AccordionTrigger className="font-semibold">
+                          Shoeing Notes
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          {shoeings
+                            .filter((shoeing) => shoeing["Shoe Notes"])
+                            .map((shoeing, index) => (
+                              <div
+                                key={index}
+                                className="border border-gray-400 p-2 rounded-md mb-2"
+                              >
+                                <p className="text-sm">
+                                  <span className="font-semibold">
+                                    {new Date(
+                                      shoeing["Date of Service"]
+                                    ).toLocaleDateString()}
+                                    :
+                                  </span>{" "}
+                                  <span className="text-sm">
+                                    {shoeing["Shoe Notes"]}
+                                  </span>
+                                </p>
+                              </div>
+                            ))}
+                        </AccordionContent>
+                      </AccordionItem>
+                    )}
+                  </Accordion>
                 ) : (
                   <p>No notes available.</p>
                 )}
-              </Accordion>
+              </ScrollArea>
             </TabsContent>
           </Tabs>
         </CardContent>
