@@ -14,6 +14,8 @@ import toast from "react-hot-toast";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import { LiaHorseHeadSolid } from "react-icons/lia";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { getRelativeTimeString } from "@/lib/dateUtils";
 
 type UserProfile = {
   id: string;
@@ -26,6 +28,14 @@ type HorseProfile = {
   "Barn / Trainer": string;
 };
 
+interface Note {
+  id: string;
+  subject: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+}
+
 export default function Notes() {
   const { user } = useAuth();
   const [newNote, setNewNote] = useState("");
@@ -33,6 +43,8 @@ export default function Notes() {
   const [horseProfiles, setHorseProfiles] = useState<HorseProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [subject, setSubject] = useState("");
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -78,6 +90,27 @@ export default function Notes() {
     };
     fetchProfiles();
   }, []);
+
+  useEffect(() => {
+    fetchNotes();
+  }, [user]);
+
+  const fetchNotes = async () => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching notes:", error);
+      return;
+    }
+
+    setNotes(data);
+  };
 
   const handleAddNote = async () => {
     if (!user) {
@@ -147,6 +180,9 @@ export default function Notes() {
       setNewNote("");
       setSubject("");
       toast.success("Note added successfully!");
+
+      // Refresh the notes list
+      await fetchNotes();
     } catch (error) {
       console.error("Error adding note:", error);
       toast.error("Failed to add note. Please try again.");
@@ -162,10 +198,11 @@ export default function Notes() {
   return (
     <div className="container mx-auto p-4">
       <div className="flex items-center gap-2 align-middle mb-6">
-        <FaRegStickyNote className="text-4xl " />
-        <h1 className="text-4xl font-bold  text-black">Notes</h1>
+        <FaRegStickyNote className="text-4xl" />
+        <h1 className="text-4xl font-bold text-black">Notes</h1>
       </div>
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 sm:p-8">
+
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 sm:p-8 mb-6">
         <div className="space-y-4 relative">
           <h2 className="text-2xl font-semibold">Add New Note</h2>
           <input
@@ -222,6 +259,53 @@ export default function Notes() {
               "Add Note"
             )}
           </Button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-md border border-gray-200">
+        <div className="p-6 sm:p-8">
+          <h2 className="text-2xl font-semibold mb-4">Your Notes</h2>
+          <div className="h-[400px]">
+            <ScrollArea className="h-full">
+              {notes.map((note) => (
+                <div
+                  key={note.id}
+                  className={`flex items-start space-x-4 p-3 cursor-pointer hover:bg-accent rounded-md mb-2 ${
+                    selectedNote?.id === note.id ? "bg-accent" : ""
+                  }`}
+                  onClick={() => setSelectedNote(note)}
+                >
+                  <div className="flex-shrink-0">
+                    <FaRegStickyNote className="text-xl text-muted-foreground" />
+                  </div>
+                  <div className="flex-grow min-w-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-semibold truncate">
+                        {note.subject || "Untitled Note"}
+                      </h3>
+                      <span className="text-xs text-muted-foreground">
+                        {getRelativeTimeString(new Date(note.created_at))}
+                      </span>
+                    </div>
+                    <p
+                      className="text-sm text-muted-foreground line-clamp-2 mt-1"
+                      dangerouslySetInnerHTML={{
+                        __html: note.content.replace(
+                          /@\[(.*?)\]\((.*?)\)/g,
+                          "@$1"
+                        ),
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+              {notes.length === 0 && (
+                <div className="text-center text-muted-foreground py-8">
+                  No notes yet. Create your first note above!
+                </div>
+              )}
+            </ScrollArea>
+          </div>
         </div>
       </div>
     </div>
