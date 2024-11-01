@@ -32,6 +32,7 @@ export default function Notes() {
   const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
   const [horseProfiles, setHorseProfiles] = useState<HorseProfile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [subject, setSubject] = useState("");
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -91,7 +92,13 @@ export default function Notes() {
 
       const { data: noteData, error: noteError } = await supabase
         .from("notes")
-        .insert([{ content: newNote, user_id: user.id }])
+        .insert([
+          {
+            content: newNote,
+            user_id: user.id,
+            subject: subject,
+          },
+        ])
         .select();
 
       if (noteError) throw noteError;
@@ -114,8 +121,10 @@ export default function Notes() {
           new RegExp(`@${mention.name}`, "g"),
           `<strong>@${mention.name}</strong>`
         );
+        console.log("Adding outside of notification for user:", mention);
 
         if (mention.type === "user") {
+          console.log("Adding notification for user:", mention);
           await supabase.from("notifications").insert([
             {
               mentioned_user_id: mention.id,
@@ -136,6 +145,7 @@ export default function Notes() {
       }
 
       setNewNote("");
+      setSubject("");
       toast.success("Note added successfully!");
     } catch (error) {
       console.error("Error adding note:", error);
@@ -158,6 +168,13 @@ export default function Notes() {
       <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 sm:p-8">
         <div className="space-y-4 relative">
           <h2 className="text-2xl font-semibold">Add New Note</h2>
+          <input
+            type="text"
+            placeholder="Subject"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+          />
           <MentionsInput
             style={MentionInputStyles}
             value={newNote}

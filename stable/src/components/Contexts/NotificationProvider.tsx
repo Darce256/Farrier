@@ -13,9 +13,15 @@ interface Notification {
   message: string;
   created_at: string;
   read: boolean;
-  deleted: boolean; // Add this field
+  deleted: boolean;
+  type: string;
+  related_id: string;
   creator: {
     name: string;
+  };
+  note?: {
+    subject: string;
+    content: string;
   };
 }
 
@@ -39,7 +45,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchNotifications = useCallback(async () => {
     if (user) {
-      const { data, error } = await supabase
+      const { data: notificationsData, error } = await supabase
         .from("notifications")
         .select(
           `
@@ -48,14 +54,50 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
         `
         )
         .eq("mentioned_user_id", user.id)
-        .eq("deleted", false) // Only fetch non-deleted notifications
+        .eq("deleted", false)
         .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching notifications:", error);
-      } else if (data) {
-        setNotifications(data as Notification[]);
+        return;
       }
+
+      const mentionNotifications =
+        notificationsData?.filter(
+          (n) => n.type === "mention" && n.related_id
+        ) || [];
+      const noteIds = mentionNotifications.map((n) => n.related_id);
+
+      if (noteIds.length > 0) {
+        const { data: notesData, error: notesError } = await supabase
+          .from("notes")
+          .select("id, subject, content")
+          .in("id", noteIds);
+
+        if (notesError) {
+          console.error("Error fetching notes:", notesError);
+        } else {
+          const enrichedNotifications = notificationsData?.map(
+            (notification) => {
+              if (notification.type === "mention" && notification.related_id) {
+                const relatedNote = notesData?.find(
+                  (note) => note.id === notification.related_id
+                );
+                return {
+                  ...notification,
+                  note: relatedNote || undefined,
+                };
+              }
+              return notification;
+            }
+          );
+
+          setNotifications(enrichedNotifications as Notification[]);
+          return;
+        }
+      }
+
+      setNotifications(notificationsData as Notification[]);
     }
   }, [user]);
 
@@ -95,7 +137,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000); // Poll every 30 seconds
+    const interval = setInterval(fetchNotifications, 60000); // Poll every minute instead
 
     return () => clearInterval(interval);
   }, [fetchNotifications]);

@@ -28,6 +28,10 @@ interface Notification {
   creator: {
     name: string;
   };
+  note?: {
+    subject: string;
+    content: string;
+  };
 }
 
 const Avatar = ({ creator }: { creator: { name: string } | null }) => {
@@ -60,6 +64,9 @@ export default function Inbox() {
 
   useEffect(() => {
     fetchNotifications();
+    return () => {
+      setNotifications([]); // Clear notifications on unmount
+    };
   }, [user]);
 
   useEffect(() => {
@@ -81,23 +88,59 @@ export default function Inbox() {
 
   const fetchNotifications = async () => {
     if (user) {
-      const { data, error } = await supabase
+      const { data: notificationsData, error } = await supabase
         .from("notifications")
         .select(
           `
-        *,
-        creator:profiles!notifications_creator_id_fkey(name)
-      `
+          *,
+          creator:profiles!notifications_creator_id_fkey(name)
+        `
         )
         .eq("mentioned_user_id", user.id)
-        .eq("deleted", false) // Only fetch non-deleted notifications
+        .eq("deleted", false)
         .order("created_at", { ascending: false });
 
       if (error) {
         console.error("Error fetching notifications:", error);
-      } else if (data) {
-        setNotifications(data);
+        return;
       }
+
+      const mentionNotifications =
+        notificationsData?.filter(
+          (n) => n.type === "mention" && n.related_id
+        ) || [];
+      const noteIds = mentionNotifications.map((n) => n.related_id);
+
+      if (noteIds.length > 0) {
+        const { data: notesData, error: notesError } = await supabase
+          .from("notes")
+          .select("id, subject, content")
+          .in("id", noteIds);
+
+        if (notesError) {
+          console.error("Error fetching notes:", notesError);
+        } else {
+          const enrichedNotifications = notificationsData?.map(
+            (notification) => {
+              if (notification.type === "mention" && notification.related_id) {
+                const relatedNote = notesData?.find(
+                  (note) => note.id === notification.related_id
+                );
+                return {
+                  ...notification,
+                  note: relatedNote || undefined,
+                };
+              }
+              return notification;
+            }
+          );
+
+          setNotifications(enrichedNotifications);
+          return;
+        }
+      }
+
+      setNotifications(notificationsData);
     }
   };
 
@@ -186,7 +229,9 @@ export default function Inbox() {
                           <Avatar creator={notification.creator} />
                           <div className="space-y-1 flex-grow min-w-0">
                             <p className="text-sm font-medium leading-none truncate">
-                              {notification.title}
+                              {notification.note?.subject ||
+                                notification.title ||
+                                "Notification"}
                             </p>
                             <p
                               className="text-sm text-muted-foreground line-clamp-2"
@@ -194,6 +239,12 @@ export default function Inbox() {
                                 __html: notification.message,
                               }}
                             ></p>
+                            {notification.type === "mention" &&
+                              notification.note?.subject && (
+                                <p className="text-xs text-muted-foreground italic">
+                                  From note: {notification.note.subject}
+                                </p>
+                              )}
                             <p className="text-xs text-muted-foreground">
                               {getRelativeTimeString(
                                 new Date(notification.created_at)
@@ -252,6 +303,11 @@ export default function Inbox() {
                 <CardContent className="flex-grow overflow-auto p-4">
                   {selectedNotification && (
                     <div>
+                      {selectedNotification.note?.subject && (
+                        <h3 className="text-lg font-semibold mb-2">
+                          {selectedNotification.note.subject}
+                        </h3>
+                      )}
                       <span
                         className="text-sm"
                         dangerouslySetInnerHTML={{
