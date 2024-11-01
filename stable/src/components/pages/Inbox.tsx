@@ -15,6 +15,7 @@ import { useAuth } from "@/components/Contexts/AuthProvider";
 import { MdMailOutline } from "react-icons/md";
 import { useNotifications } from "@/components/Contexts/NotificationProvider";
 import { getRelativeTimeString } from "@/lib/dateUtils";
+import { FaRegBell, FaRegStickyNote } from "react-icons/fa";
 
 interface Notification {
   id: string;
@@ -228,23 +229,29 @@ export default function Inbox() {
                         >
                           <Avatar creator={notification.creator} />
                           <div className="space-y-1 flex-grow min-w-0">
-                            <p className="text-sm font-medium leading-none truncate">
-                              {notification.note?.subject ||
-                                notification.title ||
-                                "Notification"}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              {notification.type === "mention" &&
+                              notification.note ? (
+                                <FaRegStickyNote className="text-sm text-muted-foreground" />
+                              ) : (
+                                <FaRegBell className="text-sm text-muted-foreground" />
+                              )}
+                              <p
+                                className={`text-sm leading-none truncate font-semibold ${
+                                  !notification.read ? "font-bold" : ""
+                                }`}
+                              >
+                                {notification.note?.subject ||
+                                  notification.title ||
+                                  "Notification"}
+                              </p>
+                            </div>
                             <p
                               className="text-sm text-muted-foreground line-clamp-2"
                               dangerouslySetInnerHTML={{
                                 __html: notification.message,
                               }}
                             ></p>
-                            {notification.type === "mention" &&
-                              notification.note?.subject && (
-                                <p className="text-xs text-muted-foreground italic">
-                                  From note: {notification.note.subject}
-                                </p>
-                              )}
                             <p className="text-xs text-muted-foreground">
                               {getRelativeTimeString(
                                 new Date(notification.created_at)
@@ -303,11 +310,19 @@ export default function Inbox() {
                 <CardContent className="flex-grow overflow-auto p-4">
                   {selectedNotification && (
                     <div>
-                      {selectedNotification.note?.subject && (
-                        <h3 className="text-lg font-semibold mb-2">
-                          {selectedNotification.note.subject}
+                      <div className="flex items-center gap-2 mb-4">
+                        {selectedNotification.type === "mention" &&
+                        selectedNotification.note ? (
+                          <FaRegStickyNote className="text-xl text-muted-foreground" />
+                        ) : (
+                          <FaRegBell className="text-xl text-muted-foreground" />
+                        )}
+                        <h3 className="text-lg font-semibold">
+                          {selectedNotification.note?.subject ||
+                            selectedNotification.title ||
+                            "Notification"}
                         </h3>
-                      )}
+                      </div>
                       <span
                         className="text-sm"
                         dangerouslySetInnerHTML={{
