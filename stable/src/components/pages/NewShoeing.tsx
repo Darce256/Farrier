@@ -90,6 +90,21 @@ const newHorseSchema = z.object({
 
 type NewHorseFormValues = z.infer<typeof newHorseSchema>;
 
+// Add interface for Shoeing type
+interface Shoeing {
+  id: string;
+  "Date of Service": string;
+  "Horse Name": string;
+  "Base Service": string;
+  "Front Add-On's"?: string;
+  "Hind Add-On's"?: string;
+  "Other Custom Services"?: string;
+  "Location of Service": string;
+  "Shoe Notes"?: string;
+  Horses: string;
+  status: string;
+}
+
 // New component for submitted shoeings
 function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
   const [shoeings, setShoeings] = useState([]);
@@ -432,7 +447,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
 // Add this new component after the SubmittedShoeings component
 
 function SentLastThirtyDays() {
-  const [shoeings, setShoeings] = useState([]);
+  const [shoeings, setShoeings] = useState<Shoeing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -442,59 +457,124 @@ function SentLastThirtyDays() {
   async function fetchSentShoeings() {
     setIsLoading(true);
 
-    const now = new Date();
-    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    try {
+      // Fetch all completed shoeings with pagination
+      let allShoeings: Shoeing[] = [];
+      let from = 0;
+      const chunkSize = 1000;
+      let to = chunkSize - 1;
+      let fetchMore = true;
 
-    // Format dates to MM/DD/YYYY
-    const formatDate = (date: Date) => {
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-      const year = date.getFullYear();
-      return `${month}/${day}/${year}`;
-    };
+      while (fetchMore) {
+        const { data, error } = await supabase
+          .from("shoeings")
+          .select("*")
+          .eq("status", "completed")
+          .range(from, to);
 
-    const nowFormatted = formatDate(now);
-    const thirtyDaysAgoFormatted = formatDate(thirtyDaysAgo);
+        if (error) throw error;
 
-    console.log("Fetching completed shoeings for the last 30 days");
-    console.log("Date range:", thirtyDaysAgoFormatted, "to", nowFormatted);
+        if (data) {
+          allShoeings = [...allShoeings, ...data];
+        }
 
-    const { data, error } = await supabase
-      .from("shoeings")
-      .select("*")
-      .eq("status", "completed")
-      .gte("Date of Service", thirtyDaysAgoFormatted)
-      .lte("Date of Service", nowFormatted);
+        // If we got less than the chunk size, we've reached the end
+        if (!data || data.length < chunkSize) {
+          fetchMore = false;
+        } else {
+          from += chunkSize;
+          to += chunkSize;
+        }
+      }
 
-    if (error) {
-      console.error("Error fetching sent shoeings:", error);
-      toast.error("Failed to fetch sent shoeings");
-    } else {
-      // Sort the data by date (most recent first)
-      const sortedData = data.sort((a, b) => {
-        const dateA = new Date(
-          a["Date of Service"].split("/").reverse().join("-")
-        );
-        const dateB = new Date(
-          b["Date of Service"].split("/").reverse().join("-")
-        );
-        return dateB.getTime() - dateA.getTime();
+      console.log("Total completed shoeings:", allShoeings.length);
+
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      console.log("Date range:", {
+        from: thirtyDaysAgo.toLocaleDateString(),
+        to: now.toLocaleDateString(),
       });
 
-      console.log("Fetched and sorted shoeings:", sortedData);
-      if (sortedData.length === 0) {
-        console.log("No completed shoeings found for the last 30 days");
-      } else {
-        console.log("Number of shoeings found:", sortedData.length);
-        console.log("First shoeing date:", sortedData[0]["Date of Service"]);
-        console.log(
-          "Last shoeing date:",
-          sortedData[sortedData.length - 1]["Date of Service"]
-        );
-      }
-      setShoeings(sortedData as any);
+      const filteredAndSortedData = allShoeings
+        .filter((shoeing: Shoeing) => {
+          if (!shoeing["Date of Service"]) {
+            console.log("Skipping record - no date:", shoeing);
+            return false;
+          }
+
+          try {
+            const [month, day, year] = shoeing["Date of Service"].split("/");
+            const shoeingDate = new Date(
+              parseInt(year),
+              parseInt(month) - 1,
+              parseInt(day)
+            );
+
+            if (isNaN(shoeingDate.getTime())) {
+              console.log(
+                "Skipping record - invalid date:",
+                shoeing["Date of Service"]
+              );
+              return false;
+            }
+
+            const isWithinRange =
+              shoeingDate >= thirtyDaysAgo && shoeingDate <= now;
+
+            console.log("Date check:", {
+              original: shoeing["Date of Service"],
+              parsed: shoeingDate.toLocaleDateString(),
+              isWithinRange,
+              thirtyDaysAgo: thirtyDaysAgo.toLocaleDateString(),
+              now: now.toLocaleDateString(),
+            });
+
+            return isWithinRange;
+          } catch (err) {
+            console.warn("Invalid date format:", shoeing["Date of Service"]);
+            return false;
+          }
+        })
+        .sort((a: Shoeing, b: Shoeing) => {
+          try {
+            const [monthA, dayA, yearA] = a["Date of Service"].split("/");
+            const [monthB, dayB, yearB] = b["Date of Service"].split("/");
+
+            const dateA = new Date(
+              parseInt(yearA),
+              parseInt(monthA) - 1,
+              parseInt(dayA)
+            );
+            const dateB = new Date(
+              parseInt(yearB),
+              parseInt(monthB) - 1,
+              parseInt(dayB)
+            );
+
+            if (isNaN(dateA.getTime()) || isNaN(dateB.getTime())) return 0;
+
+            return dateB.getTime() - dateA.getTime();
+          } catch (err) {
+            console.warn("Error comparing dates:", { a, b });
+            return 0;
+          }
+        });
+
+      console.log("Filtered results:", filteredAndSortedData.length);
+      console.log(
+        "Sample of filtered data:",
+        filteredAndSortedData.slice(0, 3)
+      );
+
+      setShoeings(filteredAndSortedData);
+    } catch (err) {
+      console.error("Error fetching sent shoeings:", err);
+      toast.error("Failed to fetch sent shoeings");
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }
 
   const renderServices = (shoeing: any) => {

@@ -84,22 +84,29 @@ export default function HorseProfile() {
         if (error) throw error;
 
         // Parse and sort the shoeings by date
-        const sortedShoeings = (data || []).sort((a, b) => {
-          // Convert MM/DD/YYYY to Date objects
-          const dateA = new Date(
-            a["Date of Service"]
-              .split("/")
-              .map((num: string) => num.padStart(2, "0"))
-              .join("/")
-          );
-          const dateB = new Date(
-            b["Date of Service"]
-              .split("/")
-              .map((num: string) => num.padStart(2, "0"))
-              .join("/")
-          );
-          return dateB.getTime() - dateA.getTime(); // Sort descending (most recent first)
-        });
+        const sortedShoeings = (data || [])
+          .filter((shoeing) => shoeing["Date of Service"]) // Filter out entries with no date
+          .sort((a, b) => {
+            try {
+              // Convert MM/DD/YYYY to Date objects
+              const dateA = new Date(
+                a["Date of Service"]
+                  .split("/")
+                  .map((num: string) => num.padStart(2, "0"))
+                  .join("/")
+              );
+              const dateB = new Date(
+                b["Date of Service"]
+                  .split("/")
+                  .map((num: string) => num.padStart(2, "0"))
+                  .join("/")
+              );
+              return dateB.getTime() - dateA.getTime(); // Sort descending (most recent first)
+            } catch (err) {
+              console.warn("Invalid date format:", { a, b });
+              return 0; // Keep original order if dates are invalid
+            }
+          });
 
         setShoeings(sortedShoeings);
       } catch (err) {
