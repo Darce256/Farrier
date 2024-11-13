@@ -263,11 +263,11 @@ export default function HorseProfile() {
               <div className="grid gap-4">
                 {selectedImageIndex !== null ? (
                   <div className="flex flex-col h-full">
-                    <div className="relative flex-grow flex justify-center items-center border rounded-md p-2 mb-2">
+                    <div className="relative flex justify-center items-center border rounded-md p-2 mb-2">
                       <img
                         src={xRayImages[selectedImageIndex]}
                         alt={`X-Ray ${selectedImageIndex + 1}`}
-                        className="max-w-full max-h-full object-contain"
+                        className="max-w-full h-auto object-contain max-h-[400px]"
                       />
                       <button
                         className="absolute top-1/2 left-2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-2"
@@ -301,18 +301,18 @@ export default function HorseProfile() {
                         <X size={24} />
                       </button>
                     </div>
-                    <div className="h-[100px] overflow-x-auto">
+                    <div className="h-[80px] overflow-x-auto">
                       <div className="flex space-x-2 pb-2">
                         {xRayImages.map((image, index) => (
                           <img
                             key={index}
                             src={image}
                             alt={`X-Ray ${index + 1}`}
-                            className={`h-[120px] w-auto object-cover cursor-pointer border rounded-md ${
+                            className={`h-[60px] w-auto object-cover cursor-pointer border rounded-md ${
                               index === selectedImageIndex
                                 ? "border-2 border-primary"
                                 : "border-gray-200"
-                            } md:h-[150px]`} // Adjust height for desktop
+                            }`}
                             onClick={() => setSelectedImageIndex(index)}
                           />
                         ))}
@@ -326,7 +326,7 @@ export default function HorseProfile() {
                         key={index}
                         src={image}
                         alt={`X-Ray ${index + 1}`}
-                        className="w-full h-[120px] object-cover cursor-pointer md:h-[150px]" // Adjust height for desktop
+                        className="w-full h-[100px] object-cover cursor-pointer md:h-[120px]"
                         onClick={() => setSelectedImageIndex(index)}
                       />
                     ))}
