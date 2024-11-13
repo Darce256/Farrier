@@ -1002,31 +1002,36 @@ function HorseDetailsModal({
     );
   };
 
+  // Add this helper function to extract timestamp from URL
+  const getTimestampFromXRayUrl = (url: string): number => {
+    const match = url.match(/-(\d+)\.[^.]+$/);
+    return match ? parseInt(match[1]) : 0;
+  };
+
+  // Modify the handleXRayUpload function
   const handleXRayUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = event.target.files;
     if (!files || !horse) return;
 
-    // Create loading toast and store its ID
     const loadingToastId = toast.loading("Uploading X-ray images...");
 
     try {
       const newXRayUrls: string[] = [];
+      const timestamp = Date.now(); // Get current timestamp
 
       for (const file of files) {
-        // Generate a unique filename
         const fileExt = file.name.split(".").pop();
-        const fileName = `${horse.id}-${Date.now()}.${fileExt}`;
+        // Include timestamp in filename
+        const fileName = `${horse.id}-${timestamp}.${fileExt}`;
 
-        // Upload file to Supabase storage
         const { data: _uploadData, error: uploadError } = await supabase.storage
           .from("x-ray-images")
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
-        // Get public URL for the uploaded file
         const { data: urlData } = supabase.storage
           .from("x-ray-images")
           .getPublicUrl(fileName);
@@ -1036,29 +1041,28 @@ function HorseDetailsModal({
         }
       }
 
-      // Update the horse record with new x-ray images
+      // Sort all images by timestamp (including new ones)
+      const allImages = [...xRayImages, ...newXRayUrls].sort(
+        (a, b) => getTimestampFromXRayUrl(b) - getTimestampFromXRayUrl(a)
+      );
+
       const { error: updateError } = await supabase
         .from("horses")
         .update({
-          "x-ray-images": [...xRayImages, ...newXRayUrls],
+          "x-ray-images": allImages,
         })
         .eq("id", horse.id);
 
       if (updateError) throw updateError;
 
-      // Update local state
-      setXRayImages((prev) => [...prev, ...newXRayUrls]);
-
-      // Dismiss loading toast and show success
+      setXRayImages(allImages);
       toast.dismiss(loadingToastId);
       toast.success("X-ray images uploaded successfully");
     } catch (error) {
       console.error("Error uploading x-ray images:", error);
-      // Dismiss loading toast and show error
       toast.dismiss(loadingToastId);
       toast.error("Failed to upload x-ray images");
     } finally {
-      // Clear the input
       event.target.value = "";
     }
   };
