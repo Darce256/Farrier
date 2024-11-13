@@ -10,8 +10,17 @@ import {
 } from "@/components/ui/accordion";
 import { Horse } from "@/lib/horseService";
 import { supabase } from "@/lib/supabaseClient";
-import { House, AlertCircle, ChevronLeft, ChevronRight, X } from "lucide-react";
+import {
+  House,
+  AlertCircle,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Upload,
+} from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import toast from "react-hot-toast";
 
 interface Shoeing {
   id: string;
@@ -171,6 +180,67 @@ export default function HorseProfile() {
     fetchNotes();
   }, [horse]);
 
+  const handleXRayUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = event.target.files;
+    if (!files || !horse) return;
+
+    // Create loading toast and store its ID
+    const loadingToastId = toast.loading("Uploading X-ray images...");
+
+    try {
+      const newXRayUrls: string[] = [];
+
+      for (const file of files) {
+        // Generate a unique filename
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${horse.id}-${Date.now()}.${fileExt}`;
+
+        // Upload file to Supabase storage
+        const { data: _uploadData, error: uploadError } = await supabase.storage
+          .from("x-ray-images")
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        // Get public URL for the uploaded file
+        const { data: urlData } = supabase.storage
+          .from("x-ray-images")
+          .getPublicUrl(fileName);
+
+        if (urlData) {
+          newXRayUrls.push(urlData.publicUrl);
+        }
+      }
+
+      // Update the horse record with new x-ray images
+      const { error: updateError } = await supabase
+        .from("horses")
+        .update({
+          "x-ray-images": [...xRayImages, ...newXRayUrls],
+        })
+        .eq("id", horse.id);
+
+      if (updateError) throw updateError;
+
+      // Update local state
+      setXRayImages((prev) => [...prev, ...newXRayUrls]);
+
+      // Dismiss loading toast and show success
+      toast.dismiss(loadingToastId);
+      toast.success("X-ray images uploaded successfully");
+    } catch (error) {
+      console.error("Error uploading x-ray images:", error);
+      // Dismiss loading toast and show error
+      toast.dismiss(loadingToastId);
+      toast.error("Failed to upload x-ray images");
+    } finally {
+      // Clear the input
+      event.target.value = "";
+    }
+  };
+
   if (loading) return <div className="container mx-auto p-4">Loading...</div>;
   if (error) return <div className="container mx-auto p-4">{error}</div>;
   if (!horse)
@@ -261,6 +331,30 @@ export default function HorseProfile() {
             </TabsContent>
             <TabsContent value="xrays">
               <div className="grid gap-4">
+                <div className="flex justify-end mb-2">
+                  <div className="relative">
+                    <input
+                      type="file"
+                      id="x-ray-upload"
+                      multiple
+                      accept="image/*"
+                      onChange={handleXRayUpload}
+                      className="hidden"
+                    />
+                    <label htmlFor="x-ray-upload">
+                      <Button
+                        variant="outline"
+                        className="cursor-pointer flex items-center gap-2"
+                        asChild
+                      >
+                        <span>
+                          <Upload className="h-4 w-4" />
+                          Upload X-rays
+                        </span>
+                      </Button>
+                    </label>
+                  </div>
+                </div>
                 {selectedImageIndex !== null ? (
                   <div className="flex flex-col h-full">
                     <div className="relative flex justify-center items-center border rounded-md p-2 mb-2">
@@ -332,7 +426,21 @@ export default function HorseProfile() {
                     ))}
                   </div>
                 ) : (
-                  <p>No X-Ray images available.</p>
+                  <div className="text-center py-8">
+                    <p className="mb-4">No X-Ray images available.</p>
+                    <label htmlFor="x-ray-upload">
+                      <Button
+                        variant="outline"
+                        className="cursor-pointer flex items-center gap-2"
+                        asChild
+                      >
+                        <span>
+                          <Upload className="h-4 w-4" />
+                          Upload your first X-ray
+                        </span>
+                      </Button>
+                    </label>
+                  </div>
                 )}
               </div>
             </TabsContent>
