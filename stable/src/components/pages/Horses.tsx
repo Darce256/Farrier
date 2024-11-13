@@ -53,6 +53,7 @@ import AutoSizer from "react-virtualized-auto-sizer";
 import { AlertCircle } from "lucide-react";
 import { useAuth } from "@/components/Contexts/AuthProvider";
 import { Home } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Shoeing {
   id: string;
@@ -810,6 +811,7 @@ function HorseDetailsModal({
   const [isAddingNote, setIsAddingNote] = useState(false);
   const [newNote, setNewNote] = useState("");
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState("history");
 
   useEffect(() => {
     if (isOpen && horse) {
@@ -996,14 +998,20 @@ function HorseDetailsModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent
-        className={`sm:max-w-[${
-          selectedImageIndex !== null ? "800px" : "600px"
-        }]`}
+        className={cn(
+          "sm:max-w-[600px]", // default width
+          activeTab === "xrays" && "sm:max-w-[800px]", // wider when showing x-rays
+          "transition-all duration-200" // smooth transition
+        )}
       >
         <DialogHeader>
           <DialogTitle className="text-2xl font-bold">{horse.Name}</DialogTitle>
         </DialogHeader>
-        <Tabs defaultValue="history" className="w-full flex flex-col">
+        <Tabs
+          defaultValue="history"
+          className="w-full flex flex-col"
+          onValueChange={setActiveTab}
+        >
           <TabsList className="bg-primary text-primary-foreground w-full grid grid-cols-3">
             <TabsTrigger value="history" className="w-full">
               Shoeing History
@@ -1065,14 +1073,19 @@ function HorseDetailsModal({
             </ScrollArea>
           </TabsContent>
           <TabsContent value="xrays">
-            <ScrollArea className="h-[300px] w-full rounded-md border p-4">
+            <ScrollArea
+              className={cn(
+                "w-full rounded-md border p-4",
+                selectedImageIndex !== null ? "h-[500px]" : "h-[300px]" // taller when image selected
+              )}
+            >
               {selectedImageIndex !== null ? (
                 <div className="flex flex-col h-full">
                   <div className="relative flex-grow flex justify-center items-center border rounded-md p-2 mb-2">
                     <img
                       src={xRayImages[selectedImageIndex]}
                       alt={`X-Ray ${selectedImageIndex + 1}`}
-                      className="max-w-full max-h-full object-contain"
+                      className="max-w-full max-h-[400px] object-contain" // increased max height
                     />
                     <button
                       className="absolute top-1/2 left-2 transform -translate-y-1/2 text-white bg-black bg-opacity-50 rounded-full p-2"
@@ -1093,14 +1106,16 @@ function HorseDetailsModal({
                       <X size={24} />
                     </button>
                   </div>
-                  <div className="h-[100px] overflow-x-auto">
+                  <div className="h-[80px] overflow-x-auto">
+                    {" "}
+                    {/* slightly reduced thumbnail height */}
                     <div className="flex space-x-2 pb-2">
                       {xRayImages.map((image, index) => (
                         <img
                           key={index}
                           src={image}
                           alt={`X-Ray ${index + 1}`}
-                          className={`h-[80px] w-auto object-cover cursor-pointer border rounded-md ${
+                          className={`h-[60px] w-auto object-cover cursor-pointer border rounded-md ${
                             index === selectedImageIndex
                               ? "border-2 border-primary"
                               : "border-gray-200"
