@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
   Edit,
+  Trash2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useAuth } from "@/components/Contexts/AuthProvider";
@@ -60,6 +61,16 @@ import { useInView } from "react-intersection-observer";
 import React from "react";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface Shoeing {
   Horses: any;
@@ -828,6 +839,8 @@ export default function ShoeingsApprovalPanel() {
 
   // Add this new state
   const [reviewingHorse, setReviewingHorse] = useState<Shoeing | null>(null);
+  const [deletingShoeing, setDeletingShoeing] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Add this new function
   const handleOpenReviewModal = (shoeing: Shoeing) => {
@@ -1426,6 +1439,61 @@ export default function ShoeingsApprovalPanel() {
     toast.success("Horse details updated successfully");
   };
 
+  const handleDelete = async (shoeingId: string) => {
+    try {
+      setDeletingShoeing(shoeingId);
+
+      const { error } = await supabase
+        .from("shoeings")
+        .delete()
+        .eq("id", shoeingId);
+
+      if (error) throw error;
+
+      toast.success("Shoeing record deleted successfully");
+      fetchPendingShoeings(); // Refresh the list
+    } catch (error) {
+      console.error("Error deleting shoeing:", error);
+      toast.error("Failed to delete shoeing record");
+    } finally {
+      setDeletingShoeing(null);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  function DeleteConfirmDialog({
+    open,
+    onOpenChange,
+    onConfirm,
+  }: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onConfirm: () => void;
+  }) {
+    return (
+      <AlertDialog open={open} onOpenChange={onOpenChange}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the
+              shoeing record.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={onConfirm}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
+  }
+
   function renderShoeingApprovalContent() {
     if (isLoading) {
       return <SkeletonLoader />;
@@ -1544,14 +1612,30 @@ export default function ShoeingsApprovalPanel() {
                                 {shoeing.Description}
                               </p>
                             </CardContent>
-                            <div className="p-4 mt-auto">
+                            <div className="p-4 mt-auto flex gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleEditShoeing(shoeing)}
-                                className="w-full bg-primary text-white hover:bg-black hover:text-white"
+                                className="flex-1 bg-primary text-white hover:bg-black hover:text-white"
                               >
                                 <Pencil className="w-4 h-4 mr-2" /> Edit
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setDeletingShoeing(shoeing.id);
+                                  setShowDeleteConfirm(true);
+                                }}
+                                className="flex-1"
+                                disabled={deletingShoeing === shoeing.id}
+                              >
+                                {deletingShoeing === shoeing.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
                               </Button>
                             </div>
                             <div className="p-4">
@@ -1600,6 +1684,16 @@ export default function ShoeingsApprovalPanel() {
                               >
                                 <X className="mr-2 h-4 w-4" />
                                 Reject
+                              </Button>
+                            </div>
+                            <div className="p-4">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setDeletingShoeing(shoeing.id)}
+                                className="w-full bg-red-500 text-white hover:bg-red-600"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" /> Delete
                               </Button>
                             </div>
                           </Card>
@@ -1709,14 +1803,30 @@ export default function ShoeingsApprovalPanel() {
                                   {shoeing.Description}
                                 </p>
                               </CardContent>
-                              <div className="p-4 mt-auto">
+                              <div className="p-4 mt-auto flex gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleEditShoeing(shoeing)}
-                                  className="w-full bg-primary text-white hover:bg-black hover:text-white"
+                                  className="flex-1 bg-primary text-white hover:bg-black hover:text-white"
                                 >
                                   <Pencil className="w-4 h-4 mr-2" /> Edit
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => {
+                                    setDeletingShoeing(shoeing.id);
+                                    setShowDeleteConfirm(true);
+                                  }}
+                                  className="flex-1"
+                                  disabled={deletingShoeing === shoeing.id}
+                                >
+                                  {deletingShoeing === shoeing.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="w-4 h-4" />
+                                  )}
                                 </Button>
                               </div>
                             </Card>
@@ -1785,6 +1895,13 @@ export default function ShoeingsApprovalPanel() {
             horse={reviewingHorse}
             onClose={() => setReviewingHorse(null)}
             onUpdate={handleHorseUpdate}
+          />
+        )}
+        {deletingShoeing && (
+          <DeleteConfirmDialog
+            open={showDeleteConfirm}
+            onOpenChange={setShowDeleteConfirm}
+            onConfirm={() => deletingShoeing && handleDelete(deletingShoeing)}
           />
         )}
       </>
