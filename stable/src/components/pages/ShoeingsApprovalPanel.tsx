@@ -676,11 +676,14 @@ function ReviewHorseModal({ horse, onClose, onUpdate }: ReviewHorseModalProps) {
 
 interface SentInvoicesTabProps {
   handleQuickBooksConnect: () => void;
+  isQuickBooksConnected: boolean | null;
 }
 
-function SentInvoicesTab({ handleQuickBooksConnect }: SentInvoicesTabProps) {
+function SentInvoicesTab({
+  handleQuickBooksConnect,
+  isQuickBooksConnected,
+}: SentInvoicesTabProps) {
   const { user } = useAuth();
-  const [isQuickBooksConnected] = useState<boolean | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -724,41 +727,20 @@ function SentInvoicesTab({ handleQuickBooksConnect }: SentInvoicesTabProps) {
 
   if (!isQuickBooksConnected) {
     return (
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Sent Invoices</h2>
-
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-          <div className="flex items-center">
-            <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
-            <p className="text-sm text-yellow-700">
-              QuickBooks is not connected. Invoice features will be disabled
-              until you
-              <Button
-                variant="link"
-                onClick={handleQuickBooksConnect}
-                className="text-yellow-700 underline px-1"
-              >
-                connect to QuickBooks
-              </Button>
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-col items-center justify-center p-8">
-          <AlertCircle className="h-12 w-12 text-yellow-400 mb-4" />
-          <h2 className="text-xl font-semibold mb-2">
-            QuickBooks Connection Required
-          </h2>
-          <p className="text-gray-600 mb-4 text-center">
-            You need to connect to QuickBooks to view and manage invoices.
-          </p>
-          <Button
-            onClick={handleQuickBooksConnect}
-            className="hover:bg-black hover:text-white"
-          >
-            Connect to QuickBooks
-          </Button>
-        </div>
+      <div className="flex flex-col items-center justify-center p-8">
+        <AlertCircle className="h-12 w-12 text-yellow-400 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">
+          QuickBooks Connection Required
+        </h2>
+        <p className="text-gray-600 mb-4 text-center">
+          You need to connect to QuickBooks to view and manage invoices.
+        </p>
+        <Button
+          onClick={handleQuickBooksConnect}
+          className="hover:bg-black hover:text-white"
+        >
+          Connect to QuickBooks
+        </Button>
       </div>
     );
   }
@@ -1552,7 +1534,11 @@ export default function ShoeingsApprovalPanel() {
                               </p>{" "}
                               {/* Add this line */}
                               <p>Location: {shoeing["Location of Service"]}</p>
-                              <p>Total Cost: ${shoeing["Total Cost"]}</p>
+                              <p>
+                                Total Cost: $
+                                {shoeing["Total Cost"]?.replace(/\$/g, "") ??
+                                  ""}
+                              </p>
                               <p className="mb-4">
                                 <strong>Description:</strong>{" "}
                                 {shoeing.Description}
@@ -1713,7 +1699,11 @@ export default function ShoeingsApprovalPanel() {
                                 <p>
                                   Location: {shoeing["Location of Service"]}
                                 </p>
-                                <p>Total Cost: ${shoeing["Total Cost"]}</p>
+                                <p>
+                                  Total Cost: $
+                                  {shoeing["Total Cost"]?.replace(/\$/g, "") ??
+                                    ""}
+                                </p>
                                 <p className="mb-4">
                                   <strong>Description:</strong>{" "}
                                   {shoeing.Description}
@@ -1818,7 +1808,10 @@ export default function ShoeingsApprovalPanel() {
         <PermissionsTab />
       </TabsContent>
       <TabsContent value="sent-invoices">
-        <SentInvoicesTab handleQuickBooksConnect={handleQuickBooksConnect} />
+        <SentInvoicesTab
+          handleQuickBooksConnect={handleQuickBooksConnect}
+          isQuickBooksConnected={isQuickBooksConnected}
+        />
       </TabsContent>
       <TabsContent value="locations">
         <LocationsEditor />
@@ -1909,9 +1902,13 @@ function EditShoeingModal({
 
   useEffect(() => {
     if (shoeing) {
+      // Strip any $ symbols from Total Cost when loading into the editor
+      const sanitizedTotalCost =
+        shoeing["Total Cost"]?.replace(/\$/g, "") ?? "";
+
       setEditedShoeing({
         ...shoeing,
-        // No need to convert "Date of Service" to a Date object
+        "Total Cost": sanitizedTotalCost,
       });
       setIsOpen(true);
     } else {
@@ -1928,30 +1925,32 @@ function EditShoeingModal({
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { id, value } = e.target;
-    if (id === "Total Cost") {
-      // Allow empty string, otherwise enforce non-negative whole number
-      if (value === "") {
-        setEditedShoeing((prev: any) => ({
-          ...prev,
-          [id]: "",
-        }));
-      } else {
-        // Remove any non-digit characters and convert to a number
-        const numericValue = parseInt(value.replace(/\D/g, ""), 10);
-        // If it's not a number or is negative, set to 0
-        const validValue =
-          isNaN(numericValue) || numericValue < 0 ? 0 : numericValue;
-        setEditedShoeing((prev: any) => ({
-          ...prev,
-          [id]: validValue,
-        }));
+
+    setEditedShoeing((prev: any) => {
+      if (id === "Total Cost") {
+        // Remove any $ symbols from the input
+        const sanitizedValue = value.replace(/\$/g, "");
+
+        // Basic validation for decimal numbers
+        if (
+          sanitizedValue === "" ||
+          sanitizedValue === "." ||
+          /^\d*\.?\d{0,2}$/.test(sanitizedValue)
+        ) {
+          return {
+            ...prev,
+            [id]: sanitizedValue,
+          };
+        }
+        return prev; // Keep previous value if validation fails
       }
-    } else {
-      setEditedShoeing((prev: any) => ({
+
+      // Handle other fields normally
+      return {
         ...prev,
         [id]: value,
-      }));
-    }
+      };
+    });
   };
 
   const handleDateChange = (date: Date | undefined) => {
@@ -1968,7 +1967,15 @@ function EditShoeingModal({
 
   const handleSaveClick = () => {
     if (editedShoeing) {
-      onSave(editedShoeing);
+      // Create a copy of editedShoeing with properly formatted Total Cost
+      const formattedShoeing = {
+        ...editedShoeing,
+        "Total Cost": editedShoeing["Total Cost"]
+          ? editedShoeing["Total Cost"].replace(/^\$+/, "") // Remove leading $ symbols
+          : editedShoeing["Total Cost"],
+      };
+
+      onSave(formattedShoeing);
       handleClose();
     }
   };
@@ -2068,12 +2075,12 @@ function EditShoeingModal({
             </Label>
             <Input
               id="Total Cost"
-              type="text" // Changed to "text" to allow empty input
-              inputMode="numeric" // Brings up numeric keyboard on mobile
-              pattern="[0-9]*" // Allows only numbers
-              value={editedShoeing["Total Cost"] ?? ""} // Use empty string if null or undefined
+              type="text"
+              inputMode="decimal"
+              value={editedShoeing["Total Cost"] ?? ""}
               onChange={handleInputChange}
               className="col-span-3"
+              placeholder="0.00"
             />
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
