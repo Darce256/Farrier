@@ -177,10 +177,6 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
   });
 
   const renderServices = (shoeing: any) => {
-    const horseName = shoeing.Horses
-      ? shoeing.Horses.split(" - ")[0]
-      : "Unknown Horse";
-
     return (
       <div className="space-y-1">
         <div className="text-sm">
@@ -582,10 +578,6 @@ function SentLastThirtyDays() {
   }
 
   const renderServices = (shoeing: any) => {
-    const horseName = shoeing.Horses
-      ? shoeing.Horses.split(" - ")[0]
-      : "Unknown Horse";
-
     return (
       <div className="space-y-1">
         <div className="text-sm">
@@ -1151,25 +1143,20 @@ export default function ShoeingForm() {
     // Add the new horse to the horses array
     setHorses((prev) => [...prev, tempHorse]);
 
-    // Update both the form value and the selected horse state
-    form.setValue("horseName", tempHorse.id, {
-      shouldValidate: true,
-      shouldDirty: true,
-      shouldTouch: true,
-    });
-    setSelectedHorseId(tempHorse.id);
-    setIsNewHorse(true);
+    // Clear the new horse form and close modal
+    newHorseForm.reset();
     setIsModalOpen(false);
+    setIsNewHorse(true);
 
-    // Force update to refresh the select component
-    setForceUpdate((prev) => !prev);
-
-    // Trigger a re-render of the select component
+    // Force update and set the selected horse in a single update
     setTimeout(() => {
-      const selectEvent = new Event("change", { bubbles: true });
-      if (selectRef.current) {
-        selectRef.current.dispatchEvent(selectEvent);
-      }
+      setForceUpdate((prev) => !prev);
+      setSelectedHorseId(tempHorse.id);
+      form.setValue("horseName", tempHorse.id, {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
     }, 0);
   };
 
