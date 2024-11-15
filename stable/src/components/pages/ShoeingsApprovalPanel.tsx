@@ -674,6 +674,154 @@ function ReviewHorseModal({ horse, onClose, onUpdate }: ReviewHorseModalProps) {
   );
 }
 
+interface SentInvoicesTabProps {
+  handleQuickBooksConnect: () => void;
+}
+
+function SentInvoicesTab({ handleQuickBooksConnect }: SentInvoicesTabProps) {
+  const { user } = useAuth();
+  const [isQuickBooksConnected] = useState<boolean | null>(null);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const itemsPerPage = 25;
+
+  const hasMorePages = currentPage * itemsPerPage < totalCount;
+
+  const fetchInvoices = useCallback(
+    async (page: number) => {
+      if (!user || !isQuickBooksConnected) return;
+      setLoading(true);
+      setError(null);
+      try {
+        const { data, error } = await supabase.functions.invoke(
+          "quickbooks-get-invoices",
+          {
+            body: JSON.stringify({ userId: user.id, page, itemsPerPage }),
+          }
+        );
+
+        if (error) throw error;
+
+        setInvoices(data.invoices);
+        setTotalCount(data.totalCount);
+      } catch (err) {
+        setError("Failed to fetch invoices. Please try again later.");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [user, isQuickBooksConnected]
+  );
+
+  useEffect(() => {
+    if (isQuickBooksConnected) {
+      fetchInvoices(currentPage);
+    }
+  }, [currentPage, fetchInvoices, isQuickBooksConnected]);
+
+  if (!isQuickBooksConnected) {
+    return (
+      <div>
+        <h2 className="text-2xl font-bold mb-4">Sent Invoices</h2>
+
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+          <div className="flex items-center">
+            <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
+            <p className="text-sm text-yellow-700">
+              QuickBooks is not connected. Invoice features will be disabled
+              until you
+              <Button
+                variant="link"
+                onClick={handleQuickBooksConnect}
+                className="text-yellow-700 underline px-1"
+              >
+                connect to QuickBooks
+              </Button>
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center justify-center p-8">
+          <AlertCircle className="h-12 w-12 text-yellow-400 mb-4" />
+          <h2 className="text-xl font-semibold mb-2">
+            QuickBooks Connection Required
+          </h2>
+          <p className="text-gray-600 mb-4 text-center">
+            You need to connect to QuickBooks to view and manage invoices.
+          </p>
+          <Button
+            onClick={handleQuickBooksConnect}
+            className="hover:bg-black hover:text-white"
+          >
+            Connect to QuickBooks
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) return <div>Loading invoices...</div>;
+  if (error) return <div className="text-red-500">{error}</div>;
+
+  return (
+    <div>
+      <h2 className="text-2xl font-bold mb-4">Sent Invoices</h2>
+
+      <Table className="w-full bg-white text-black rounded-lg p-4">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="font-bold text-black">
+              Invoice Number
+            </TableHead>
+            <TableHead className="font-bold text-black">Date</TableHead>
+            <TableHead className="font-bold text-black">Customer</TableHead>
+            <TableHead className="font-bold text-black">Total Amount</TableHead>
+            <TableHead className="font-bold text-black">Balance</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {invoices.map((invoice) => (
+            <TableRow key={invoice.Id}>
+              <TableCell>{invoice.DocNumber}</TableCell>
+              <TableCell>
+                {new Date(invoice.TxnDate).toLocaleDateString()}
+              </TableCell>
+              <TableCell>{invoice.CustomerRef.name}</TableCell>
+              <TableCell>${invoice.TotalAmt.toFixed(2)}</TableCell>
+              <TableCell>${invoice.Balance.toFixed(2)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      <div className="flex justify-between items-center mt-4">
+        <Button
+          onClick={() => setCurrentPage((prev) => prev - 1)}
+          disabled={currentPage === 1}
+          variant="outline"
+        >
+          <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+        </Button>
+        <span>
+          Page {currentPage} of {Math.ceil(totalCount / itemsPerPage)} | Showing{" "}
+          {(currentPage - 1) * itemsPerPage + 1} -{" "}
+          {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
+        </span>
+        <Button
+          onClick={() => setCurrentPage((prev) => prev + 1)}
+          disabled={!hasMorePages}
+          variant="outline"
+        >
+          Next <ChevronRight className="ml-2 h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function ShoeingsApprovalPanel() {
   const [groupedShoeings, setGroupedShoeings] = useState<GroupedShoeings>(
     {} as GroupedShoeings
@@ -933,6 +1081,11 @@ export default function ShoeingsApprovalPanel() {
   }
 
   async function handleAccept(shoeingId: string) {
+    if (!isQuickBooksConnected) {
+      toast.error("Please connect to QuickBooks before creating invoices");
+      return;
+    }
+
     setIsAccepting(shoeingId);
     try {
       const shoeing = Object.values(groupedShoeings)
@@ -1151,6 +1304,11 @@ export default function ShoeingsApprovalPanel() {
 
   // Add this function to your component
   const handleAcceptAll = async (key: string) => {
+    if (!isQuickBooksConnected) {
+      toast.error("Please connect to QuickBooks before creating invoices");
+      return;
+    }
+
     setIsAccepting(key);
     try {
       const shoeingsToAccept = groupedShoeings[key].shoeings;
@@ -1259,79 +1417,85 @@ export default function ShoeingsApprovalPanel() {
     setEditingShoeing(shoeing);
   };
 
+  // Add this function to handle horse updates
+  const handleHorseUpdate = (updatedHorse: Shoeing) => {
+    // Update the horse in the groupedShoeings state
+    setGroupedShoeings((prev) => {
+      const newGroupedShoeings = { ...prev };
+
+      // Find the group containing the horse
+      Object.keys(newGroupedShoeings).forEach((key) => {
+        const group = newGroupedShoeings[key];
+        const index = group.shoeings.findIndex((s) => s.id === updatedHorse.id);
+
+        if (index !== -1) {
+          // Update the horse in the group
+          group.shoeings[index] = updatedHorse;
+        }
+      });
+
+      return newGroupedShoeings;
+    });
+
+    // Close the review modal
+    setReviewingHorse(null);
+
+    // Show success message
+    toast.success("Horse details updated successfully");
+  };
+
   function renderShoeingApprovalContent() {
-    if (isQuickBooksConnected === null || isLoading) {
+    if (isLoading) {
       return <SkeletonLoader />;
     }
 
-    if (isQuickBooksConnected === false) {
-      return (
-        <Dialog open={true}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Connect to QuickBooks</DialogTitle>
-            </DialogHeader>
-            <p>
-              Please connect to QuickBooks before accessing the Shoeing Approval
-              Panel.
-            </p>
-            <Button
-              onClick={handleQuickBooksConnect}
-              className="hover:bg-black hover:text-white"
-            >
-              Connect to QuickBooks
-            </Button>
-          </DialogContent>
-        </Dialog>
-      );
-    }
-
-    const handleHorseUpdate = (updatedHorse: Shoeing) => {
-      // Create a new copy of groupedShoeings
-      const newGroupedShoeings = { ...groupedShoeings };
-
-      // Find the group that contains this horse
-      for (const groupKey of Object.keys(newGroupedShoeings)) {
-        const group = newGroupedShoeings[groupKey];
-        const shoeingIndex = group.shoeings.findIndex(
-          (s) => s.id === updatedHorse.id
-        );
-
-        if (shoeingIndex !== -1) {
-          // Remove from old group
-          group.shoeings.splice(shoeingIndex, 1);
-
-          // If group is empty and not the default group, remove it
-          if (group.shoeings.length === 0 && groupKey !== "noCustomer") {
-            delete newGroupedShoeings[groupKey];
-          }
-
-          // Determine new group based on QB Customers
-          const newGroupKey = updatedHorse["QB Customers"] || "noCustomer";
-          const newDisplayName = updatedHorse["QB Customers"] || "No Customer";
-
-          // Create new group if it doesn't exist
-          if (!newGroupedShoeings[newGroupKey]) {
-            newGroupedShoeings[newGroupKey] = {
-              displayName: newDisplayName,
-              shoeings: [],
-            };
-          }
-
-          // Add to new group
-          newGroupedShoeings[newGroupKey].shoeings.push(updatedHorse);
-          break;
-        }
-      }
-
-      // Update state
-      setGroupedShoeings(newGroupedShoeings);
-      setReviewingHorse(updatedHorse);
-    };
+    // Remove the QuickBooks connection check dialog and replace with a warning banner
+    // for invoice-related features when not connected
+    const showQuickBooksWarning = isQuickBooksConnected === false;
 
     return (
       <>
         <h1 className="text-2xl font-bold mb-4">Shoeing Management</h1>
+
+        {showQuickBooksWarning && (
+          <div>
+            <h2 className="text-2xl font-bold mb-4">Sent Invoices</h2>
+
+            <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
+              <div className="flex items-center">
+                <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
+                <p className="text-sm text-yellow-700">
+                  QuickBooks is not connected. Invoice features will be disabled
+                  until you
+                  <Button
+                    variant="link"
+                    onClick={handleQuickBooksConnect}
+                    className="text-yellow-700 underline px-1"
+                  >
+                    connect to QuickBooks
+                  </Button>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center p-8">
+              <AlertCircle className="h-12 w-12 text-yellow-400 mb-4" />
+              <h2 className="text-xl font-semibold mb-2">
+                QuickBooks Connection Required
+              </h2>
+              <p className="text-gray-600 mb-4 text-center">
+                You need to connect to QuickBooks to view and manage invoices.
+              </p>
+              <Button
+                onClick={handleQuickBooksConnect}
+                className="hover:bg-black hover:text-white"
+              >
+                Connect to QuickBooks
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Accordion
           type="multiple"
           className="space-y-4 bg-gray-100 p-4 rounded-md"
@@ -1654,7 +1818,7 @@ export default function ShoeingsApprovalPanel() {
         <PermissionsTab />
       </TabsContent>
       <TabsContent value="sent-invoices">
-        <SentInvoicesTab />
+        <SentInvoicesTab handleQuickBooksConnect={handleQuickBooksConnect} />
       </TabsContent>
       <TabsContent value="locations">
         <LocationsEditor />
@@ -1701,116 +1865,6 @@ export default function ShoeingsApprovalPanel() {
         )}
         {renderTabContent()}
       </Tabs>
-    </div>
-  );
-}
-
-function SentInvoicesTab() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const { user } = useAuth();
-  const itemsPerPage = 25;
-
-  const hasMorePages = currentPage * itemsPerPage < totalCount;
-
-  const fetchInvoices = useCallback(
-    async (page: number) => {
-      if (!user) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const { data, error } = await supabase.functions.invoke(
-          "quickbooks-get-invoices",
-          {
-            body: JSON.stringify({ userId: user.id, page, itemsPerPage }),
-          }
-        );
-
-        if (error) throw error;
-
-        setInvoices(data.invoices);
-        setTotalCount(data.totalCount);
-      } catch (err) {
-        setError("Failed to fetch invoices. Please try again later.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [user]
-  );
-
-  useEffect(() => {
-    fetchInvoices(currentPage);
-  }, [currentPage, fetchInvoices]);
-
-  const handleNextPage = () => {
-    if (hasMorePages) {
-      setCurrentPage((prev) => prev + 1);
-    }
-  };
-
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage((prev) => prev - 1);
-    }
-  };
-
-  if (loading) return <div>Loading invoices...</div>;
-  if (error) return <div className="text-red-500">{error}</div>;
-
-  return (
-    <div>
-      <h2 className="text-2xl font-bold mb-4">Sent Invoices</h2>
-      <Table className="w-full bg-white text-black rounded-lg p-4">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="font-bold text-black">
-              Invoice Number
-            </TableHead>
-            <TableHead className="font-bold text-black">Date</TableHead>
-            <TableHead className="font-bold text-black">Customer</TableHead>
-            <TableHead className="font-bold text-black">Total Amount</TableHead>
-            <TableHead className="font-bold text-black">Balance</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {invoices.map((invoice) => (
-            <TableRow key={invoice.Id}>
-              <TableCell>{invoice.DocNumber}</TableCell>
-              <TableCell>
-                {new Date(invoice.TxnDate).toLocaleDateString()}
-              </TableCell>
-              <TableCell>{invoice.CustomerRef.name}</TableCell>
-              <TableCell>${invoice.TotalAmt.toFixed(2)}</TableCell>
-              <TableCell>${invoice.Balance.toFixed(2)}</TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-      <div className="flex justify-between items-center mt-4">
-        <Button
-          onClick={handlePreviousPage}
-          disabled={currentPage === 1}
-          variant="outline"
-        >
-          <ChevronLeft className="mr-2 h-4 w-4" /> Previous
-        </Button>
-        <span>
-          Page {currentPage} of {Math.ceil(totalCount / itemsPerPage)} | Showing{" "}
-          {(currentPage - 1) * itemsPerPage + 1} -{" "}
-          {Math.min(currentPage * itemsPerPage, totalCount)} of {totalCount}
-        </span>
-        <Button
-          onClick={handleNextPage}
-          disabled={!hasMorePages}
-          variant="outline"
-        >
-          Next <ChevronRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
     </div>
   );
 }

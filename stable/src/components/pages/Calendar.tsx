@@ -303,7 +303,9 @@ export default function Calendar() {
 
   const renderShoeing = (shoeing: Shoeing) => {
     const bgColor = getLocationColor(shoeing["Location of Service"]);
-    const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
+    const [horseName, barnTrainer] = shoeing.Horses
+      ? shoeing.Horses.split(" - ")
+      : ["Unknown Horse", ""];
 
     // Check if the horse has an alert
     const horse = horses.find((h) => h.Name === horseName);
@@ -351,6 +353,7 @@ export default function Calendar() {
         {calendarDays.map((day, index) => {
           const shoeingsForDay = day ? getShoeingsForDate(day) : [];
           const hasAlert = shoeingsForDay.some((shoeing) => {
+            if (!shoeing.Horses) return false;
             const [horseName] = shoeing.Horses.split(" - ");
             const horse = horses.find((h) => h.Name === horseName);
             return horse && horse.alert;

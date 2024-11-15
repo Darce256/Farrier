@@ -177,6 +177,10 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
   });
 
   const renderServices = (shoeing: any) => {
+    const horseName = shoeing.Horses
+      ? shoeing.Horses.split(" - ")[0]
+      : "Unknown Horse";
+
     return (
       <div className="space-y-1">
         <div className="text-sm">
@@ -578,6 +582,10 @@ function SentLastThirtyDays() {
   }
 
   const renderServices = (shoeing: any) => {
+    const horseName = shoeing.Horses
+      ? shoeing.Horses.split(" - ")[0]
+      : "Unknown Horse";
+
     return (
       <div className="space-y-1">
         <div className="text-sm">
@@ -801,17 +809,15 @@ export default function ShoeingForm() {
 
   async function fetchLocations() {
     const { data, error } = await supabase
-      .from("shoeings")
-      .select('"Location of Service"')
-      .not("Location of Service", "is", null);
+      .from("locations")
+      .select("service_location")
+      .order("service_location");
 
     if (error) {
       console.error("Error fetching locations:", error);
     } else {
-      const uniqueLocations = [
-        ...new Set(data.map((item: any) => item["Location of Service"])),
-      ];
-      setLocations(uniqueLocations.sort());
+      const uniqueLocations = data.map((item) => item.service_location);
+      setLocations(uniqueLocations);
     }
   }
 

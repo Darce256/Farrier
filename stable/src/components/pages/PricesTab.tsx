@@ -23,7 +23,7 @@ import toast from "react-hot-toast";
 
 type Product = {
   Name: string;
-  Type: "Base Service" | "Add-on";
+  Type: "Service" | "Add-on";
   [key: string]: string | number | null;
 };
 
@@ -78,7 +78,7 @@ export default function PricesTab() {
     const formData = new FormData(e.currentTarget);
     const newProduct: Product = {
       Name: formData.get("Name") as string,
-      Type: formData.get("Type") as "Base Service" | "Add-on",
+      Type: formData.get("Type") === "Base Service" ? "Service" : "Add-on",
     };
 
     LOCATIONS.forEach((location) => {
@@ -160,6 +160,10 @@ export default function PricesTab() {
     setSearchTerm(e.target.value);
   };
 
+  const displayType = (type: string) => {
+    return type === "Service" ? "Base Service" : type;
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Service Admin Panel</h1>
@@ -207,7 +211,7 @@ export default function PricesTab() {
             </CardHeader>
             <CardContent>
               <p className="text-sm font-semibold text-gray-500 mb-4">
-                Type: {product.Type}
+                Type: {displayType(product.Type)}
               </p>
               <div className="space-y-1">
                 {LOCATIONS.map((location) => (
