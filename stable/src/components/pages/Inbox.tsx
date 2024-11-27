@@ -1,58 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ChevronLeft, Trash2 } from "lucide-react"; // Import Trash2 icon
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "@/components/Contexts/AuthProvider";
-import { MdMailOutline } from "react-icons/md";
-import { useNotifications } from "@/components/Contexts/NotificationProvider";
 import { getRelativeTimeString } from "@/lib/dateUtils";
-import { FaRegBell, FaRegStickyNote, FaReply } from "react-icons/fa";
-import { MentionsInput, Mention } from "react-mentions";
-import MentionInputStyles from "../../MentionInputStyles";
-import MentionStyles from "../../MentionStyles";
 import { toast } from "react-hot-toast";
 import { Loader2 } from "lucide-react";
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  created_at: string;
-  type: string;
-  read: boolean;
-  related_id: string;
-  creator_id: string;
-  creator: {
-    name: string;
-  };
-  note?: {
-    conversation: any;
-    id: string;
-    subject: string;
-    content: string;
-    replies?: Reply[];
-  };
-}
-
-interface Reply {
-  id: string;
-  content: string;
-  created_at: string;
-  user_id: string;
-  note_id: string;
-  creator: {
-    name: string;
-  };
-}
 
 interface Message {
   id: string;
@@ -119,26 +73,6 @@ const Avatar = ({
 const cleanMentionText = (content: string) => {
   console.log("Cleaning mention text:", content);
   return content.replace(/@\[(.*?)\]\((.*?)\)/g, "@$1");
-};
-
-// Add this helper function
-const getDisplayName = (
-  creator: { name: string; id: string },
-  userId: string | undefined
-) => {
-  if (!userId) return creator.name;
-  return creator.id === userId ? "You" : creator.name;
-};
-
-// Add this helper function
-const cleanNotificationMessage = (message: string) => {
-  // Remove HTML tags and decode HTML entities
-  return message
-    .replace(/<[^>]*>/g, "") // Remove HTML tags
-    .replace(/&lt;/g, "<") // Replace &lt; with <
-    .replace(/&gt;/g, ">") // Replace &gt; with >
-    .replace(/&quot;/g, '"') // Replace &quot; with "
-    .replace(/&amp;/g, "&"); // Replace &amp; with &
 };
 
 export default function Inbox() {
