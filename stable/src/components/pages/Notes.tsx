@@ -113,16 +113,11 @@ export default function Notes() {
   };
 
   const handleAddNote = async () => {
-    if (!user) {
-      console.error("User is not authenticated");
-      return;
-    }
+    if (!user) return;
 
     setIsLoading(true);
-
     try {
-      console.log(newNote);
-
+      // Create the note first
       const { data: noteData, error: noteError } = await supabase
         .from("notes")
         .insert([
@@ -132,57 +127,87 @@ export default function Notes() {
             subject: subject,
           },
         ])
-        .select();
+        .select()
+        .single();
 
       if (noteError) throw noteError;
+      console.log("Note created:", noteData);
 
-      const noteId = noteData[0].id;
-
+      // Extract mentions
       const mentionRegex = /@\[(.*?)\]\((.*?)\)/g;
       let match;
       const mentions = [];
+
       while ((match = mentionRegex.exec(newNote)) !== null) {
-        const [display, id] = match.slice(1);
-        const isUser = userProfiles.some((profile) => profile.id === id);
-        mentions.push({ name: display, id, type: isUser ? "user" : "horse" });
-      }
-
-      let cleanedNote = newNote.replace(mentionRegex, "@$1");
-
-      for (const mention of mentions) {
-        const notificationMessage = cleanedNote.replace(
-          new RegExp(`@${mention.name}`, "g"),
-          `<strong>@${mention.name}</strong>`
-        );
-        console.log("Adding outside of notification for user:", mention);
-
-        if (mention.type === "user") {
-          console.log("Adding notification for user:", mention);
-          await supabase.from("notifications").insert([
-            {
-              mentioned_user_id: mention.id,
-              creator_id: user.id,
-              message: `You were mentioned in a note: "${notificationMessage}"`,
-              type: "mention",
-              related_id: noteId,
-            },
-          ]);
-        } else {
-          await supabase.from("horse_notes").insert([
-            {
-              note_id: noteId,
-              horse_id: mention.id,
-            },
-          ]);
+        const [_, display, id] = match;
+        if (userProfiles.some((profile) => profile.id === id)) {
+          mentions.push({ name: display, id, type: "user" });
         }
       }
 
+      console.log("Found mentions:", mentions);
+
+      if (mentions.length > 0) {
+        // Create or get conversation thread
+        const participantIds = [user.id, ...mentions.map((m) => m.id)];
+        const { data: existingThread, error: threadError } = await supabase
+          .from("conversation_threads")
+          .select("id")
+          .contains("participants", participantIds)
+          .single();
+
+        if (threadError && threadError.code !== "PGRST116") {
+          throw threadError;
+        }
+
+        let threadId;
+
+        if (!existingThread) {
+          // Create new thread
+          const { data: newThread, error: newThreadError } = await supabase
+            .from("conversation_threads")
+            .insert({
+              participants: participantIds,
+              last_message_at: new Date().toISOString(),
+              created_at: new Date().toISOString(),
+            })
+            .select("id")
+            .single();
+
+          if (newThreadError) throw newThreadError;
+          threadId = newThread.id;
+        } else {
+          threadId = existingThread.id;
+        }
+
+        console.log("Thread created/found:", threadId);
+
+        // Create message for the mention
+        const { error: messageError } = await supabase.from("messages").insert({
+          thread_id: threadId,
+          sender_id: user.id,
+          content: newNote,
+          type: "note_mention",
+          note_id: noteData.id,
+          created_at: new Date().toISOString(),
+          read: false,
+        });
+
+        if (messageError) throw messageError;
+
+        // Update thread's last_message_at
+        const { error: updateError } = await supabase
+          .from("conversation_threads")
+          .update({ last_message_at: new Date().toISOString() })
+          .eq("id", threadId);
+
+        if (updateError) throw updateError;
+      }
+
+      // Clear form
       setNewNote("");
       setSubject("");
       toast.success("Note added successfully!");
-
-      // Refresh the notes list
-      await fetchNotes();
     } catch (error) {
       console.error("Error adding note:", error);
       toast.error("Failed to add note. Please try again.");
