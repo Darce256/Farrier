@@ -356,7 +356,7 @@ export default function Inbox() {
         </div>
 
         {/* Message Thread - add max-height for desktop */}
-        <div className="col-span-1 md:col-span-2 bg-white rounded-lg shadow h-[calc(70vh-10rem)] md:h-full md:max-h-[800px] flex flex-col">
+        <div className="col-span-1 md:col-span-2 bg-white rounded-lg shadow h-[calc(70vh-10rem)] md:h-full md:max-h-[720px] flex flex-col">
           {selectedThread ? (
             <div className="flex flex-col h-full">
               <div className="p-4 border-b">

@@ -23,6 +23,8 @@ import QuickBooksCallback from "@/lib/QuickbooksCallback";
 import { ProtectedAdminRoute } from "./components/ProtectedAdminRoute";
 import EULA from "./components/pages/EULA";
 import PrivacyPolicy from "./components/pages/PrivacyPolicy";
+import ForgotPassword from "@/components/pages/ForgotPassword";
+import ResetPassword from "@/components/pages/ResetPassword";
 
 function AppRoutes() {
   return (
@@ -82,6 +84,10 @@ function AppRoutes() {
               </>
             }
           />
+
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected routes using AuthenticatedLayout */}
           <Route
