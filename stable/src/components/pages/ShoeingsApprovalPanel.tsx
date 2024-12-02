@@ -1623,22 +1623,6 @@ export default function ShoeingsApprovalPanel() {
                               >
                                 <Pencil className="w-4 h-4 mr-2" /> Edit
                               </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => {
-                                  setDeletingShoeing(shoeing.id);
-                                  setShowDeleteConfirm(true);
-                                }}
-                                className="flex-1"
-                                disabled={deletingShoeing === shoeing.id}
-                              >
-                                {deletingShoeing === shoeing.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="w-4 h-4" />
-                                )}
-                              </Button>
                             </div>
                             <div className="p-4">
                               <Select
@@ -1686,16 +1670,6 @@ export default function ShoeingsApprovalPanel() {
                               >
                                 <X className="mr-2 h-4 w-4" />
                                 Reject
-                              </Button>
-                            </div>
-                            <div className="p-4">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => setDeletingShoeing(shoeing.id)}
-                                className="w-full bg-red-500 text-white hover:bg-red-600"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" /> Delete
                               </Button>
                             </div>
                           </Card>
