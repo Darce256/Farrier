@@ -982,14 +982,13 @@ export default function ShoeingsApprovalPanel() {
       const { data: pendingShoeings, error: pendingShoeingsError } =
         await supabase
           .from("shoeings")
-          .select("*, is_new_horse") // Add is_new_horse to the selection
+          .select("*, is_new_horse")
           .eq("status", "pending")
           .order("Date of Service", { ascending: false });
 
       if (pendingShoeingsError) throw pendingShoeingsError;
 
-      console.log("Fetched pending shoeings:", pendingShoeings);
-
+      // If no pending shoeings, return early with empty state
       if (!pendingShoeings || pendingShoeings.length === 0) {
         setGroupedShoeings({} as GroupedShoeings);
         return;
@@ -1003,13 +1002,16 @@ export default function ShoeingsApprovalPanel() {
       // Fetch all shoeings for these horses, including Owner Email
       const { data: allShoeings, error: allShoeingsError } = await supabase
         .from("shoeings")
-        .select("*") // Use double quotes for column names with spaces
+        .select("*")
         .in("Horses", uniqueHorses);
 
       if (allShoeingsError) throw allShoeingsError;
 
+      // Ensure allShoeings is an array, even if empty
+      const safeAllShoeings = allShoeings || [];
+
       // Group all shoeings by Horses
-      const groupedByHorse = allShoeings.reduce(
+      const groupedByHorse = safeAllShoeings.reduce(
         (acc: { [key: string]: any[] }, shoeing: any) => {
           if (!acc[shoeing.Horses]) {
             acc[shoeing.Horses] = [];
@@ -1023,7 +1025,7 @@ export default function ShoeingsApprovalPanel() {
       // Determine QB Customer for each horse and create final grouping
       const grouped = pendingShoeings.reduce(
         (acc: GroupedShoeings, shoeing: any) => {
-          const horseShoeings = groupedByHorse[shoeing.Horses];
+          const horseShoeings = groupedByHorse[shoeing.Horses] || []; // Add fallback empty array
 
           // Count QB Customers for this horse
           const customerCounts = horseShoeings.reduce(
