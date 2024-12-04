@@ -137,16 +137,33 @@ export default function Notes() {
       const mentionRegex = /@\[(.*?)\]\((.*?)\)/g;
       let match;
       const mentions = [];
+      const horseMentions = [];
 
       while ((match = mentionRegex.exec(newNote)) !== null) {
         const [_, display, id] = match;
         if (userProfiles.some((profile) => profile.id === id)) {
           mentions.push({ name: display, id, type: "user" });
+        } else if (horseProfiles.some((horse) => horse.id === id)) {
+          horseMentions.push({ name: display, id, type: "horse" });
         }
       }
 
       console.log("Found mentions:", mentions);
+      console.log("Found horse mentions:", horseMentions);
 
+      // Create horse_notes entries for mentioned horses
+      if (horseMentions.length > 0) {
+        const horseNotesPromises = horseMentions.map((horse) =>
+          supabase.from("horse_notes").insert({
+            note_id: noteData.id,
+            horse_id: horse.id,
+          })
+        );
+
+        await Promise.all(horseNotesPromises);
+      }
+
+      // Handle user mentions (existing conversation thread logic)
       if (mentions.length > 0) {
         // Create or get conversation thread
         const participantIds = [user.id, ...mentions.map((m) => m.id)];
@@ -203,6 +220,9 @@ export default function Notes() {
 
         if (updateError) throw updateError;
       }
+
+      // Add the new note to the notes state
+      setNotes((prevNotes) => [noteData, ...prevNotes]);
 
       // Clear form
       setNewNote("");

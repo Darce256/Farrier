@@ -21,6 +21,18 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import { Plus, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/components/Contexts/AuthProvider";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface Shoeing {
   id: string;
@@ -54,6 +66,11 @@ export default function HorseProfile() {
   const [error, setError] = useState<string | null>(null);
   const [, setHasAlert] = useState(false);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [isAddNoteDialogOpen, setIsAddNoteDialogOpen] = useState(false);
+  const [newNoteContent, setNewNoteContent] = useState("");
+  const [newNoteSubject, setNewNoteSubject] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
 
   useEffect(() => {
     async function fetchHorse() {
@@ -238,6 +255,52 @@ export default function HorseProfile() {
     } finally {
       // Clear the input
       event.target.value = "";
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!user || !horse) return;
+
+    setIsSubmitting(true);
+    try {
+      // Create the note
+      const { data: noteData, error: noteError } = await supabase
+        .from("notes")
+        .insert([
+          {
+            content: newNoteContent,
+            user_id: user.id,
+            subject: newNoteSubject,
+          },
+        ])
+        .select()
+        .single();
+
+      if (noteError) throw noteError;
+
+      // Create the horse_notes relation
+      const { error: horseNoteError } = await supabase
+        .from("horse_notes")
+        .insert({
+          note_id: noteData.id,
+          horse_id: horse.id,
+        });
+
+      if (horseNoteError) throw horseNoteError;
+
+      // Update local state
+      setNotes((prevNotes) => [noteData, ...prevNotes]);
+
+      // Reset form
+      setNewNoteContent("");
+      setNewNoteSubject("");
+      setIsAddNoteDialogOpen(false);
+      toast.success("Note added successfully!");
+    } catch (error) {
+      console.error("Error adding note:", error);
+      toast.error("Failed to add note");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -445,6 +508,16 @@ export default function HorseProfile() {
               </div>
             </TabsContent>
             <TabsContent value="notes">
+              <div className="flex justify-end mb-2">
+                <Button
+                  variant="outline"
+                  className="cursor-pointer flex items-center gap-2"
+                  onClick={() => setIsAddNoteDialogOpen(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Add New Note
+                </Button>
+              </div>
               <ScrollArea className="h-[400px] w-full rounded-md border p-4">
                 {notes.length > 0 || shoeings.length > 0 ? (
                   <Accordion type="multiple" className="w-full">
@@ -524,6 +597,52 @@ export default function HorseProfile() {
           </Tabs>
         </CardContent>
       </Card>
+      <Dialog open={isAddNoteDialogOpen} onOpenChange={setIsAddNoteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Add Note for {horse?.Name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="subject">Subject</Label>
+              <Input
+                id="subject"
+                value={newNoteSubject}
+                onChange={(e) => setNewNoteSubject(e.target.value)}
+                placeholder="Enter subject..."
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="note">Note</Label>
+              <Textarea
+                id="note"
+                value={newNoteContent}
+                onChange={(e) => setNewNoteContent(e.target.value)}
+                placeholder="Enter your note..."
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsAddNoteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleAddNote} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Adding...
+                </>
+              ) : (
+                "Add Note"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
