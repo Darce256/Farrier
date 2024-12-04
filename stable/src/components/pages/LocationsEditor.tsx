@@ -48,7 +48,6 @@ const ensureValidColor = (color: string): string => {
   if (/^[0-9a-f]{6}$/.test(normalizedColor)) {
     return `#${normalizedColor}`;
   }
-  console.warn(`Invalid color detected: ${color}`);
   return "#000000"; // Default color if invalid
 };
 

@@ -22,105 +22,176 @@ import { supabase } from "@/lib/supabaseClient";
 import toast from "react-hot-toast";
 
 type Product = {
-  Name: string;
-  Type: "Service" | "Add-on";
-  [key: string]: string | number | null;
+  id: number;
+  name: string;
+  type: "Service" | "Add-on";
 };
 
-const LOCATIONS = [
-  "Home Barns",
-  "Austin Barns",
-  "White Fox Manor",
-  "Sherwood Sporthorses",
-  "Other Travel",
-  "Michigan",
-  "Wellington",
-  "Kentucky",
-  "Ocala",
-  "Pennsylvania",
-  "Gulf Port",
-  "Katy",
-];
+type Location = {
+  id: number;
+  service_location: string;
+  location_color: string;
+};
+
+type LocationPrice = {
+  id: number;
+  price: number;
+  location_id: number;
+  locations?: Location;
+};
+
+type ProductWithPrices = Product & {
+  location_prices: LocationPrice[];
+};
 
 export default function PricesTab() {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [products, setProducts] = useState<ProductWithPrices[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<ProductWithPrices[]>(
+    []
+  );
+  const [editingProduct, setEditingProduct] =
+    useState<ProductWithPrices | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] =
+    useState<ProductWithPrices | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
+    fetchLocations();
     fetchProducts();
   }, []);
 
   useEffect(() => {
     const filtered = products.filter(
       (product) =>
-        product.Name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.Type.toLowerCase().includes(searchTerm.toLowerCase())
+        product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.type.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
 
+  const fetchLocations = async () => {
+    const { data, error } = await supabase
+      .from("locations")
+      .select("*")
+      .order("service_location");
+
+    if (error) {
+      console.error("Error fetching locations:", error);
+      toast.error("Failed to fetch locations");
+    } else {
+      setLocations(data);
+    }
+  };
+
   const fetchProducts = async () => {
-    const { data, error } = await supabase.from("prices").select("*");
+    const { data, error } = await supabase
+      .from("prices")
+      .select(
+        `
+        id,
+        name,
+        type,
+        location_prices (
+          id,
+          price,
+          location_id,
+          locations (
+            id,
+            service_location,
+            location_color
+          )
+        )
+      `
+      )
+      .order("name");
+
     if (error) {
       console.error("Error fetching products:", error);
       toast.error("Failed to fetch products");
     } else {
-      setProducts(data);
+      const transformedData: ProductWithPrices[] = data.map((product: any) => ({
+        id: product.id,
+        name: product.name,
+        type: product.type,
+        location_prices: product.location_prices.map((lp: any) => ({
+          id: lp.id,
+          price: lp.price,
+          location_id: lp.location_id,
+          locations: lp.locations,
+        })),
+      }));
+      setProducts(transformedData);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-    const newProduct: Product = {
-      Name: formData.get("Name") as string,
-      Type: formData.get("Type") === "Base Service" ? "Service" : "Add-on",
-    };
 
-    LOCATIONS.forEach((location) => {
-      const price = Math.max(
-        0,
-        Math.floor(Number(formData.get(location)) || 0)
+    try {
+      // Step 1: Create or update the product
+      const productData = {
+        name: formData.get("Name") as string,
+        type: formData.get("Type") === "Base Service" ? "Service" : "Add-on",
+      };
+
+      let productId: number;
+
+      if (editingProduct) {
+        const { data, error } = await supabase
+          .from("prices")
+          .update(productData)
+          .eq("id", editingProduct.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        productId = data.id;
+      } else {
+        const { data, error } = await supabase
+          .from("prices")
+          .insert(productData)
+          .select()
+          .single();
+
+        if (error) throw error;
+        productId = data.id;
+      }
+
+      // Step 2: Handle location prices
+      if (editingProduct) {
+        await supabase
+          .from("location_prices")
+          .delete()
+          .eq("price_id", productId);
+      }
+
+      // Create new location prices using location IDs instead of names
+      const locationPrices = locations.map((location) => ({
+        price_id: productId,
+        location_id: location.id,
+        price: Number(formData.get(`location-${location.id}`)) || 0,
+      }));
+
+      const { error: priceError } = await supabase
+        .from("location_prices")
+        .insert(locationPrices);
+
+      if (priceError) throw priceError;
+
+      toast.success(editingProduct ? "Product updated" : "Product added");
+      fetchProducts();
+    } catch (error: any) {
+      console.error("Error saving product:", error);
+      toast.error(
+        error.code === "42501"
+          ? "You don't have permission to modify products"
+          : "Failed to save product"
       );
-      newProduct[location] = `$${price}`; // Add "$" prefix to the price
-    });
-
-    if (editingProduct) {
-      const { error } = await supabase
-        .from("prices")
-        .update(newProduct)
-        .eq("Name", editingProduct.Name);
-      if (error) {
-        console.error("Error updating product:", error);
-        if (error.code === "42501") {
-          // PostgreSQL permission denied error
-          toast.error("You don't have permission to update products");
-        } else {
-          toast.error("Failed to update product");
-        }
-      } else {
-        toast.success("Product updated");
-        fetchProducts();
-      }
-    } else {
-      const { error } = await supabase.from("prices").insert(newProduct);
-      if (error) {
-        console.error("Error adding product:", error);
-        if (error.code === "42501") {
-          // PostgreSQL permission denied error
-          toast.error("You don't have permission to add products");
-        } else {
-          toast.error("Failed to add product");
-        }
-      } else {
-        toast.success("Product added");
-        fetchProducts();
-      }
     }
+
     setEditingProduct(null);
     setIsDialogOpen(false);
   };
@@ -147,12 +218,12 @@ export default function PricesTab() {
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (product: Product) => {
+  const openEditDialog = (product: ProductWithPrices) => {
     setEditingProduct(product);
     setIsDialogOpen(true);
   };
 
-  const openDeleteDialog = (product: Product) => {
+  const openDeleteDialog = (product: ProductWithPrices) => {
     setDeletingProduct(product);
   };
 
@@ -162,6 +233,25 @@ export default function PricesTab() {
 
   const displayType = (type: string) => {
     return type === "Service" ? "Base Service" : type;
+  };
+
+  const getLocationPrice = (product: ProductWithPrices, locationId: number) => {
+    const locationPrice = product.location_prices?.find(
+      (lp) => lp.location_id === locationId
+    );
+    return locationPrice ? `$${locationPrice.price}` : "$0";
+  };
+
+  // Add this helper function to get the default price for a location
+  const getDefaultLocationPrice = (
+    product: ProductWithPrices | null,
+    locationId: number
+  ) => {
+    if (!product) return 0;
+    const locationPrice = product.location_prices.find(
+      (lp) => lp.location_id === locationId
+    );
+    return locationPrice?.price || 0;
   };
 
   return (
@@ -187,10 +277,10 @@ export default function PricesTab() {
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredProducts.map((product) => (
-          <Card key={product.Name}>
+          <Card key={product.name}>
             <CardHeader>
               <CardTitle className="flex justify-between items-center">
-                <span className="text-2xl font-bold">{product.Name}</span>
+                <span className="text-2xl font-bold">{product.name}</span>
                 <div>
                   <Button
                     variant="ghost"
@@ -211,13 +301,16 @@ export default function PricesTab() {
             </CardHeader>
             <CardContent>
               <p className="text-sm font-semibold text-gray-500 mb-4">
-                Type: {displayType(product.Type)}
+                Type: {displayType(product.type)}
               </p>
               <div className="space-y-1">
-                {LOCATIONS.map((location) => (
-                  <div key={location} className="flex justify-between text-sm">
-                    <span>{location}:</span>
-                    <span>{product[location] || "$0"}</span>
+                {locations.map((location) => (
+                  <div
+                    key={location.id}
+                    className="flex justify-between text-sm"
+                  >
+                    <span>{location.service_location}:</span>
+                    <span>{getLocationPrice(product, location.id)}</span>
                   </div>
                 ))}
               </div>
@@ -239,7 +332,7 @@ export default function PricesTab() {
               <Input
                 id="Name"
                 name="Name"
-                defaultValue={editingProduct?.Name}
+                defaultValue={editingProduct?.name}
                 required
               />
             </div>
@@ -247,7 +340,7 @@ export default function PricesTab() {
               <Label htmlFor="Type">Product Type</Label>
               <Select
                 name="Type"
-                defaultValue={editingProduct?.Type || "Base Service"}
+                defaultValue={editingProduct?.type || "Base Service"}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select product type" />
@@ -258,19 +351,20 @@ export default function PricesTab() {
                 </SelectContent>
               </Select>
             </div>
-            {LOCATIONS.map((location) => (
-              <div key={location}>
-                <Label htmlFor={location}>Price in {location}</Label>
+            {locations.map((location) => (
+              <div key={location.id}>
+                <Label htmlFor={`location-${location.id}`}>
+                  Price in {location.service_location}
+                </Label>
                 <Input
-                  id={location}
-                  name={location}
+                  id={`location-${location.id}`}
+                  name={`location-${location.id}`}
                   type="number"
                   min="0"
                   step="1"
-                  defaultValue={Math.floor(
-                    Number(
-                      editingProduct?.[location]?.toString().replace("$", "")
-                    ) || 0
+                  defaultValue={getDefaultLocationPrice(
+                    editingProduct,
+                    location.id
                   )}
                   required
                 />
@@ -292,7 +386,7 @@ export default function PricesTab() {
             <DialogTitle>Confirm Deletion</DialogTitle>
           </DialogHeader>
           <p>
-            Are you sure you want to delete the product "{deletingProduct?.Name}
+            Are you sure you want to delete the product "{deletingProduct?.name}
             "?
           </p>
           <DialogFooter>
@@ -301,7 +395,7 @@ export default function PricesTab() {
             </Button>
             <Button
               variant="destructive"
-              onClick={() => deleteProduct(deletingProduct!.Name)}
+              onClick={() => deleteProduct(deletingProduct!.name)}
             >
               Delete
             </Button>

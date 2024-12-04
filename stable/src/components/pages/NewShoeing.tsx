@@ -858,7 +858,7 @@ export default function ShoeingForm() {
   }
 
   async function fetchServicesAndAddOns() {
-    const { data, error } = await supabase.from("prices").select("Name, Type");
+    const { data, error } = await supabase.from("prices").select("name, type");
 
     if (error) {
       console.error("Error fetching services and add-ons:", error);
@@ -866,16 +866,16 @@ export default function ShoeingForm() {
       const services = data
         .filter(
           (item) =>
-            item.Type === "Service" && item.Name && item.Name.trim() !== ""
+            item.type === "Service" && item.name && item.name.trim() !== ""
         )
-        .map((item) => item.Name.trim())
+        .map((item) => item.name.trim())
         .sort();
       const addOnsData = data
         .filter(
           (item) =>
-            item.Type === "Add-on" && item.Name && item.Name.trim() !== ""
+            item.type === "Add-on" && item.name && item.name.trim() !== ""
         )
-        .map((item) => item.Name.trim())
+        .map((item) => item.name.trim())
         .sort();
 
       setBaseServices([...new Set(services)]);
@@ -912,6 +912,13 @@ export default function ShoeingForm() {
 
   const [isNewHorse, setIsNewHorse] = useState(false);
 
+  // Add these state variables at the top of your component with other useState declarations
+  const [, setSelectedFrontAddOns] = useState<string[]>([]);
+  const [, setSelectedHindAddOns] = useState<string[]>([]);
+
+  // Add this state at the top of your component
+  const [resetTrigger, setResetTrigger] = useState(0);
+
   async function onSubmit(values: z.infer<typeof formSchema>) {
     console.log("Starting onSubmit with values:", values);
     try {
@@ -947,38 +954,62 @@ export default function ShoeingForm() {
           ...hindAddOns.split(" and "),
         ]),
       ];
+
+      // First, get all the prices
       const { data: pricesData, error: pricesError } = await supabase
         .from("prices")
-        .select("*")
-        .in("Name", [values.baseService, ...allAddOns]);
+        .select(
+          `
+          id,
+          name,
+          type,
+          location_prices (
+            price,
+            location_id,
+            locations (
+              service_location
+            )
+          )
+        `
+        )
+        .in("name", [values.baseService, ...allAddOns]);
 
       if (pricesError) throw pricesError;
 
-      // Helper function to parse price strings
-      const parsePrice = (priceString: string | null): number => {
-        if (!priceString) return 0;
-        return parseFloat(priceString.replace(/[^0-9.-]+/g, ""));
-      };
+      // Get the location ID for the selected service location
+      const { data: locationData, error: locationError } = await supabase
+        .from("locations")
+        .select("id")
+        .eq("service_location", values.locationOfService)
+        .single();
 
-      let baseServiceCost = 0;
-      let frontAddOnsCost = 0;
-      let hindAddOnsCost = 0;
+      if (locationError) throw locationError;
 
+      const locationId = locationData.id;
+
+      // Create a price map for the selected location
       const priceMap = new Map(
         pricesData.map((price) => [
-          price.Name,
-          parsePrice(price[values.locationOfService]),
+          price.name,
+          price.location_prices.find((lp) => lp.location_id === locationId)
+            ?.price || 0,
         ])
       );
 
-      baseServiceCost = priceMap.get(values.baseService) || 0;
+      let baseServiceCost = priceMap.get(values.baseService) || 0;
+      let frontAddOnsCost = 0;
+      let hindAddOnsCost = 0;
 
       frontAddOns.split(" and ").forEach((addOn) => {
-        frontAddOnsCost += priceMap.get(addOn) || 0;
+        if (addOn.trim()) {
+          frontAddOnsCost += priceMap.get(addOn.trim()) || 0;
+        }
       });
 
       hindAddOns.split(" and ").forEach((addOn) => {
-        hindAddOnsCost += priceMap.get(addOn) || 0;
+        if (addOn.trim()) {
+          hindAddOnsCost += priceMap.get(addOn.trim()) || 0;
+        }
       });
 
       const totalCost = baseServiceCost + frontAddOnsCost + hindAddOnsCost;
@@ -1066,10 +1097,10 @@ export default function ShoeingForm() {
           : "Shoeing record added successfully!"
       );
 
-      // Reset form with all fields explicitly set to empty/undefined
+      // Reset form
       form.reset({
         horseName: "",
-        dateOfService: undefined, // Explicitly set to undefined
+        dateOfService: undefined,
         locationOfService: "",
         baseService: "",
         frontAddOns: [],
@@ -1078,28 +1109,45 @@ export default function ShoeingForm() {
         shoeingNotes: "",
       });
 
-      // Clear any selected values in dropdowns or multi-selects
+      // Reset all state
       setSelectedLocation(undefined);
       setSelectedBaseService(undefined);
-      setSelectedHorseId(""); // Add this line to clear selected horse
+      setSearchQuery("");
+      setSelectedFrontAddOns([]);
+      setSelectedHindAddOns([]);
 
-      // Reset editing state
-      setEditingShoeing(null);
+      // Trigger reset of MultiSelect
+      setResetTrigger((prev) => prev + 1);
 
-      // Switch to the submitted shoeings tab
-      setActiveTab("submitted-shoeings");
+      // Force re-render
+      setForceUpdate((prev) => !prev);
 
-      // Trigger a refresh of the SubmittedShoeings component
-      setSubmittedShoeingsKey((prevKey) => prevKey + 1);
+      // Update the submitted shoeings list
+      setSubmittedShoeingsKey((prev) => prev + 1);
 
-      // Scroll to top of the page
-      window.scrollTo(0, 0);
+      // Reset the form state
+      form.clearErrors();
+      form.setFocus("horseName");
 
-      // Reset isNewHorse after successful submission
-      setIsNewHorse(false);
-    } catch (error) {
-      console.error("Error saving shoeing record:", error);
-      toast.error("Failed to save shoeing record. Please try again.");
+      // Force clear the MultiSelect components
+      const frontAddOnsElement = document.querySelector(
+        '[name="frontAddOns"]'
+      ) as HTMLElement;
+      if (frontAddOnsElement) {
+        const clearButton = frontAddOnsElement.querySelector(
+          'button[aria-label="Clear"]'
+        );
+        if (clearButton) {
+          (clearButton as HTMLButtonElement).click();
+        }
+      }
+    } catch (error: any) {
+      console.error("Error adding shoeing record:", error);
+      toast.error(
+        error.code === "42501"
+          ? "You don't have permission to add shoeing records"
+          : "Failed to add shoeing record"
+      );
     }
   }
 
@@ -1596,23 +1644,25 @@ export default function ShoeingForm() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <FormField
+                        key={resetTrigger}
                         control={form.control}
                         name="frontAddOns"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Front Add-On's</FormLabel>
+                            <FormLabel>Front Add-Ons</FormLabel>
                             <FormControl>
                               <MultiSelect
-                                {...field}
-                                options={addOns.map((addOn) => ({
-                                  value: addOn,
-                                  label: addOn,
+                                options={addOns.map((addon) => ({
+                                  label: addon,
+                                  value: addon,
                                 }))}
-                                onValueChange={(values) =>
-                                  field.onChange(values)
-                                }
-                                selected={field.value || []}
-                                placeholder="Select front add-ons"
+                                value={[]}
+                                onValueChange={(values) => {
+                                  field.onChange(values);
+                                  setSelectedFrontAddOns(values);
+                                }}
+                                selected={resetTrigger ? [] : field.value}
+                                placeholder="Select front add-on's"
                               />
                             </FormControl>
                             <FormMessage />
