@@ -1008,44 +1008,49 @@ function HorseDetailsModal({
     return match ? parseInt(match[1]) : 0;
   };
 
-  // Modify the handleXRayUpload function
+  // Update the handleXRayUpload function
   const handleXRayUpload = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const files = event.target.files;
     if (!files || !horse) return;
 
-    const loadingToastId = toast.loading("Uploading X-ray images...");
+    const loadingToastId = toast.loading(
+      `Uploading ${files.length} ${files.length === 1 ? "image" : "images"}...`
+    );
 
     try {
-      const newXRayUrls: string[] = [];
-      const timestamp = Date.now(); // Get current timestamp
-
-      for (const file of files) {
+      const uploadPromises = Array.from(files).map(async (file) => {
         const fileExt = file.name.split(".").pop();
-        // Include timestamp in filename
+        const timestamp = Date.now();
         const fileName = `${horse.id}-${timestamp}.${fileExt}`;
 
-        const { data: _uploadData, error: uploadError } = await supabase.storage
+        // Upload the file
+        const { error: uploadError } = await supabase.storage
           .from("x-ray-images")
           .upload(fileName, file);
 
         if (uploadError) throw uploadError;
 
+        // Get the public URL
         const { data: urlData } = supabase.storage
           .from("x-ray-images")
           .getPublicUrl(fileName);
 
-        if (urlData) {
-          newXRayUrls.push(urlData.publicUrl);
-        }
-      }
+        return urlData?.publicUrl;
+      });
+
+      // Wait for all uploads to complete
+      const newUrls = (await Promise.all(uploadPromises)).filter(
+        Boolean
+      ) as string[];
 
       // Sort all images by timestamp (including new ones)
-      const allImages = [...xRayImages, ...newXRayUrls].sort(
+      const allImages = [...xRayImages, ...newUrls].sort(
         (a, b) => getTimestampFromXRayUrl(b) - getTimestampFromXRayUrl(a)
       );
 
+      // Update the database with all image URLs
       const { error: updateError } = await supabase
         .from("horses")
         .update({
@@ -1057,12 +1062,17 @@ function HorseDetailsModal({
 
       setXRayImages(allImages);
       toast.dismiss(loadingToastId);
-      toast.success("X-ray images uploaded successfully");
+      toast.success(
+        `Successfully uploaded ${newUrls.length} ${
+          newUrls.length === 1 ? "image" : "images"
+        }`
+      );
     } catch (error) {
       console.error("Error uploading x-ray images:", error);
       toast.dismiss(loadingToastId);
       toast.error("Failed to upload x-ray images");
     } finally {
+      // Clear the input
       event.target.value = "";
     }
   };
@@ -1169,7 +1179,7 @@ function HorseDetailsModal({
                     >
                       <span>
                         <Upload className="h-4 w-4" />
-                        Upload X-rays
+                        Upload X-rays (Multiple)
                       </span>
                     </Button>
                   </label>
