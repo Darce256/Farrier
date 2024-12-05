@@ -213,7 +213,13 @@ async function createInvoice(
         value: customerId,
       },
       SalesTermRef: {
-        value: "1", // Assuming "3" is the correct ID for "Due on Receipt"
+        value: "1",
+      },
+      AllowOnlinePayment: true,
+      AllowOnlineACHPayment: true,
+      AllowOnlineCreditCardPayment: true,
+      PaymentMethodRef: {
+        value: "1",
       },
     };
 
