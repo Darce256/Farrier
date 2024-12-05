@@ -857,7 +857,10 @@ export default function ShoeingForm() {
   }
 
   async function fetchServicesAndAddOns() {
-    const { data, error } = await supabase.from("prices").select("name, type");
+    const { data, error } = await supabase
+      .from("prices")
+      .select("name, type")
+      .order("name");
 
     if (error) {
       console.error("Error fetching services and add-ons:", error);
