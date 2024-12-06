@@ -130,7 +130,6 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
       console.error("Error fetching shoeings:", error);
       toast.error("Failed to fetch submitted shoeings");
     } else {
-      console.log("Fetched shoeings:", data);
       setShoeings(data as any);
     }
   }
@@ -943,7 +942,7 @@ export default function ShoeingForm() {
       console.log("Selected horse:", selectedHorse);
 
       const joinAddOns = (addOns: string[] | undefined): string => {
-        return addOns ? addOns.join(" and ") : "";
+        return addOns ? addOns.join(", ") : "";
       };
 
       const frontAddOns = joinAddOns(values.frontAddOns);
@@ -952,8 +951,8 @@ export default function ShoeingForm() {
       // Recalculate costs
       const allAddOns = [
         ...new Set([
-          ...frontAddOns.split(" and "),
-          ...hindAddOns.split(" and "),
+          ...(values.frontAddOns || []),
+          ...(values.hindAddOns || []),
         ]),
       ];
 
@@ -1002,23 +1001,29 @@ export default function ShoeingForm() {
       let frontAddOnsCost = 0;
       let hindAddOnsCost = 0;
 
-      frontAddOns.split(" and ").forEach((addOn) => {
+      frontAddOns.split(", ").forEach((addOn) => {
         if (addOn.trim()) {
-          frontAddOnsCost += priceMap.get(addOn.trim()) || 0;
+          const addOnPrice = priceMap.get(addOn.trim()) || 0;
+          frontAddOnsCost += addOnPrice;
+          console.log(`Front add-on: ${addOn.trim()} - Price: ${addOnPrice}`);
         }
       });
 
-      hindAddOns.split(" and ").forEach((addOn) => {
+      hindAddOns.split(", ").forEach((addOn) => {
         if (addOn.trim()) {
-          hindAddOnsCost += priceMap.get(addOn.trim()) || 0;
+          const addOnPrice = priceMap.get(addOn.trim()) || 0;
+          hindAddOnsCost += addOnPrice;
+          console.log(`Hind add-on: ${addOn.trim()} - Price: ${addOnPrice}`);
         }
       });
 
       const totalCost = baseServiceCost + frontAddOnsCost + hindAddOnsCost;
-
-      console.log("Calculated costs:", {
+      console.log("Cost breakdown:", {
+        baseService: values.baseService,
         baseServiceCost,
+        frontAddOns: frontAddOns.split(", "),
         frontAddOnsCost,
+        hindAddOns: hindAddOns.split(", "),
         hindAddOnsCost,
         totalCost,
       });

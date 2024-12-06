@@ -51,6 +51,35 @@ const ensureValidColor = (color: string): string => {
   return "#000000"; // Default color if invalid
 };
 
+const setupLocationPrices = async (locationId: number) => {
+  try {
+    // Get all existing prices
+    const { data: prices, error: pricesError } = await supabase
+      .from("prices")
+      .select("id");
+
+    if (pricesError) throw pricesError;
+
+    // Create default price entries for each service/add-on
+    const locationPrices = prices.map((price) => ({
+      location_id: locationId,
+      price_id: price.id,
+      price: 0, // Default price, you may want to adjust this
+    }));
+
+    const { error: insertError } = await supabase
+      .from("location_prices")
+      .insert(locationPrices);
+
+    if (insertError) throw insertError;
+
+    toast.success("Location prices initialized successfully");
+  } catch (error) {
+    console.error("Error setting up location prices:", error);
+    toast.error("Failed to initialize location prices");
+  }
+};
+
 export default function LocationsEditor() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [newLocation, setNewLocation] = useState({
@@ -91,28 +120,30 @@ export default function LocationsEditor() {
     }
   };
 
-  const addLocation = async () => {
-    if (newLocation.service_location.trim() !== "") {
-      const validColor = ensureValidColor(newLocation.location_color);
+  const handleAddLocation = async (newLocation: string, color: string) => {
+    try {
+      // First create the location
       const { data, error } = await supabase
         .from("locations")
         .insert([
           {
-            service_location: newLocation.service_location,
-            location_color: validColor,
+            service_location: newLocation,
+            location_color: color,
           },
         ])
-        .select();
+        .select()
+        .single();
 
-      if (error) {
-        console.error("Error adding location:", error);
-        toast.error("Failed to add location");
-      } else {
-        setLocations([...locations, data[0] as Location]);
-        setNewLocation({ service_location: "", location_color: "#000000" });
-        setIsAddDialogOpen(false);
-        toast.success("Location added successfully");
-      }
+      if (error) throw error;
+
+      // Then set up the prices for this location
+      await setupLocationPrices(data.id);
+
+      toast.success("Location added successfully");
+      fetchLocations(); // Refresh the locations list
+    } catch (error) {
+      console.error("Error adding location:", error);
+      toast.error("Failed to add location");
     }
   };
 
@@ -237,7 +268,12 @@ export default function LocationsEditor() {
               </Button>
               <Button
                 className="hover:bg-black hover:text-white"
-                onClick={addLocation}
+                onClick={() =>
+                  handleAddLocation(
+                    newLocation.service_location,
+                    newLocation.location_color
+                  )
+                }
               >
                 Save Location
               </Button>

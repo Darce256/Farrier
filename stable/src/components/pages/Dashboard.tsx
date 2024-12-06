@@ -234,7 +234,6 @@ export default function Dashboard() {
       const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
 
       if (!dateOfService || !baseCostString) {
-        console.warn("Invalid shoeing entry:", shoeing);
         return sum;
       }
 
@@ -277,18 +276,6 @@ export default function Dashboard() {
         const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
 
         if (!isNaN(totalCost)) {
-          console.log(
-            `Including shoeing ${index}:`,
-            dateOfService,
-            "Base:",
-            baseCost,
-            "Front:",
-            frontAddOnCost,
-            "Hind:",
-            hindAddOnCost,
-            "Total:",
-            totalCost
-          );
           includedCount++;
           return sum + totalCost;
         } else {
@@ -402,7 +389,6 @@ export default function Dashboard() {
       const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
 
       if (!dateOfService || !baseCostString) {
-        console.warn("Invalid shoeing entry:", shoeing);
         return sum;
       }
 
@@ -445,18 +431,6 @@ export default function Dashboard() {
         const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
 
         if (!isNaN(totalCost)) {
-          console.log(
-            `Including shoeing ${index}:`,
-            dateOfService,
-            "Base:",
-            baseCost,
-            "Front:",
-            frontAddOnCost,
-            "Hind:",
-            hindAddOnCost,
-            "Total:",
-            totalCost
-          );
           includedCount++;
           return sum + totalCost;
         } else {
@@ -573,7 +547,6 @@ export default function Dashboard() {
       const hindAddOnCostString = shoeing["Cost of Hind Add-Ons"];
 
       if (!dateOfService || !baseCostString) {
-        console.warn("Invalid shoeing entry:", shoeing);
         return sum;
       }
 
@@ -616,18 +589,6 @@ export default function Dashboard() {
         const totalCost = baseCost + frontAddOnCost + hindAddOnCost;
 
         if (!isNaN(totalCost)) {
-          console.log(
-            `Including shoeing ${index}:`,
-            dateOfService,
-            "Base:",
-            baseCost,
-            "Front:",
-            frontAddOnCost,
-            "Hind:",
-            hindAddOnCost,
-            "Total:",
-            totalCost
-          );
           includedCount++;
           return sum + totalCost;
         } else {
