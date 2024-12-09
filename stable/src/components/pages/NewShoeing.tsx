@@ -106,7 +106,15 @@ interface Shoeing {
 }
 
 // New component for submitted shoeings
-function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
+function SubmittedShoeings({
+  onEdit,
+  horses,
+  setHorses,
+}: {
+  onEdit: (shoeing: any) => void;
+  horses: Horse[];
+  setHorses: React.Dispatch<React.SetStateAction<Horse[]>>;
+}) {
   const [shoeings, setShoeings] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const { user } = useAuth();
@@ -203,6 +211,45 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
     );
   };
 
+  const handleEdit = async (shoeing: any) => {
+    // If it's a new horse (is_new_horse is true), we need to find the temporary horse
+    if (shoeing.is_new_horse) {
+      const horseName = shoeing["Horse Name"];
+      const barnName = shoeing.Horses.split(" - ")[1]
+        ?.replace(/[\[\]]/g, "")
+        .trim();
+
+      // Find the matching horse in the horses array
+      const matchingHorse = horses.find(
+        (horse: Horse) => horse.name === horseName && horse.barn === barnName
+      );
+
+      if (matchingHorse) {
+        // Update the shoeing object with the correct horse ID
+        shoeing.horseName = matchingHorse.id;
+      } else {
+        // If we can't find the horse, create a temporary one
+        const tempHorse: Horse = {
+          id: `temp_${Date.now()}`,
+          name: horseName,
+          barn: barnName,
+          ownerEmail: shoeing["Owner Email"] || null,
+          ownerPhone: null,
+          customerName: shoeing["QB Customers"] || null,
+          alert: null,
+        } as Horse;
+
+        // Add the temporary horse to the horses array
+        setHorses((prev: Horse[]) => [...prev, tempHorse as Horse]);
+
+        // Update the shoeing object with the temporary horse ID
+        shoeing.horseName = tempHorse.id;
+      }
+    }
+
+    onEdit(shoeing);
+  };
+
   return (
     <div className="w-full">
       <div className="mb-4 px-4 sm:px-0 relative">
@@ -296,7 +343,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                   <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                     <div className="flex flex-col sm:flex-row sm:justify-end gap-2">
                       <Button
-                        onClick={() => onEdit(shoeing)}
+                        onClick={() => handleEdit(shoeing)}
                         className="w-full sm:w-auto"
                         variant="outline"
                       >
@@ -385,7 +432,7 @@ function SubmittedShoeings({ onEdit }: { onEdit: (shoeing: any) => void }) {
                 )}
                 <div className="mt-4 flex justify-end space-x-2">
                   <Button
-                    onClick={() => onEdit(shoeing)}
+                    onClick={() => handleEdit(shoeing)}
                     className="w-1/2"
                     variant="outline"
                   >
@@ -736,14 +783,29 @@ export default function ShoeingForm() {
       console.log("Populating form with editing shoeing:", editingShoeing);
 
       // Parse the horse name and barn from the "Horses" field
-      const [horseName, barnInfo] = editingShoeing["Horses"].split(" - ");
-      const barn = barnInfo.replace(/^\[|\]$/g, ""); // Remove square brackets
+      const [horseName, barnInfo] = editingShoeing.Horses.split(" - ");
+      const barn = barnInfo?.replace(/[\[\]]/g, "").trim();
 
       // Find the corresponding horse in the horses array
-      const selectedHorse = horses.find(
+      let selectedHorse = horses.find(
         (h) => h.name === horseName && h.barn === barn
       );
-      console.log("Selected horse:", selectedHorse);
+
+      // If we can't find the horse and it's a new horse, create a temporary one
+      if (!selectedHorse && editingShoeing.is_new_horse) {
+        selectedHorse = {
+          id: `temp_${Date.now()}`,
+          name: horseName,
+          barn: barn,
+          ownerEmail: editingShoeing["Owner Email"] || null,
+          ownerPhone: null,
+          customerName: editingShoeing["QB Customers"] || null,
+          alert: null,
+        } as Horse;
+
+        // Add the temporary horse to the horses array
+        setHorses((prev) => [...prev, selectedHorse as Horse]);
+      }
 
       if (!selectedHorse) {
         console.error("Could not find matching horse in horses array");
@@ -751,12 +813,16 @@ export default function ShoeingForm() {
         return;
       }
 
-      const frontAddOns = parseAddOns(editingShoeing["Front Add-On's"], addOns);
-      const hindAddOns = parseAddOns(editingShoeing["Hind Add-On's"], addOns);
+      // Parse the add-ons
+      const frontAddOns = editingShoeing["Front Add-On's"]
+        ? editingShoeing["Front Add-On's"].split(", ").filter(Boolean)
+        : [];
 
-      console.log("Front Add-Ons (parsed):", frontAddOns);
-      console.log("Hind Add-Ons (parsed):", hindAddOns);
+      const hindAddOns = editingShoeing["Hind Add-On's"]
+        ? editingShoeing["Hind Add-On's"].split(", ").filter(Boolean)
+        : [];
 
+      // Reset the form with the correct values
       form.reset({
         horseName: selectedHorse.id,
         dateOfService: new Date(editingShoeing["Date of Service"]),
@@ -771,30 +837,45 @@ export default function ShoeingForm() {
       // Update the selected values for dropdowns
       setSelectedLocation(editingShoeing["Location of Service"]);
       setSelectedBaseService(editingShoeing["Base Service"]);
+      setSelectedHorseId(selectedHorse.id);
 
       // Force re-render of all form components
       setForceUpdate((prev) => !prev);
 
       console.log("Form values after reset:", form.getValues());
-    } else {
-      // Clear the form when editingShoeing is null
-      form.reset({
-        horseName: "",
-        dateOfService: undefined,
-        locationOfService: "",
-        baseService: "",
-        frontAddOns: [],
-        hindAddOns: [],
-        customServices: "",
-        shoeingNotes: "",
-      });
     }
-  }, [editingShoeing, form, horses, addOns, parseAddOns]);
+  }, [editingShoeing, form, horses, parseAddOns]);
 
   const handleEdit = (shoeing: any) => {
     console.log("Editing shoeing:", shoeing);
-    setEditingShoeing(shoeing);
-    setActiveTab("new-shoeing");
+
+    // First, reset all form-related states
+    setSelectedLocation(undefined);
+    setSelectedBaseService(undefined);
+    setSelectedHorseId("");
+    setSelectedFrontAddOns([]);
+    setSelectedHindAddOns([]);
+
+    // Reset the form completely
+    form.reset({
+      horseName: "",
+      dateOfService: undefined,
+      locationOfService: "",
+      baseService: "",
+      frontAddOns: [],
+      hindAddOns: [],
+      customServices: "",
+      shoeingNotes: "",
+    });
+
+    // Force a re-render before setting new values
+    setForceUpdate((prev) => !prev);
+
+    // Use setTimeout to ensure the reset has completed
+    setTimeout(() => {
+      setEditingShoeing(shoeing);
+      setActiveTab("new-shoeing");
+    }, 0);
   };
 
   async function fetchLocations() {
@@ -918,7 +999,7 @@ export default function ShoeingForm() {
   const [, setSelectedHindAddOns] = useState<string[]>([]);
 
   // Add this state at the top of your component
-  const [resetTrigger, setResetTrigger] = useState(0);
+  const [, setResetTrigger] = useState(0);
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     console.log("Starting onSubmit with values:", values);
@@ -1193,10 +1274,11 @@ export default function ShoeingForm() {
       ownerEmail: values.ownerEmail || null,
       ownerPhone: values.ownerPhone || null,
       customerName: null,
-    };
+      alert: null,
+    } as Horse;
 
     // Add the new horse to the horses array
-    setHorses((prev) => [...prev, tempHorse]);
+    setHorses((prev) => [...prev, tempHorse as Horse]);
 
     // Clear the new horse form and close modal
     newHorseForm.reset();
@@ -1651,7 +1733,7 @@ export default function ShoeingForm() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <FormField
-                        key={resetTrigger}
+                        key={`front-addons-${forceUpdate}-${editingShoeing?.id}`}
                         control={form.control}
                         name="frontAddOns"
                         render={({ field }) => (
@@ -1663,12 +1745,12 @@ export default function ShoeingForm() {
                                   label: addon,
                                   value: addon,
                                 }))}
-                                value={[]}
+                                value={field.value || []}
                                 onValueChange={(values) => {
                                   field.onChange(values);
                                   setSelectedFrontAddOns(values);
                                 }}
-                                selected={resetTrigger ? [] : field.value}
+                                selected={field.value || []}
                                 placeholder="Select front add-on's"
                               />
                             </FormControl>
@@ -1677,6 +1759,7 @@ export default function ShoeingForm() {
                         )}
                       />
                       <FormField
+                        key={`hind-addons-${forceUpdate}-${editingShoeing?.id}`}
                         control={form.control}
                         name="hindAddOns"
                         render={({ field }) => (
@@ -1687,10 +1770,13 @@ export default function ShoeingForm() {
                                 value: addOn,
                                 label: addOn,
                               }))}
-                              onValueChange={(values) => field.onChange(values)}
-                              selected={field.value}
+                              value={field.value || []}
+                              onValueChange={(values) => {
+                                field.onChange(values);
+                                setSelectedHindAddOns(values);
+                              }}
+                              selected={field.value || []}
                               placeholder="Select hind add-on's"
-                              key={`hind-${forceUpdate}`}
                             />
                             <FormMessage />
                           </FormItem>
@@ -1744,7 +1830,12 @@ export default function ShoeingForm() {
 
         <TabsContent value="submitted-shoeings">
           <h2 className="text-2xl font-bold mb-4">Pending Shoeings</h2>
-          <SubmittedShoeings onEdit={handleEdit} key={submittedShoeingsKey} />
+          <SubmittedShoeings
+            onEdit={handleEdit}
+            horses={horses}
+            setHorses={setHorses}
+            key={submittedShoeingsKey}
+          />
         </TabsContent>
 
         <TabsContent value="sent-this-month">
