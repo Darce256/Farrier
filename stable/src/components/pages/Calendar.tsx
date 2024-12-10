@@ -243,9 +243,36 @@ export default function Calendar() {
 
   const getShoeingsForDate = (date: Date) => {
     const dateString = format(date, "M/d/yyyy");
+    const altDateString = format(date, "MM/dd/yyyy");
+
     return currentMonthShoeings.filter((shoeing) => {
       if (!shoeing["Date of Service"]) return false;
-      return shoeing["Date of Service"] === dateString;
+
+      // Try to parse the shoeing date
+      try {
+        let shoeingDate = parse(
+          shoeing["Date of Service"],
+          "M/d/yyyy",
+          new Date()
+        );
+        if (!isValid(shoeingDate)) {
+          shoeingDate = parse(
+            shoeing["Date of Service"],
+            "MM/dd/yyyy",
+            new Date()
+          );
+        }
+        if (!isValid(shoeingDate)) {
+          shoeingDate = new Date(shoeing["Date of Service"]);
+        }
+
+        // Compare the dates using the same format
+        const formattedShoeingDate = format(shoeingDate, "M/d/yyyy");
+        return formattedShoeingDate === dateString;
+      } catch (error) {
+        console.error("Error parsing date:", error, shoeing["Date of Service"]);
+        return false;
+      }
     });
   };
 
@@ -728,7 +755,14 @@ export default function Calendar() {
   }, []);
 
   useEffect(() => {
+    console.log("Current date:", format(currentDate, "MM/dd/yyyy"));
+    console.log("All shoeings count:", allShoeings.length);
     const shoeingsForMonth = filterShoeingsForMonth(allShoeings, currentDate);
+    console.log("Filtered shoeings count:", shoeingsForMonth.length);
+    console.log(
+      "Sample dates:",
+      shoeingsForMonth.slice(0, 5).map((s) => s["Date of Service"])
+    );
     setCurrentMonthShoeings(shoeingsForMonth);
   }, [allShoeings, currentDate]);
 
@@ -900,25 +934,57 @@ const filterShoeingsForMonth = (shoeings: Shoeing[], date: Date) => {
     }
 
     try {
-      const shoeingDate = parse(
+      // First, try to parse the date in M/d/yyyy format
+      let shoeingDate = parse(
         shoeing["Date of Service"],
         "M/d/yyyy",
         new Date()
       );
+
+      // If that fails, try MM/dd/yyyy format
+      if (!isValid(shoeingDate)) {
+        shoeingDate = parse(
+          shoeing["Date of Service"],
+          "MM/dd/yyyy",
+          new Date()
+        );
+      }
+
+      // If both formats fail, try to create a date directly
+      if (!isValid(shoeingDate)) {
+        shoeingDate = new Date(shoeing["Date of Service"]);
+      }
+
+      // Final validation check
       if (!isValid(shoeingDate)) {
         console.warn(
           `Invalid date for shoeing with id ${shoeing.id}: ${shoeing["Date of Service"]}`
         );
         return false;
       }
-      return isWithinInterval(shoeingDate, {
+
+      // Check if the date falls within the current month
+      const isInMonth = isWithinInterval(shoeingDate, {
         start: startOfMonthDate,
         end: endOfMonthDate,
       });
+
+      if (!isInMonth) {
+        console.debug(
+          `Date not in current month: ${format(
+            shoeingDate,
+            "MM/dd/yyyy"
+          )} for shoeing ${shoeing.id}`
+        );
+      }
+
+      return isInMonth;
     } catch (error) {
       console.error(
         `Error parsing date for shoeing with id ${shoeing.id}:`,
-        error
+        error,
+        "Date value:",
+        shoeing["Date of Service"]
       );
       return false;
     }
