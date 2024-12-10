@@ -243,7 +243,6 @@ export default function Calendar() {
 
   const getShoeingsForDate = (date: Date) => {
     const dateString = format(date, "M/d/yyyy");
-    const altDateString = format(date, "MM/dd/yyyy");
 
     return currentMonthShoeings.filter((shoeing) => {
       if (!shoeing["Date of Service"]) return false;
