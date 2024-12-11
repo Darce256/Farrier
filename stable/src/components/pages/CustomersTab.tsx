@@ -327,8 +327,7 @@ export default function CustomersTab() {
                     variant="ghost"
                     size="sm"
                     onClick={() => {
-                      setEditingCustomer(customer);
-                      setIsModalOpen(true);
+                      navigate(`/customers/edit/${customer.id}`);
                     }}
                   >
                     <Pencil className="h-4 w-4" />

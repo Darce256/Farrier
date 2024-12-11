@@ -121,6 +121,7 @@ function AppRoutes() {
               element={<QuickBooksCallback />}
             />
             <Route path="/customers/new" element={<NewCustomer />} />
+            <Route path="/customers/edit/:id" element={<NewCustomer />} />
           </Route>
         </Routes>
       </div>

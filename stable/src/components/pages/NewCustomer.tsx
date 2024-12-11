@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
@@ -15,8 +15,22 @@ interface Horse {
   "Barn / Trainer": string;
 }
 
+interface Customer {
+  id: string;
+  "Display Name": string | null;
+  "Company/Horses Name": string | null;
+  Horses: string | null;
+  "Barn / Trainer": string | null;
+  "Owner Notes": string | null;
+  "Owner Email": string | null;
+  Phone: string | null;
+  created_at: string;
+}
+
 export default function NewCustomer() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const [customer, setCustomer] = useState<Customer | null>(null);
   const [horses, setHorses] = useState<Horse[]>([]);
   const [selectedHorses, setSelectedHorses] = useState<string[]>([]);
   const [barnInput, setBarnInput] = useState("");
@@ -26,7 +40,10 @@ export default function NewCustomer() {
   useEffect(() => {
     fetchHorses();
     fetchExistingBarns();
-  }, []);
+    if (id) {
+      fetchCustomer();
+    }
+  }, [id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -78,16 +95,46 @@ export default function NewCustomer() {
     }
   };
 
+  const fetchCustomer = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      setCustomer(data);
+      setBarnInput(data["Barn / Trainer"] || "");
+      setSelectedHorses(
+        data.Horses ? data.Horses.split(",").map((h: string) => h.trim()) : []
+      );
+    } catch (error) {
+      console.error("Error fetching customer:", error);
+      toast.error("Failed to fetch customer");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const customerData = Object.fromEntries(formData.entries());
 
     try {
-      const { error } = await supabase.from("customers").insert([customerData]);
-      if (error) throw error;
-
-      toast.success("Customer added successfully");
+      if (id) {
+        const { error } = await supabase
+          .from("customers")
+          .update(customerData)
+          .eq("id", id);
+        if (error) throw error;
+        toast.success("Customer updated successfully");
+      } else {
+        const { error } = await supabase
+          .from("customers")
+          .insert([customerData]);
+        if (error) throw error;
+        toast.success("Customer added successfully");
+      }
       navigate("/shoeings-approval-panel?tab=customers");
     } catch (error) {
       console.error("Error saving customer:", error);
@@ -98,7 +145,9 @@ export default function NewCustomer() {
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Add New Customer</h1>
+        <h1 className="text-2xl font-bold">
+          {id ? "Edit Customer" : "Add New Customer"}
+        </h1>
         <Button
           variant="outline"
           onClick={() => navigate("/shoeings-approval-panel?tab=customers")}
@@ -112,11 +161,20 @@ export default function NewCustomer() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="Display Name">Display Name</Label>
-              <Input id="Display Name" name="Display Name" required />
+              <Input
+                id="Display Name"
+                name="Display Name"
+                required
+                defaultValue={customer?.["Display Name"] || ""}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="Company/Horses Name">Company/Horses Name</Label>
-              <Input id="Company/Horses Name" name="Company/Horses Name" />
+              <Input
+                id="Company/Horses Name"
+                name="Company/Horses Name"
+                defaultValue={customer?.["Company/Horses Name"] || ""}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="Barn / Trainer">Barn / Trainer</Label>
@@ -163,11 +221,20 @@ export default function NewCustomer() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="Owner Email">Email</Label>
-              <Input id="Owner Email" name="Owner Email" type="email" />
+              <Input
+                id="Owner Email"
+                name="Owner Email"
+                type="email"
+                defaultValue={customer?.["Owner Email"] || ""}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="Phone">Phone</Label>
-              <Input id="Phone" name="Phone" />
+              <Input
+                id="Phone"
+                name="Phone"
+                defaultValue={customer?.Phone || ""}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="Horses">Horses</Label>
@@ -196,7 +263,11 @@ export default function NewCustomer() {
           </div>
           <div className="space-y-2">
             <Label htmlFor="Owner Notes">Notes</Label>
-            <Textarea id="Owner Notes" name="Owner Notes" />
+            <Textarea
+              id="Owner Notes"
+              name="Owner Notes"
+              defaultValue={customer?.["Owner Notes"] || ""}
+            />
           </div>
           <div className="flex justify-end space-x-2">
             <Button
