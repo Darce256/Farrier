@@ -53,61 +53,6 @@ const Avatar = ({ creator }: { creator: { name: string } | null }) => {
   );
 };
 
-// Update the breadcrumb mappings
-const pathSegmentToBreadcrumb: Record<string, string> = {
-  dashboard: "Dashboard",
-  horses: "Horses",
-  notes: "Notes",
-  inbox: "Inbox",
-  calendar: "Calendar",
-  "shoeings-approval-panel": "Admin Panel",
-  customers: "Customers",
-  edit: "Edit",
-  new: "New",
-};
-
-// Update the breadcrumb generation function
-const generateBreadcrumbs = (pathname: string) => {
-  const segments = pathname.split("/").filter(Boolean);
-  const breadcrumbs: { label: string; href: string }[] = [];
-  let path = "";
-
-  segments.forEach((segment, index) => {
-    path += `/${segment}`;
-
-    // Special handling for customer routes
-    if (segment === "customers") {
-      breadcrumbs.push({
-        label: "Customers",
-        href: "/shoeings-approval-panel?tab=customers",
-      });
-      return;
-    }
-
-    // Handle edit/new customer routes
-    if (segment === "edit" || segment === "new") {
-      breadcrumbs.push({
-        label: segment === "edit" ? "Edit Customer" : "New Customer",
-        href: path,
-      });
-      return;
-    }
-
-    // Skip IDs in breadcrumbs
-    if (segments[index - 1] === "customers" && segment.length === 36) {
-      return;
-    }
-
-    const label = pathSegmentToBreadcrumb[segment] || segment;
-    breadcrumbs.push({
-      label,
-      href: path,
-    });
-  });
-
-  return breadcrumbs;
-};
-
 export default function AuthenticatedHeader() {
   const { user, logout } = useAuth();
   const { notifications, markAsRead, fetchNotifications } = useNotifications();
