@@ -71,6 +71,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import CustomersTab from "./CustomersTab";
+import { useSearchParams } from "react-router-dom";
 
 interface Shoeing {
   Horses: any;
@@ -816,6 +818,9 @@ function SentInvoicesTab({
 }
 
 export default function ShoeingsApprovalPanel() {
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get("tab") || "approval";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [groupedShoeings, setGroupedShoeings] = useState<GroupedShoeings>(
     {} as GroupedShoeings
   );
@@ -834,13 +839,11 @@ export default function ShoeingsApprovalPanel() {
   const [editingShoeing, setEditingShoeing] = useState<Shoeing | null>(null);
   const [locations, setLocations] = useState<Location[]>([]);
   const [isAccepting, setIsAccepting] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("approval");
-  const isMobile = useIsMobile();
-
-  // Add this new state
   const [reviewingHorse, setReviewingHorse] = useState<Shoeing | null>(null);
   const [deletingShoeing, setDeletingShoeing] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const isMobile = useIsMobile();
 
   // Add this new function
   const handleOpenReviewModal = (shoeing: Shoeing) => {
@@ -1890,6 +1893,7 @@ export default function ShoeingsApprovalPanel() {
     { value: "sent-invoices", label: "Sent Invoices" },
     { value: "locations", label: "Locations" },
     { value: "prices", label: "Prices" },
+    { value: "customers", label: "Customers" },
   ];
 
   const renderTabContent = () => (
@@ -1911,6 +1915,9 @@ export default function ShoeingsApprovalPanel() {
       </TabsContent>
       <TabsContent value="prices">
         <PricesTab />
+      </TabsContent>
+      <TabsContent value="customers">
+        <CustomersTab />
       </TabsContent>
     </>
   );

@@ -25,6 +25,7 @@ import EULA from "./components/pages/EULA";
 import PrivacyPolicy from "./components/pages/PrivacyPolicy";
 import ForgotPassword from "@/components/pages/ForgotPassword";
 import ResetPassword from "@/components/pages/ResetPassword";
+import NewCustomer from "./components/pages/NewCustomer";
 
 function AppRoutes() {
   return (
@@ -119,6 +120,7 @@ function AppRoutes() {
               path="/quickbooks-callback"
               element={<QuickBooksCallback />}
             />
+            <Route path="/customers/new" element={<NewCustomer />} />
           </Route>
         </Routes>
       </div>

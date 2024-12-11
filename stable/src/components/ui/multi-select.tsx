@@ -204,7 +204,7 @@ export const MultiSelect = React.forwardRef<
         onOpenChange={setIsPopoverOpen}
         modal={modalPopover}
       >
-        <PopoverTrigger asChild>
+        <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
           <Button
             ref={ref}
             {...props}
@@ -292,6 +292,11 @@ export const MultiSelect = React.forwardRef<
           className="w-auto p-0"
           align="start"
           onEscapeKeyDown={() => setIsPopoverOpen(false)}
+          onInteractOutside={(e) => {
+            e.preventDefault();
+          }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <Command>
             <CommandInput
