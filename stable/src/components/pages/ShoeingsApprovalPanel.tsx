@@ -73,6 +73,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import CustomersTab from "./CustomersTab";
 import { useSearchParams } from "react-router-dom";
+import HorsesTab from "./HorsesTab";
 
 interface Shoeing {
   Horses: any;
@@ -1894,6 +1895,7 @@ export default function ShoeingsApprovalPanel() {
     { value: "locations", label: "Locations" },
     { value: "prices", label: "Prices" },
     { value: "customers", label: "Customers" },
+    { value: "horses", label: "Horses" },
   ];
 
   const renderTabContent = () => (
@@ -1918,6 +1920,9 @@ export default function ShoeingsApprovalPanel() {
       </TabsContent>
       <TabsContent value="customers">
         <CustomersTab />
+      </TabsContent>
+      <TabsContent value="horses">
+        <HorsesTab />
       </TabsContent>
     </>
   );

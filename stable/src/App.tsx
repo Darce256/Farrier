@@ -26,6 +26,7 @@ import PrivacyPolicy from "./components/pages/PrivacyPolicy";
 import ForgotPassword from "@/components/pages/ForgotPassword";
 import ResetPassword from "@/components/pages/ResetPassword";
 import NewCustomer from "./components/pages/NewCustomer";
+import EditHorse from "@/components/pages/EditHorse";
 
 function AppRoutes() {
   return (
@@ -122,6 +123,22 @@ function AppRoutes() {
             />
             <Route path="/customers/new" element={<NewCustomer />} />
             <Route path="/customers/edit/:id" element={<NewCustomer />} />
+            <Route
+              path="/horses/edit/:id"
+              element={
+                <AuthenticatedLayout>
+                  <EditHorse />
+                </AuthenticatedLayout>
+              }
+            />
+            <Route
+              path="/horses/new"
+              element={
+                <AuthenticatedLayout>
+                  <EditHorse />
+                </AuthenticatedLayout>
+              }
+            />
           </Route>
         </Routes>
       </div>
