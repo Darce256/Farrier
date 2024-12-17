@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,35 +13,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import toast from "react-hot-toast";
-import { Loader2 } from "lucide-react";
 import { useQueryClient } from "react-query";
 
-interface Horse {
-  id: string;
-  Name: string;
-  "Barn / Trainer": string | null;
-  "Owner Email": string | null;
-  "Owner Phone": string | null;
-  History: string | null;
-  "Horse Notes History": string | null;
-  status: string;
-  alert: string | null;
-}
-
-export default function EditHorse() {
-  const { id } = useParams();
+export default function NewHorse() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [horse, setHorse] = useState<Horse | null>(null);
-  const [loading, setLoading] = useState(true);
   const [barnInput, setBarnInput] = useState("");
   const [existingBarns, setExistingBarns] = useState<string[]>([]);
   const [showBarnSuggestions, setShowBarnSuggestions] = useState(false);
 
   useEffect(() => {
-    fetchHorse();
     fetchExistingBarns();
-  }, [id]);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -78,72 +61,35 @@ export default function EditHorse() {
     }
   };
 
-  const fetchHorse = async () => {
-    if (!id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("horses")
-        .select("*")
-        .eq("id", id)
-        .single();
-
-      if (error) throw error;
-      setHorse(data);
-      setBarnInput(data["Barn / Trainer"] || "");
-    } catch (error) {
-      console.error("Error fetching horse:", error);
-      toast.error("Failed to fetch horse details");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const horseData = Object.fromEntries(formData.entries());
 
     try {
-      const { error } = await supabase
-        .from("horses")
-        .update(horseData)
-        .eq("id", id);
+      const { error } = await supabase.from("horses").insert([horseData]);
 
       if (error) throw error;
 
       await queryClient.invalidateQueries("horses");
 
-      toast.success("Horse updated successfully");
+      toast.success("Horse added successfully");
       navigate("/horses");
     } catch (error) {
-      console.error("Error updating horse:", error);
-      toast.error("Failed to update horse");
+      console.error("Error adding horse:", error);
+      toast.error("Failed to add horse");
     }
   };
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
       <div className="border rounded-lg p-6 bg-white">
-        <h3 className="text-lg font-semibold mb-4">Edit Horse</h3>
+        <h3 className="text-lg font-semibold mb-4">Add New Horse</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="Name">Name</Label>
-              <Input
-                id="Name"
-                name="Name"
-                defaultValue={horse?.Name || ""}
-                required
-              />
+              <Input id="Name" name="Name" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="Barn / Trainer">Barn / Trainer</Label>
@@ -188,24 +134,15 @@ export default function EditHorse() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="Owner Email">Owner Email</Label>
-              <Input
-                id="Owner Email"
-                name="Owner Email"
-                type="email"
-                defaultValue={horse?.["Owner Email"] || ""}
-              />
+              <Input id="Owner Email" name="Owner Email" type="email" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="Owner Phone">Owner Phone</Label>
-              <Input
-                id="Owner Phone"
-                name="Owner Phone"
-                defaultValue={horse?.["Owner Phone"] || ""}
-              />
+              <Input id="Owner Phone" name="Owner Phone" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select name="status" defaultValue={horse?.status || "pending"}>
+              <Select name="status" defaultValue="pending">
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -217,11 +154,7 @@ export default function EditHorse() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="alert">Alert</Label>
-              <Input
-                id="alert"
-                name="alert"
-                defaultValue={horse?.alert || ""}
-              />
+              <Input id="alert" name="alert" />
             </div>
           </div>
           <div className="flex justify-end gap-2">
@@ -232,7 +165,7 @@ export default function EditHorse() {
             >
               Cancel
             </Button>
-            <Button type="submit">Save Changes</Button>
+            <Button type="submit">Add Horse</Button>
           </div>
         </form>
       </div>
