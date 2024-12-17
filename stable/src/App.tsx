@@ -26,6 +26,8 @@ import PrivacyPolicy from "./components/pages/PrivacyPolicy";
 import ForgotPassword from "@/components/pages/ForgotPassword";
 import ResetPassword from "@/components/pages/ResetPassword";
 import NewCustomer from "./components/pages/NewCustomer";
+import EditHorse from "@/components/pages/EditHorse";
+import NewHorse from "@/components/pages/NewHorse";
 
 function AppRoutes() {
   return (
@@ -122,6 +124,8 @@ function AppRoutes() {
             />
             <Route path="/customers/new" element={<NewCustomer />} />
             <Route path="/customers/edit/:id" element={<NewCustomer />} />
+            <Route path="/horses/edit/:id" element={<EditHorse />} />
+            <Route path="/horses/new" element={<NewHorse />} />
           </Route>
         </Routes>
       </div>

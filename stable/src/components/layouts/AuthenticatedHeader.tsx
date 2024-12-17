@@ -147,9 +147,48 @@ export default function AuthenticatedHeader() {
 
             let displayName = capitalize(segment);
 
-            // Special case for "new-shoeings"
-            if (segment === "new-shoeings") {
-              displayName = "Shoeings";
+            // Special case for horses routes
+            if (segment === "horses") {
+              const isHorsesPage = pathSegments.length === 1; // Check if we're on the main horses page
+
+              return (
+                <React.Fragment key={segment}>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    {isHorsesPage ? (
+                      <BreadcrumbPage>Horses</BreadcrumbPage>
+                    ) : (
+                      <BreadcrumbLink asChild>
+                        <Link to="/shoeings-approval-panel?tab=horses">
+                          Horses
+                        </Link>
+                      </BreadcrumbLink>
+                    )}
+                  </BreadcrumbItem>
+                </React.Fragment>
+              );
+            }
+
+            // Make edit/new breadcrumbs non-clickable and update text for horses
+            if (segment === "edit" || segment === "new") {
+              const previousSegment = pathSegments[index - 1];
+              const label =
+                previousSegment === "horses"
+                  ? segment === "edit"
+                    ? "Edit Horse"
+                    : "New Horse"
+                  : segment === "edit"
+                  ? "Edit Customer"
+                  : "New Customer";
+
+              return (
+                <React.Fragment key={segment}>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{label}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </React.Fragment>
+              );
             }
 
             // Special case for customers routes
@@ -163,20 +202,6 @@ export default function AuthenticatedHeader() {
                         Customers
                       </Link>
                     </BreadcrumbLink>
-                  </BreadcrumbItem>
-                </React.Fragment>
-              );
-            }
-
-            // Make edit/new breadcrumbs non-clickable
-            if (segment === "edit" || segment === "new") {
-              return (
-                <React.Fragment key={segment}>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>
-                      {segment === "edit" ? "Edit Customer" : "New Customer"}
-                    </BreadcrumbPage>
                   </BreadcrumbItem>
                 </React.Fragment>
               );
