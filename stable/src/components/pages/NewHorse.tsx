@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import toast from "react-hot-toast";
 import { useQueryClient } from "react-query";
+import { CustomerSelect } from "@/components/ui/customer-select";
 
 export default function NewHorse() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function NewHorse() {
   const [barnInput, setBarnInput] = useState("");
   const [existingBarns, setExistingBarns] = useState<string[]>([]);
   const [showBarnSuggestions, setShowBarnSuggestions] = useState(false);
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
   useEffect(() => {
     fetchExistingBarns();
@@ -74,7 +76,7 @@ export default function NewHorse() {
       await queryClient.invalidateQueries("horses");
 
       toast.success("Horse added successfully");
-      navigate("/horses");
+      navigate("/shoeings-approval-panel?tab=horses");
     } catch (error) {
       console.error("Error adding horse:", error);
       toast.error("Failed to add horse");
@@ -156,12 +158,35 @@ export default function NewHorse() {
               <Label htmlFor="alert">Alert</Label>
               <Input id="alert" name="alert" />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="Customers">Customers</Label>
+              <CustomerSelect
+                selectedCustomers={selectedCustomers}
+                onCustomerChange={(selected) => {
+                  setSelectedCustomers(selected);
+                  const input = document.querySelector(
+                    'input[name="Customers"]'
+                  ) as HTMLInputElement;
+                  if (input) {
+                    input.value = selected.join(", ");
+                  }
+                }}
+                placeholder="Search and select customers..."
+              />
+              <Input
+                id="Customers"
+                name="Customers"
+                type="hidden"
+                value={selectedCustomers.join(", ")}
+                readOnly
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate("/horses")}
+              onClick={() => navigate("/shoeings-approval-panel?tab=horses")}
             >
               Cancel
             </Button>

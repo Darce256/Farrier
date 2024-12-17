@@ -15,6 +15,7 @@ import {
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
 import { useQueryClient } from "react-query";
+import { CustomerSelect } from "@/components/ui/customer-select";
 
 interface Horse {
   id: string;
@@ -26,6 +27,7 @@ interface Horse {
   "Horse Notes History": string | null;
   status: string;
   alert: string | null;
+  Customers: string | null;
 }
 
 export default function EditHorse() {
@@ -37,11 +39,18 @@ export default function EditHorse() {
   const [barnInput, setBarnInput] = useState("");
   const [existingBarns, setExistingBarns] = useState<string[]>([]);
   const [showBarnSuggestions, setShowBarnSuggestions] = useState(false);
+  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
   useEffect(() => {
     fetchHorse();
     fetchExistingBarns();
   }, [id]);
+
+  useEffect(() => {
+    if (horse?.Customers) {
+      setSelectedCustomers(horse.Customers.split(", ").filter(Boolean));
+    }
+  }, [horse]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -115,11 +124,15 @@ export default function EditHorse() {
       await queryClient.invalidateQueries("horses");
 
       toast.success("Horse updated successfully");
-      navigate("/horses");
+      navigate("/shoeings-approval-panel?tab=horses");
     } catch (error) {
       console.error("Error updating horse:", error);
       toast.error("Failed to update horse");
     }
+  };
+
+  const handleCancel = () => {
+    navigate("/shoeings-approval-panel?tab=horses");
   };
 
   if (loading) {
@@ -223,13 +236,32 @@ export default function EditHorse() {
                 defaultValue={horse?.alert || ""}
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="Customers">Customers</Label>
+              <CustomerSelect
+                selectedCustomers={selectedCustomers}
+                onCustomerChange={(selected) => {
+                  setSelectedCustomers(selected);
+                  const input = document.querySelector(
+                    'input[name="Customers"]'
+                  ) as HTMLInputElement;
+                  if (input) {
+                    input.value = selected.join(", ");
+                  }
+                }}
+                placeholder="Search and select customers..."
+              />
+              <Input
+                id="Customers"
+                name="Customers"
+                type="hidden"
+                value={selectedCustomers.join(", ")}
+                readOnly
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => navigate("/horses")}
-            >
+            <Button type="button" variant="outline" onClick={handleCancel}>
               Cancel
             </Button>
             <Button type="submit">Save Changes</Button>
