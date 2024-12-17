@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "react-query";
 
 interface Horse {
   id: string;
@@ -51,6 +52,7 @@ export default function HorsesTab() {
   const [totalCount, setTotalCount] = useState(0);
   const itemsPerPage = 20;
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const fetchHorses = useCallback(async () => {
     try {
@@ -92,6 +94,7 @@ export default function HorsesTab() {
       const { error } = await supabase.from("horses").delete().eq("id", id);
       if (error) throw error;
 
+      await queryClient.invalidateQueries("horses");
       toast.success("Horse deleted successfully");
       await fetchHorses();
 

@@ -144,7 +144,7 @@ export default function NewHorse() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select name="status" defaultValue="pending">
+              <Select name="status" defaultValue="accepted">
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
