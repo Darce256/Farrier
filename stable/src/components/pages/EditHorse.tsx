@@ -114,16 +114,37 @@ export default function EditHorse() {
     const horseData = Object.fromEntries(formData.entries());
 
     try {
-      const { error } = await supabase
+      // Start a transaction to update both the horse and related shoeings
+      const horseName = horseData.Name as string;
+      const barnTrainer = horseData["Barn / Trainer"] as string;
+      const newCustomers = horseData.Customers as string;
+
+      // 1. Update the horse record
+      const { error: horseError } = await supabase
         .from("horses")
         .update(horseData)
         .eq("id", id);
 
-      if (error) throw error;
+      if (horseError) throw horseError;
+
+      // 2. Update any pending shoeings for this horse
+      // We identify related shoeings by matching the horse name and barn/trainer
+      const horseIdentifier = `${horseName} - [${barnTrainer}]`;
+
+      const { error: shoeingsError } = await supabase
+        .from("shoeings")
+        .update({
+          "QB Customers": newCustomers, // Update the QB Customers field
+          "Owner Email": horseData["Owner Email"], // Also update the owner email
+        })
+        .eq("Horses", horseIdentifier)
+        .eq("status", "pending"); // Only update pending shoeings
+
+      if (shoeingsError) throw shoeingsError;
 
       await queryClient.invalidateQueries("horses");
 
-      toast.success("Horse updated successfully");
+      toast.success("Horse and related shoeings updated successfully");
       navigate("/shoeings-approval-panel?tab=horses");
     } catch (error) {
       console.error("Error updating horse:", error);

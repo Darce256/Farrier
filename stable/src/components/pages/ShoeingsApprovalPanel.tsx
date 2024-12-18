@@ -1927,10 +1927,29 @@ export default function ShoeingsApprovalPanel() {
     </>
   );
 
+  // Add this effect to fetch data when tab changes
+  useEffect(() => {
+    if (activeTab === "approval") {
+      fetchPendingShoeings();
+    }
+  }, [activeTab]);
+
+  // Update the tab change handler
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (value === "approval") {
+      fetchPendingShoeings();
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-2xl font-bold mb-4">Admin Panel</h1>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="w-full"
+      >
         {isMobile ? (
           <div className="mb-4">
             <Select value={activeTab} onValueChange={setActiveTab}>
