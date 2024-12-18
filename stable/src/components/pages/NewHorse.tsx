@@ -88,7 +88,7 @@ export default function NewHorse() {
       <div className="border rounded-lg p-6 bg-white">
         <h3 className="text-lg font-semibold mb-4">Add New Horse</h3>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="Name">Name</Label>
               <Input id="Name" name="Name" required />
