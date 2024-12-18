@@ -5,6 +5,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import toast from "react-hot-toast";
+import { Loader2 } from "lucide-react";
+import { CustomerSelect } from "@/components/ui/customer-select";
 import {
   Select,
   SelectContent,
@@ -12,59 +26,71 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import toast from "react-hot-toast";
-import { Loader2 } from "lucide-react";
-import { useQueryClient } from "react-query";
-import { CustomerSelect } from "@/components/ui/customer-select";
 
-interface Horse {
-  id: string;
-  Name: string;
-  "Barn / Trainer": string | null;
-  "Owner Email": string | null;
-  "Owner Phone": string | null;
-  History: string | null;
-  "Horse Notes History": string | null;
-  status: string;
-  alert: string | null;
-  Customers: string | null;
-}
+// Define the validation schema
+const horseFormSchema = z.object({
+  Name: z.string().min(1, "Horse name is required"),
+  "Barn / Trainer": z.string().min(1, "Barn/Trainer is required"),
+  "Owner Email": z.string().email("Invalid email").optional().or(z.literal("")),
+  "Owner Phone": z.string().optional(),
+  status: z.string(),
+  alert: z.string().optional(),
+  Customers: z.string().optional(),
+});
+
+type FormValues = z.infer<typeof horseFormSchema>;
 
 export default function EditHorse() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
-  const [horse, setHorse] = useState<Horse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [barnInput, setBarnInput] = useState("");
   const [existingBarns, setExistingBarns] = useState<string[]>([]);
   const [showBarnSuggestions, setShowBarnSuggestions] = useState(false);
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
+  const form = useForm<FormValues>({
+    resolver: zodResolver(horseFormSchema),
+    defaultValues: {
+      Name: "",
+      "Barn / Trainer": "",
+      "Owner Email": "",
+      "Owner Phone": "",
+      status: "pending",
+      alert: "",
+      Customers: "",
+    },
+  });
+
   useEffect(() => {
-    fetchHorse();
+    if (id) {
+      fetchHorse();
+    } else {
+      setLoading(false);
+    }
     fetchExistingBarns();
   }, [id]);
 
-  useEffect(() => {
-    if (horse?.Customers) {
-      setSelectedCustomers(horse.Customers.split(", ").filter(Boolean));
-    }
-  }, [horse]);
+  const fetchHorse = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("horses")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest("#barn-trainer-input")) {
-        setShowBarnSuggestions(false);
+      if (error) throw error;
+
+      form.reset(data);
+      if (data.Customers) {
+        setSelectedCustomers(data.Customers.split(", ").filter(Boolean));
       }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
+    } catch (error) {
+      console.error("Error fetching horse:", error);
+      toast.error("Failed to fetch horse details");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchExistingBarns = async () => {
     try {
@@ -87,73 +113,32 @@ export default function EditHorse() {
     }
   };
 
-  const fetchHorse = async () => {
-    if (!id) return;
-
+  const onSubmit = async (values: FormValues) => {
     try {
-      const { data, error } = await supabase
-        .from("horses")
-        .select("*")
-        .eq("id", id)
-        .single();
+      setLoading(true);
+      values.Customers = selectedCustomers.join(", ");
+
+      const horseData = {
+        ...values,
+        id: id || undefined,
+      };
+
+      const { error } = id
+        ? await supabase.from("horses").update(horseData).eq("id", id)
+        : await supabase.from("horses").insert(horseData);
 
       if (error) throw error;
-      setHorse(data);
-      setBarnInput(data["Barn / Trainer"] || "");
+
+      toast.success(
+        id ? "Horse updated successfully" : "Horse created successfully"
+      );
+      navigate("/shoeings-approval-panel?tab=horses");
     } catch (error) {
-      console.error("Error fetching horse:", error);
-      toast.error("Failed to fetch horse details");
+      console.error("Error saving horse:", error);
+      toast.error("Failed to save horse");
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const horseData = Object.fromEntries(formData.entries());
-
-    try {
-      // Start a transaction to update both the horse and related shoeings
-      const horseName = horseData.Name as string;
-      const barnTrainer = horseData["Barn / Trainer"] as string;
-      const newCustomers = horseData.Customers as string;
-
-      // 1. Update the horse record
-      const { error: horseError } = await supabase
-        .from("horses")
-        .update(horseData)
-        .eq("id", id);
-
-      if (horseError) throw horseError;
-
-      // 2. Update any pending shoeings for this horse
-      // We identify related shoeings by matching the horse name and barn/trainer
-      const horseIdentifier = `${horseName} - [${barnTrainer}]`;
-
-      const { error: shoeingsError } = await supabase
-        .from("shoeings")
-        .update({
-          "QB Customers": newCustomers, // Update the QB Customers field
-          "Owner Email": horseData["Owner Email"], // Also update the owner email
-        })
-        .eq("Horses", horseIdentifier)
-        .eq("status", "pending"); // Only update pending shoeings
-
-      if (shoeingsError) throw shoeingsError;
-
-      await queryClient.invalidateQueries("horses");
-
-      toast.success("Horse and related shoeings updated successfully");
-      navigate("/shoeings-approval-panel?tab=horses");
-    } catch (error) {
-      console.error("Error updating horse:", error);
-      toast.error("Failed to update horse");
-    }
-  };
-
-  const handleCancel = () => {
-    navigate("/shoeings-approval-panel?tab=horses");
   };
 
   if (loading) {
@@ -167,127 +152,181 @@ export default function EditHorse() {
   return (
     <div className="space-y-4">
       <div className="border rounded-lg p-6 bg-white">
-        <h3 className="text-lg font-semibold mb-4">Edit Horse</h3>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="Name">Name</Label>
-              <Input
-                id="Name"
+        <h3 className="text-lg font-semibold mb-4">
+          {id ? "Edit Horse" : "New Horse"}
+        </h3>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
                 name="Name"
-                defaultValue={horse?.Name || ""}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="Barn / Trainer">Barn / Trainer</Label>
-              <div className="relative" id="barn-trainer-input">
-                <Input
-                  id="Barn / Trainer"
-                  name="Barn / Trainer"
-                  value={barnInput}
-                  onChange={(e) => {
-                    setBarnInput(e.target.value);
-                    setShowBarnSuggestions(true);
-                  }}
-                  onFocus={() => setShowBarnSuggestions(true)}
-                />
-                {showBarnSuggestions && existingBarns.length > 0 && (
-                  <div className="absolute w-full z-10 top-full mt-1 bg-white border rounded-md shadow-lg">
-                    <ScrollArea className="max-h-[200px]">
-                      <div className="p-1">
-                        {existingBarns
-                          .filter((barn) =>
-                            barn.toLowerCase().includes(barnInput.toLowerCase())
-                          )
-                          .map((barn) => (
-                            <Button
-                              key={barn}
-                              type="button"
-                              variant="ghost"
-                              className="w-full text-left flex items-center px-2 py-1 hover:bg-accent"
-                              onClick={() => {
-                                setBarnInput(barn);
-                                setShowBarnSuggestions(false);
-                              }}
-                            >
-                              {barn}
-                            </Button>
-                          ))}
-                      </div>
-                    </ScrollArea>
-                  </div>
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Name</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="Owner Email">Owner Email</Label>
-              <Input
-                id="Owner Email"
+              />
+
+              <FormField
+                control={form.control}
+                name="Barn / Trainer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Barn / Trainer</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Input
+                          {...field}
+                          onFocus={() => setShowBarnSuggestions(true)}
+                        />
+                        {showBarnSuggestions && existingBarns.length > 0 && (
+                          <ScrollArea className="absolute w-full z-10 max-h-[200px] bg-white border rounded-md shadow-lg">
+                            {existingBarns
+                              .filter((barn) =>
+                                barn
+                                  .toLowerCase()
+                                  .includes(field.value.toLowerCase())
+                              )
+                              .map((barn) => (
+                                <Button
+                                  key={barn}
+                                  type="button"
+                                  variant="ghost"
+                                  className="w-full text-left flex items-center px-2 py-1 hover:bg-accent"
+                                  onClick={() => {
+                                    field.onChange(barn);
+                                    setShowBarnSuggestions(false);
+                                  }}
+                                >
+                                  {barn}
+                                </Button>
+                              ))}
+                          </ScrollArea>
+                        )}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="Owner Email"
-                type="email"
-                defaultValue={horse?.["Owner Email"] || ""}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Owner Email</FormLabel>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="Owner Phone">Owner Phone</Label>
-              <Input
-                id="Owner Phone"
+
+              <FormField
+                control={form.control}
                 name="Owner Phone"
-                defaultValue={horse?.["Owner Phone"] || ""}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Owner Phone</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="status">Status</Label>
-              <Select name="status" defaultValue={horse?.status || "pending"}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="accepted">Accepted</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="alert">Alert</Label>
-              <Input
-                id="alert"
+
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="accepted">Accepted</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="alert"
-                defaultValue={horse?.alert || ""}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alert</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="Customers">Customers</Label>
-              <CustomerSelect
-                selectedCustomers={selectedCustomers}
-                onCustomerChange={(selected) => {
-                  setSelectedCustomers(selected);
-                  const input = document.querySelector(
-                    'input[name="Customers"]'
-                  ) as HTMLInputElement;
-                  if (input) {
-                    input.value = selected.join(", ");
-                  }
-                }}
-                placeholder="Search and select customers..."
-              />
-              <Input
-                id="Customers"
+
+              <FormField
+                control={form.control}
                 name="Customers"
-                type="hidden"
-                value={selectedCustomers.join(", ")}
-                readOnly
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Customers</FormLabel>
+                    <FormControl>
+                      <div>
+                        <CustomerSelect
+                          selectedCustomers={selectedCustomers}
+                          onCustomerChange={(selected) => {
+                            setSelectedCustomers(selected);
+                            field.onChange(selected.join(", "));
+                          }}
+                          placeholder="Search and select customers..."
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={handleCancel}>
-              Cancel
-            </Button>
-            <Button type="submit">Save Changes</Button>
-          </div>
-        </form>
+
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate("/shoeings-approval-panel?tab=horses")}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {id ? "Saving..." : "Creating..."}
+                  </>
+                ) : id ? (
+                  "Save Changes"
+                ) : (
+                  "Create Horse"
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
       </div>
     </div>
   );
