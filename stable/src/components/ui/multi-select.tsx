@@ -292,8 +292,8 @@ export const MultiSelect = React.forwardRef<
           className="w-auto p-0"
           align="start"
           onEscapeKeyDown={() => setIsPopoverOpen(false)}
-          onInteractOutside={(e) => {
-            e.preventDefault();
+          onInteractOutside={() => {
+            setIsPopoverOpen(false);
           }}
           onClick={(e) => e.stopPropagation()}
           onMouseDown={(e) => e.stopPropagation()}
