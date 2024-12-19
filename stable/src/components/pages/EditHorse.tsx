@@ -122,11 +122,99 @@ export default function EditHorse() {
         id: id || undefined,
       };
 
-      const { error } = id
+      // First update the horse
+      const { error: horseError } = id
         ? await supabase.from("horses").update(horseData).eq("id", id)
         : await supabase.from("horses").insert(horseData);
 
-      if (error) throw error;
+      if (horseError) throw horseError;
+
+      // Then update the customers' Horses field
+      const horseEntry = `${values.Name} - [${values["Barn / Trainer"]}]`;
+
+      // Get the previous customers to handle removals
+      let previousCustomers: string[] = [];
+      if (id) {
+        const { data: oldHorse } = await supabase
+          .from("horses")
+          .select("Customers")
+          .eq("id", id)
+          .single();
+        if (oldHorse?.Customers) {
+          previousCustomers = oldHorse.Customers.split(", ").filter(Boolean);
+        }
+      }
+
+      // Remove horse from customers that were unselected
+      for (const prevCustomer of previousCustomers) {
+        if (!selectedCustomers.includes(prevCustomer)) {
+          const { data: customerData } = await supabase
+            .from("customers")
+            .select("Horses")
+            .eq("Display Name", prevCustomer)
+            .single();
+
+          if (customerData) {
+            const currentHorses = customerData.Horses
+              ? customerData.Horses.split(",").map((h: string) => h.trim())
+              : [];
+            const updatedHorses = currentHorses
+              .filter((h: string) => !h.startsWith(values.Name + " - "))
+              .join(", ");
+
+            await supabase
+              .from("customers")
+              .update({ Horses: updatedHorses || null })
+              .eq("Display Name", prevCustomer);
+          }
+        }
+      }
+
+      // Add horse to newly selected customers
+      for (const customerName of selectedCustomers) {
+        const { data: customerData } = await supabase
+          .from("customers")
+          .select("Horses")
+          .eq("Display Name", customerName)
+          .single();
+
+        if (customerData) {
+          const currentHorses = customerData.Horses
+            ? customerData.Horses.split(",").map((h: string) => h.trim())
+            : [];
+
+          // Remove any existing entries for this horse
+          const filteredHorses = currentHorses.filter(
+            (h: string) => !h.startsWith(values.Name + " - ")
+          );
+
+          // Add the new entry
+          filteredHorses.push(horseEntry);
+
+          const updatedHorses = filteredHorses.join(", ");
+
+          const { error: customerError } = await supabase
+            .from("customers")
+            .update({ Horses: updatedHorses })
+            .eq("Display Name", customerName);
+
+          if (customerError) throw customerError;
+        }
+      }
+
+      // Update any pending shoeings for this horse
+      if (selectedCustomers.length > 0) {
+        const { error: shoeingsError } = await supabase
+          .from("shoeings")
+          .update({
+            "QB Customers": selectedCustomers[0], // Use the first selected customer
+            "Owner Email": values["Owner Email"],
+          })
+          .eq("Horse Name", values.Name)
+          .eq("status", "pending");
+
+        if (shoeingsError) throw shoeingsError;
+      }
 
       toast.success(
         id ? "Horse updated successfully" : "Horse created successfully"
