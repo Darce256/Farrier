@@ -207,7 +207,7 @@ export default function EditHorse() {
         const { error: shoeingsError } = await supabase
           .from("shoeings")
           .update({
-            "QB Customers": selectedCustomers[0], // Use the first selected customer
+            "QB Customers": selectedCustomers.join(", "),
             "Owner Email": values["Owner Email"],
           })
           .eq("Horse Name", values.Name)
