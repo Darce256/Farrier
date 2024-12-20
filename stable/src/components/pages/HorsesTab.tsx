@@ -91,8 +91,54 @@ export default function HorsesTab() {
 
   const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabase.from("horses").delete().eq("id", id);
-      if (error) throw error;
+      // First, get the horse details
+      const { data: horse, error: fetchError } = await supabase
+        .from("horses")
+        .select("Name, Customers")
+        .eq("id", id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      if (horse && horse.Customers) {
+        // Get all customers that have this horse
+        const customers = horse.Customers.split(",").map((c: string) =>
+          c.trim()
+        );
+
+        // For each customer, remove this horse from their Horses field
+        for (const customerName of customers) {
+          const { data: customer, error: customerFetchError } = await supabase
+            .from("customers")
+            .select("Horses")
+            .eq("Display Name", customerName)
+            .single();
+
+          if (customerFetchError) continue; // Skip if customer not found
+
+          if (customer && customer.Horses) {
+            const horseEntries = customer.Horses.split(",").map((h: string) =>
+              h.trim()
+            );
+            const updatedHorses = horseEntries
+              .filter((h: string) => !h.startsWith(horse.Name))
+              .join(", ");
+
+            await supabase
+              .from("customers")
+              .update({ Horses: updatedHorses || null })
+              .eq("Display Name", customerName);
+          }
+        }
+      }
+
+      // Finally, delete the horse
+      const { error: deleteError } = await supabase
+        .from("horses")
+        .delete()
+        .eq("id", id);
+
+      if (deleteError) throw deleteError;
 
       await queryClient.invalidateQueries("horses");
       toast.success("Horse deleted successfully");
@@ -226,9 +272,14 @@ export default function HorsesTab() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              horse record.
+            <AlertDialogDescription className="space-y-2">
+              <p>This action cannot be undone. This will:</p>
+              <ul className="list-disc pl-6">
+                <li>Permanently delete the horse record</li>
+                <li>
+                  Remove this horse from any customers that have it assigned
+                </li>
+              </ul>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
