@@ -124,21 +124,56 @@ export default function CustomersTab() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const customerData = Object.fromEntries(formData.entries());
+    const selectedHorses = customerData.Horses
+      ? String(customerData.Horses)
+          .split(",")
+          .map((h: string) => h.trim())
+      : [];
 
     try {
       if (editingCustomer) {
+        // Update the customer record
         const { error } = await supabase
           .from("customers")
           .update(customerData)
           .eq("id", editingCustomer.id);
 
         if (error) throw error;
+
+        // Update any pending shoeings for this customer's horses
+        if (selectedHorses.length > 0) {
+          const { error: shoeingsError } = await supabase
+            .from("shoeings")
+            .update({
+              "Owner Email": customerData["Owner Email"],
+            })
+            .in("Horse Name", selectedHorses)
+            .eq("status", "pending");
+
+          if (shoeingsError) throw shoeingsError;
+        }
+
         toast.success("Customer updated successfully");
       } else {
+        // Create new customer
         const { error } = await supabase
           .from("customers")
           .insert([customerData]);
         if (error) throw error;
+
+        // Update any pending shoeings for the selected horses
+        if (selectedHorses.length > 0) {
+          const { error: shoeingsError } = await supabase
+            .from("shoeings")
+            .update({
+              "Owner Email": customerData["Owner Email"],
+            })
+            .in("Horse Name", selectedHorses)
+            .eq("status", "pending");
+
+          if (shoeingsError) throw shoeingsError;
+        }
+
         toast.success("Customer added successfully");
       }
 
@@ -241,17 +276,27 @@ export default function CustomersTab() {
                   horses={horses}
                   selectedHorses={
                     editingCustomer?.Horses
-                      ? editingCustomer.Horses.split(",").map((h) => h.trim())
+                      ? editingCustomer.Horses.split(",").map((h: string) =>
+                          h.trim()
+                        )
                       : []
                   }
-                  onHorseChange={(selected) => {
+                  onHorseChange={(selected: string[]) => {
                     const formElement = document.querySelector("form");
                     if (formElement) {
                       const input = formElement.querySelector(
                         'input[name="Horses"]'
                       ) as HTMLInputElement;
                       if (input) {
-                        input.value = selected.join(", ");
+                        const formattedHorses = selected.map(
+                          (horseName) =>
+                            `${horseName} - [${
+                              horses.find((h) => h.Name === horseName)?.[
+                                "Barn / Trainer"
+                              ] || ""
+                            }]`
+                        );
+                        input.value = formattedHorses.join(", ");
                       }
                     }
                   }}

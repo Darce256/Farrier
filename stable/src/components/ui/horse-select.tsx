@@ -32,10 +32,17 @@ export function HorseSelect({
     return `${name} - [${barnTrainer}]`;
   };
 
-  const toggleHorse = (horseString: string) => {
-    const newSelected = selectedHorses.includes(horseString)
-      ? selectedHorses.filter((h) => h !== horseString)
-      : [...selectedHorses, horseString];
+  const getHorseDisplayName = (horseName: string) => {
+    const horse = horses.find((h) => h.Name === horseName);
+    return horse
+      ? formatHorseString(horse.Name, horse["Barn / Trainer"] || "")
+      : horseName;
+  };
+
+  const toggleHorse = (horseName: string) => {
+    const newSelected = selectedHorses.includes(horseName)
+      ? selectedHorses.filter((h) => h !== horseName)
+      : [...selectedHorses, horseName];
     onHorseChange(newSelected);
   };
 
@@ -75,14 +82,14 @@ export function HorseSelect({
           {selectedHorses.length === 0 && (
             <span className="text-muted-foreground">{placeholder}</span>
           )}
-          {selectedHorses.map((horse) => (
-            <Badge key={horse} variant="secondary" className="mr-1 mb-1">
-              {horse}
+          {selectedHorses.map((horseName) => (
+            <Badge key={horseName} variant="secondary" className="mr-1 mb-1">
+              {getHorseDisplayName(horseName)}
               <button
                 className="ml-1 hover:bg-destructive/50 rounded-full"
                 onClick={(e) => {
                   e.stopPropagation();
-                  removeHorse(horse);
+                  removeHorse(horseName);
                 }}
               >
                 <X className="h-3 w-3" />
@@ -111,11 +118,11 @@ export function HorseSelect({
             ) : (
               <div className="space-y-1">
                 {filteredHorses.map((horse) => {
-                  const horseString = formatHorseString(
+                  const isSelected = selectedHorses.includes(horse.Name);
+                  const displayName = formatHorseString(
                     horse.Name || "",
                     horse["Barn / Trainer"] || ""
                   );
-                  const isSelected = selectedHorses.includes(horseString);
 
                   return (
                     <Button
@@ -128,7 +135,7 @@ export function HorseSelect({
                       )}
                       onClick={(e) => {
                         e.preventDefault();
-                        toggleHorse(horseString);
+                        toggleHorse(horse.Name);
                       }}
                     >
                       <Check
@@ -137,7 +144,7 @@ export function HorseSelect({
                           isSelected ? "opacity-100" : "opacity-0"
                         )}
                       />
-                      {horseString}
+                      {displayName}
                     </Button>
                   );
                 })}

@@ -107,7 +107,11 @@ export default function NewCustomer() {
       setCustomer(data);
       setBarnInput(data["Barn / Trainer"] || "");
       setSelectedHorses(
-        data.Horses ? data.Horses.split(",").map((h: string) => h.trim()) : []
+        data.Horses
+          ? data.Horses.split(",")
+              .map((h: string) => h.trim())
+              .map((h: string) => h.split(" - ")[0].trim())
+          : []
       );
     } catch (error) {
       console.error("Error fetching customer:", error);
@@ -119,20 +123,166 @@ export default function NewCustomer() {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const customerData = Object.fromEntries(formData.entries());
+    const customerName = customerData["Display Name"] as string;
 
     try {
+      // Format horse entries with barn/trainer info
+      const formattedHorses = selectedHorses.map((horseName) => {
+        const horse = horses.find((h) => h.Name === horseName);
+        return `${horseName} - [${horse?.["Barn / Trainer"] || ""}]`;
+      });
+      customerData.Horses = formattedHorses.join(", ");
+
       if (id) {
+        // Get current customer's horses before update
+        const { data: currentCustomer } = await supabase
+          .from("customers")
+          .select("Horses")
+          .eq("id", id)
+          .single();
+
+        const previousHorses = currentCustomer?.Horses
+          ? currentCustomer.Horses.split(",").map((h: string) =>
+              h.split(" - ")[0].trim()
+            )
+          : [];
+
+        // Update customer record
         const { error } = await supabase
           .from("customers")
           .update(customerData)
           .eq("id", id);
         if (error) throw error;
+
+        // Handle horse relationships
+        // Remove customer from unselected horses
+        for (const horseName of previousHorses) {
+          if (!selectedHorses.includes(horseName)) {
+            // Update horse record
+            const { data: horseData } = await supabase
+              .from("horses")
+              .select("Customers")
+              .eq("Name", horseName)
+              .single();
+
+            if (horseData) {
+              const currentCustomers = horseData.Customers
+                ? horseData.Customers.split(",").map((c: string) => c.trim())
+                : [];
+              const updatedCustomers = currentCustomers
+                .filter((c: string) => c !== customerName)
+                .join(", ");
+
+              await supabase
+                .from("horses")
+                .update({ Customers: updatedCustomers || null })
+                .eq("Name", horseName);
+
+              // Update any pending shoeings for this horse to remove the customer
+              await supabase
+                .from("shoeings")
+                .update({
+                  "QB Customers": null,
+                  "Owner Email": null,
+                })
+                .eq("Horse Name", horseName)
+                .eq("QB Customers", customerName)
+                .eq("status", "pending");
+            }
+          }
+        }
+
+        // Add customer to newly selected horses
+        for (const horseName of selectedHorses) {
+          if (!previousHorses.includes(horseName)) {
+            const { data: horseData } = await supabase
+              .from("horses")
+              .select("Customers")
+              .eq("Name", horseName)
+              .single();
+
+            if (horseData) {
+              const currentCustomers = horseData.Customers
+                ? horseData.Customers.split(",").map((c: string) => c.trim())
+                : [];
+
+              if (!currentCustomers.includes(customerName)) {
+                currentCustomers.push(customerName);
+                await supabase
+                  .from("horses")
+                  .update({ Customers: currentCustomers.join(", ") })
+                  .eq("Name", horseName);
+
+                // Update any pending shoeings that might have a different customer
+                await supabase
+                  .from("shoeings")
+                  .update({
+                    "QB Customers": customerName,
+                    "Owner Email": customerData["Owner Email"],
+                  })
+                  .eq("Horse Name", horseName)
+                  .eq("status", "pending");
+              }
+            }
+          }
+        }
+
+        // Update all pending shoeings for currently selected horses
+        // This ensures even existing horses have their shoeings updated
+        if (selectedHorses.length > 0) {
+          await supabase
+            .from("shoeings")
+            .update({
+              "QB Customers": customerName,
+              "Owner Email": customerData["Owner Email"],
+            })
+            .in("Horse Name", selectedHorses)
+            .eq("status", "pending");
+        }
+
         toast.success("Customer updated successfully");
       } else {
+        // Create new customer
         const { error } = await supabase
           .from("customers")
           .insert([customerData]);
         if (error) throw error;
+
+        // Add customer to all selected horses
+        for (const horseName of selectedHorses) {
+          const { data: horseData } = await supabase
+            .from("horses")
+            .select("Customers")
+            .eq("Name", horseName)
+            .single();
+
+          if (horseData) {
+            const currentCustomers = horseData.Customers
+              ? horseData.Customers.split(",").map((c: string) => c.trim())
+              : [];
+
+            if (!currentCustomers.includes(customerName)) {
+              currentCustomers.push(customerName);
+              await supabase
+                .from("horses")
+                .update({ Customers: currentCustomers.join(", ") })
+                .eq("Name", horseName);
+            }
+          }
+        }
+
+        // Update shoeings for selected horses
+        if (selectedHorses.length > 0) {
+          await supabase
+            .from("shoeings")
+            .update({
+              "QB Customers": customerName,
+              "Owner Email": customerData["Owner Email"],
+            })
+            .in("Horse Name", selectedHorses)
+            .eq("status", "pending");
+        }
+
         toast.success("Customer added successfully");
       }
       navigate("/shoeings-approval-panel?tab=customers");
@@ -247,7 +397,13 @@ export default function NewCustomer() {
                     'input[name="Horses"]'
                   ) as HTMLInputElement;
                   if (input) {
-                    input.value = selected.join(", ");
+                    const formattedHorses = selected.map((horseName) => {
+                      const horse = horses.find((h) => h.Name === horseName);
+                      return `${horseName} - [${
+                        horse?.["Barn / Trainer"] || ""
+                      }]`;
+                    });
+                    input.value = formattedHorses.join(", ");
                   }
                 }}
                 placeholder="Search and select horses..."
@@ -256,7 +412,14 @@ export default function NewCustomer() {
                 id="Horses"
                 name="Horses"
                 type="hidden"
-                value={selectedHorses.join(", ")}
+                value={selectedHorses
+                  .map((horseName) => {
+                    const horse = horses.find((h) => h.Name === horseName);
+                    return `${horseName} - [${
+                      horse?.["Barn / Trainer"] || ""
+                    }]`;
+                  })
+                  .join(", ")}
                 readOnly
               />
             </div>

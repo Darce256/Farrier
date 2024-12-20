@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/form";
 import toast from "react-hot-toast";
 import { Loader2 } from "lucide-react";
-import { CustomerSelect } from "@/components/ui/customer-select";
 import {
   Select,
   SelectContent,
@@ -34,7 +33,6 @@ const horseFormSchema = z.object({
   "Owner Phone": z.string().optional(),
   status: z.string(),
   alert: z.string().optional(),
-  Customers: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof horseFormSchema>;
@@ -45,7 +43,6 @@ export default function EditHorse() {
   const [loading, setLoading] = useState(true);
   const [existingBarns, setExistingBarns] = useState<string[]>([]);
   const [showBarnSuggestions, setShowBarnSuggestions] = useState(false);
-  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(horseFormSchema),
@@ -56,7 +53,6 @@ export default function EditHorse() {
       "Owner Phone": "",
       status: "pending",
       alert: "",
-      Customers: "",
     },
   });
 
@@ -78,11 +74,7 @@ export default function EditHorse() {
         .single();
 
       if (error) throw error;
-
       form.reset(data);
-      if (data.Customers) {
-        setSelectedCustomers(data.Customers.split(", ").filter(Boolean));
-      }
     } catch (error) {
       console.error("Error fetching horse:", error);
       toast.error("Failed to fetch horse details");
@@ -115,106 +107,29 @@ export default function EditHorse() {
   const onSubmit = async (values: FormValues) => {
     try {
       setLoading(true);
-      values.Customers = selectedCustomers.join(", ");
 
       const horseData = {
         ...values,
         id: id || undefined,
       };
 
-      // First update the horse
+      // Update the horse
       const { error: horseError } = id
         ? await supabase.from("horses").update(horseData).eq("id", id)
         : await supabase.from("horses").insert(horseData);
 
       if (horseError) throw horseError;
 
-      // Then update the customers' Horses field
-      const horseEntry = `${values.Name} - [${values["Barn / Trainer"]}]`;
-
-      // Get the previous customers to handle removals
-      let previousCustomers: string[] = [];
-      if (id) {
-        const { data: oldHorse } = await supabase
-          .from("horses")
-          .select("Customers")
-          .eq("id", id)
-          .single();
-        if (oldHorse?.Customers) {
-          previousCustomers = oldHorse.Customers.split(", ").filter(Boolean);
-        }
-      }
-
-      // Remove horse from customers that were unselected
-      for (const prevCustomer of previousCustomers) {
-        if (!selectedCustomers.includes(prevCustomer)) {
-          const { data: customerData } = await supabase
-            .from("customers")
-            .select("Horses")
-            .eq("Display Name", prevCustomer)
-            .single();
-
-          if (customerData) {
-            const currentHorses = customerData.Horses
-              ? customerData.Horses.split(",").map((h: string) => h.trim())
-              : [];
-            const updatedHorses = currentHorses
-              .filter((h: string) => !h.startsWith(values.Name + " - "))
-              .join(", ");
-
-            await supabase
-              .from("customers")
-              .update({ Horses: updatedHorses || null })
-              .eq("Display Name", prevCustomer);
-          }
-        }
-      }
-
-      // Add horse to newly selected customers
-      for (const customerName of selectedCustomers) {
-        const { data: customerData } = await supabase
-          .from("customers")
-          .select("Horses")
-          .eq("Display Name", customerName)
-          .single();
-
-        if (customerData) {
-          const currentHorses = customerData.Horses
-            ? customerData.Horses.split(",").map((h: string) => h.trim())
-            : [];
-
-          // Remove any existing entries for this horse
-          const filteredHorses = currentHorses.filter(
-            (h: string) => !h.startsWith(values.Name + " - ")
-          );
-
-          // Add the new entry
-          filteredHorses.push(horseEntry);
-
-          const updatedHorses = filteredHorses.join(", ");
-
-          const { error: customerError } = await supabase
-            .from("customers")
-            .update({ Horses: updatedHorses })
-            .eq("Display Name", customerName);
-
-          if (customerError) throw customerError;
-        }
-      }
-
       // Update any pending shoeings for this horse
-      if (selectedCustomers.length > 0) {
-        const { error: shoeingsError } = await supabase
-          .from("shoeings")
-          .update({
-            "QB Customers": selectedCustomers.join(", "),
-            "Owner Email": values["Owner Email"],
-          })
-          .eq("Horse Name", values.Name)
-          .eq("status", "pending");
+      const { error: shoeingsError } = await supabase
+        .from("shoeings")
+        .update({
+          "Owner Email": values["Owner Email"],
+        })
+        .eq("Horse Name", values.Name)
+        .eq("status", "pending");
 
-        if (shoeingsError) throw shoeingsError;
-      }
+      if (shoeingsError) throw shoeingsError;
 
       toast.success(
         id ? "Horse updated successfully" : "Horse created successfully"
@@ -361,29 +276,6 @@ export default function EditHorse() {
                     <FormLabel>Alert</FormLabel>
                     <FormControl>
                       <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="Customers"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Customers</FormLabel>
-                    <FormControl>
-                      <div>
-                        <CustomerSelect
-                          selectedCustomers={selectedCustomers}
-                          onCustomerChange={(selected) => {
-                            setSelectedCustomers(selected);
-                            field.onChange(selected.join(", "));
-                          }}
-                          placeholder="Search and select customers..."
-                        />
-                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
