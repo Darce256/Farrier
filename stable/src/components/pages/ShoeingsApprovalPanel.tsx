@@ -1778,10 +1778,21 @@ export default function ShoeingsApprovalPanel() {
                                   {shoeing["Total Cost"]?.replace(/\$/g, "") ??
                                     ""}
                                 </p>
-                                <p className="mb-4">
-                                  <strong>Description:</strong>{" "}
-                                  {shoeing.Description}
-                                </p>
+                                <div className="mb-4">
+                                  <p className="font-semibold">Services:</p>
+                                  <p>
+                                    {shoeing.Description.split(" - ")[1] ||
+                                      shoeing.Description}
+                                  </p>
+                                  {shoeing["Other Custom Services"] && (
+                                    <p className="mt-1 text-sm">
+                                      <span className="font-medium">
+                                        Custom Services:
+                                      </span>{" "}
+                                      {shoeing["Other Custom Services"]}
+                                    </p>
+                                  )}
+                                </div>
                               </CardContent>
                               <div className="p-4 mt-auto flex gap-2">
                                 <Button
