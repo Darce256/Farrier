@@ -32,17 +32,20 @@ export function HorseSelect({
     return `${name} - [${barnTrainer}]`;
   };
 
-  const getHorseDisplayName = (horseName: string) => {
-    const horse = horses.find((h) => h.Name === horseName);
-    return horse
-      ? formatHorseString(horse.Name, horse["Barn / Trainer"] || "")
-      : horseName;
+  const getHorseIdentifier = (name: string, barnTrainer: string) => {
+    return `${name}__${barnTrainer}`;
   };
 
-  const toggleHorse = (horseName: string) => {
-    const newSelected = selectedHorses.includes(horseName)
-      ? selectedHorses.filter((h) => h !== horseName)
-      : [...selectedHorses, horseName];
+  const getHorseDisplayName = (horseIdentifier: string) => {
+    const [name, barnTrainer] = horseIdentifier.split("__");
+    return formatHorseString(name, barnTrainer);
+  };
+
+  const toggleHorse = (horse: Horse) => {
+    const horseId = getHorseIdentifier(horse.Name, horse["Barn / Trainer"]);
+    const newSelected = selectedHorses.includes(horseId)
+      ? selectedHorses.filter((h) => h !== horseId)
+      : [...selectedHorses, horseId];
     onHorseChange(newSelected);
   };
 
@@ -82,14 +85,14 @@ export function HorseSelect({
           {selectedHorses.length === 0 && (
             <span className="text-muted-foreground">{placeholder}</span>
           )}
-          {selectedHorses.map((horseName) => (
-            <Badge key={horseName} variant="secondary" className="mr-1 mb-1">
-              {getHorseDisplayName(horseName)}
+          {selectedHorses.map((horseId) => (
+            <Badge key={horseId} variant="secondary" className="mr-1 mb-1">
+              {getHorseDisplayName(horseId)}
               <button
                 className="ml-1 hover:bg-destructive/50 rounded-full"
                 onClick={(e) => {
                   e.stopPropagation();
-                  removeHorse(horseName);
+                  removeHorse(horseId);
                 }}
               >
                 <X className="h-3 w-3" />
@@ -118,7 +121,11 @@ export function HorseSelect({
             ) : (
               <div className="space-y-1">
                 {filteredHorses.map((horse) => {
-                  const isSelected = selectedHorses.includes(horse.Name);
+                  const horseId = getHorseIdentifier(
+                    horse.Name,
+                    horse["Barn / Trainer"]
+                  );
+                  const isSelected = selectedHorses.includes(horseId);
                   const displayName = formatHorseString(
                     horse.Name || "",
                     horse["Barn / Trainer"] || ""
@@ -135,7 +142,7 @@ export function HorseSelect({
                       )}
                       onClick={(e) => {
                         e.preventDefault();
-                        toggleHorse(horse.Name);
+                        toggleHorse(horse);
                       }}
                     >
                       <Check
