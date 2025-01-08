@@ -29,16 +29,17 @@ export function HorseSelect({
   const [isExpanded, setIsExpanded] = useState(false);
 
   const formatHorseString = (name: string, barnTrainer: string) => {
-    return `${name} - [${barnTrainer}]`;
+    return `${name} - [${barnTrainer || "No Barn"}]`;
   };
 
   const getHorseIdentifier = (name: string, barnTrainer: string) => {
-    return `${name}__${barnTrainer}`;
+    return name;
   };
 
   const getHorseDisplayName = (horseIdentifier: string) => {
-    const [name, barnTrainer] = horseIdentifier.split("__");
-    return formatHorseString(name, barnTrainer);
+    const horse = horses.find((h) => h.Name === horseIdentifier);
+    if (!horse) return horseIdentifier;
+    return formatHorseString(horse.Name, horse["Barn / Trainer"]);
   };
 
   const toggleHorse = (horse: Horse) => {

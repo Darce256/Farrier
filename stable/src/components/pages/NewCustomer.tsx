@@ -109,8 +109,20 @@ export default function NewCustomer() {
       setSelectedHorses(
         data.Horses
           ? data.Horses.split(",")
-              .map((h: string) => h.trim())
-              .map((h: string) => h.split(" - ")[0].trim())
+              .map((h: string) => {
+                const h_trim = h.trim();
+                const dashBracketMatch = h_trim.match(
+                  /^(.+?)\s*-\s*\[(.+?)\]$/
+                );
+                const underscoreMatch = h_trim.match(/^(.+?)__(.+?)$/);
+                if (dashBracketMatch) {
+                  return dashBracketMatch[1].trim();
+                } else if (underscoreMatch) {
+                  return underscoreMatch[1].trim();
+                }
+                return h_trim;
+              })
+              .filter(Boolean)
           : []
       );
     } catch (error) {
@@ -119,18 +131,26 @@ export default function NewCustomer() {
     }
   };
 
+  const formatHorseName = (horseName: string) => {
+    const horse = horses.find((h) => h.Name === horseName);
+    if (!horse) {
+      console.error(`Horse not found: ${horseName}`);
+      return null;
+    }
+    const barnTrainer = horse["Barn / Trainer"] || "No Barn";
+    return `${horse.Name} - [${barnTrainer}]`;
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const customerData = Object.fromEntries(formData.entries());
-    const customerName = customerData["Display Name"] as string;
 
     try {
-      // Format horse entries with barn/trainer info
-      const formattedHorses = selectedHorses.map((horseName) => {
-        const horse = horses.find((h) => h.Name === horseName);
-        return `${horseName} - [${horse?.["Barn / Trainer"] || ""}]`;
-      });
+      // Format horse entries consistently
+      const formattedHorses = selectedHorses
+        .map(formatHorseName)
+        .filter(Boolean);
       customerData.Horses = formattedHorses.join(", ");
 
       if (id) {
@@ -142,9 +162,14 @@ export default function NewCustomer() {
           .single();
 
         const previousHorses = currentCustomer?.Horses
-          ? currentCustomer.Horses.split(",").map((h: string) =>
-              h.split(" - ")[0].trim()
-            )
+          ? currentCustomer.Horses.split(",")
+              .map((h: string) => {
+                const h_trim = h.trim();
+                // Extract just the horse name from any format
+                const match = h_trim.match(/^(.+?)(?:\s*-\s*\[.*\])?$/);
+                return match ? match[1].trim() : h_trim;
+              })
+              .filter(Boolean)
           : [];
 
         // Update customer record
@@ -170,7 +195,7 @@ export default function NewCustomer() {
                 ? horseData.Customers.split(",").map((c: string) => c.trim())
                 : [];
               const updatedCustomers = currentCustomers
-                .filter((c: string) => c !== customerName)
+                .filter((c: string) => c !== customerData["Display Name"])
                 .join(", ");
 
               await supabase
@@ -186,7 +211,7 @@ export default function NewCustomer() {
                   "Owner Email": null,
                 })
                 .eq("Horse Name", horseName)
-                .eq("QB Customers", customerName)
+                .eq("QB Customers", customerData["Display Name"])
                 .eq("status", "pending");
             }
           }
@@ -206,8 +231,8 @@ export default function NewCustomer() {
                 ? horseData.Customers.split(",").map((c: string) => c.trim())
                 : [];
 
-              if (!currentCustomers.includes(customerName)) {
-                currentCustomers.push(customerName);
+              if (!currentCustomers.includes(customerData["Display Name"])) {
+                currentCustomers.push(customerData["Display Name"]);
                 await supabase
                   .from("horses")
                   .update({ Customers: currentCustomers.join(", ") })
@@ -217,7 +242,7 @@ export default function NewCustomer() {
                 await supabase
                   .from("shoeings")
                   .update({
-                    "QB Customers": customerName,
+                    "QB Customers": customerData["Display Name"],
                     "Owner Email": customerData["Owner Email"],
                   })
                   .eq("Horse Name", horseName)
@@ -233,7 +258,7 @@ export default function NewCustomer() {
           await supabase
             .from("shoeings")
             .update({
-              "QB Customers": customerName,
+              "QB Customers": customerData["Display Name"],
               "Owner Email": customerData["Owner Email"],
             })
             .in("Horse Name", selectedHorses)
@@ -261,8 +286,8 @@ export default function NewCustomer() {
               ? horseData.Customers.split(",").map((c: string) => c.trim())
               : [];
 
-            if (!currentCustomers.includes(customerName)) {
-              currentCustomers.push(customerName);
+            if (!currentCustomers.includes(customerData["Display Name"])) {
+              currentCustomers.push(customerData["Display Name"]);
               await supabase
                 .from("horses")
                 .update({ Customers: currentCustomers.join(", ") })
@@ -276,7 +301,7 @@ export default function NewCustomer() {
           await supabase
             .from("shoeings")
             .update({
-              "QB Customers": customerName,
+              "QB Customers": customerData["Display Name"],
               "Owner Email": customerData["Owner Email"],
             })
             .in("Horse Name", selectedHorses)
@@ -397,12 +422,9 @@ export default function NewCustomer() {
                     'input[name="Horses"]'
                   ) as HTMLInputElement;
                   if (input) {
-                    const formattedHorses = selected.map((horseName) => {
-                      const horse = horses.find((h) => h.Name === horseName);
-                      return `${horseName} - [${
-                        horse?.["Barn / Trainer"] || ""
-                      }]`;
-                    });
+                    const formattedHorses = selected
+                      .map(formatHorseName)
+                      .filter(Boolean);
                     input.value = formattedHorses.join(", ");
                   }
                 }}
@@ -413,12 +435,8 @@ export default function NewCustomer() {
                 name="Horses"
                 type="hidden"
                 value={selectedHorses
-                  .map((horseName) => {
-                    const horse = horses.find((h) => h.Name === horseName);
-                    return `${horseName} - [${
-                      horse?.["Barn / Trainer"] || ""
-                    }]`;
-                  })
+                  .map(formatHorseName)
+                  .filter(Boolean)
                   .join(", ")}
                 readOnly
               />
