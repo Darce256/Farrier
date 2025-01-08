@@ -32,7 +32,7 @@ export function HorseSelect({
     return `${name} - [${barnTrainer || "No Barn"}]`;
   };
 
-  const getHorseIdentifier = (name: string, barnTrainer: string) => {
+  const getHorseIdentifier = (name: string, _barnTrainer: string) => {
     return name;
   };
 
