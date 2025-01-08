@@ -63,7 +63,7 @@ export default function NewCustomer() {
     try {
       const { data, error } = await supabase
         .from("horses")
-        .select('id, Name, "Barn / Trainer"')
+        .select('id, Name, "Barn / Trainer", Customers')
         .order("Name");
 
       if (error) throw error;
@@ -133,10 +133,10 @@ export default function NewCustomer() {
 
   const formatHorseName = (horseName: string) => {
     const horse = horses.find((h) => h.Name === horseName);
-    if (!horse) {
-      console.error(`Horse not found: ${horseName}`);
-      return null;
+    if (!horse && horses.length > 0) {
+      return horseName;
     }
+    if (!horse) return horseName;
     const barnTrainer = horse["Barn / Trainer"] || "No Barn";
     return `${horse.Name} - [${barnTrainer}]`;
   };
@@ -434,10 +434,14 @@ export default function NewCustomer() {
                 id="Horses"
                 name="Horses"
                 type="hidden"
-                value={selectedHorses
-                  .map(formatHorseName)
-                  .filter(Boolean)
-                  .join(", ")}
+                value={
+                  horses.length > 0
+                    ? selectedHorses
+                        .map(formatHorseName)
+                        .filter(Boolean)
+                        .join(", ")
+                    : ""
+                }
                 readOnly
               />
             </div>
