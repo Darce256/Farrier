@@ -32,12 +32,15 @@ export function HorseSelect({
     return `${name} - [${barnTrainer || "No Barn"}]`;
   };
 
-  const getHorseIdentifier = (name: string, _barnTrainer: string) => {
-    return name;
+  const getHorseIdentifier = (name: string, barnTrainer: string) => {
+    return `${name}__${barnTrainer || "No Barn"}`;
   };
 
   const getHorseDisplayName = (horseIdentifier: string) => {
-    const horse = horses.find((h) => h.Name === horseIdentifier);
+    const [name, barn] = horseIdentifier.split("__");
+    const horse = horses.find(
+      (h) => h.Name === name && (h["Barn / Trainer"] || "No Barn") === barn
+    );
     if (!horse) return horseIdentifier;
     return formatHorseString(horse.Name, horse["Barn / Trainer"]);
   };

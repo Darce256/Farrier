@@ -114,11 +114,9 @@ export default function NewCustomer() {
                 const dashBracketMatch = h_trim.match(
                   /^(.+?)\s*-\s*\[(.+?)\]$/
                 );
-                const underscoreMatch = h_trim.match(/^(.+?)__(.+?)$/);
                 if (dashBracketMatch) {
-                  return dashBracketMatch[1].trim();
-                } else if (underscoreMatch) {
-                  return underscoreMatch[1].trim();
+                  const [_, name, barn] = dashBracketMatch;
+                  return `${name.trim()}__${barn.trim()}`;
                 }
                 return h_trim;
               })
@@ -132,13 +130,12 @@ export default function NewCustomer() {
   };
 
   const formatHorseName = (horseName: string) => {
-    const horse = horses.find((h) => h.Name === horseName);
-    if (!horse && horses.length > 0) {
-      return horseName;
-    }
+    const [name, barn] = horseName.split("__");
+    const horse = horses.find(
+      (h) => h.Name === name && (h["Barn / Trainer"] || "No Barn") === barn
+    );
     if (!horse) return horseName;
-    const barnTrainer = horse["Barn / Trainer"] || "No Barn";
-    return `${horse.Name} - [${barnTrainer}]`;
+    return `${horse.Name} - [${horse["Barn / Trainer"] || "No Barn"}]`;
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -186,7 +183,7 @@ export default function NewCustomer() {
             // Update horse record
             const { data: horseData } = await supabase
               .from("horses")
-              .select("Customers")
+              .select('Customers, Name, "Barn / Trainer"')
               .eq("Name", horseName)
               .single();
 
@@ -222,7 +219,7 @@ export default function NewCustomer() {
           if (!previousHorses.includes(horseName)) {
             const { data: horseData } = await supabase
               .from("horses")
-              .select("Customers")
+              .select('Customers, Name, "Barn / Trainer"')
               .eq("Name", horseName)
               .single();
 
@@ -277,7 +274,7 @@ export default function NewCustomer() {
         for (const horseName of selectedHorses) {
           const { data: horseData } = await supabase
             .from("horses")
-            .select("Customers")
+            .select('Customers, Name, "Barn / Trainer"')
             .eq("Name", horseName)
             .single();
 
