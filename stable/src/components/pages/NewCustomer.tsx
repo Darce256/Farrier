@@ -27,6 +27,14 @@ interface Customer {
   created_at: string;
 }
 
+// Email validation helper function
+const validateEmails = (emails: string): boolean => {
+  if (!emails.trim()) return true; // Allow empty
+  const emailList = emails.split(",").map((e) => e.trim());
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailList.every((email) => emailRegex.test(email));
+};
+
 export default function NewCustomer() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -36,6 +44,7 @@ export default function NewCustomer() {
   const [barnInput, setBarnInput] = useState("");
   const [existingBarns, setExistingBarns] = useState<string[]>([]);
   const [showBarnSuggestions, setShowBarnSuggestions] = useState(false);
+  const [emailError, setEmailError] = useState<string>("");
 
   useEffect(() => {
     fetchHorses();
@@ -138,10 +147,25 @@ export default function NewCustomer() {
     return `${horse.Name} - [${horse["Barn / Trainer"] || "No Barn"}]`;
   };
 
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const emails = e.target.value;
+    if (!validateEmails(emails)) {
+      setEmailError("Please enter valid email addresses separated by commas");
+    } else {
+      setEmailError("");
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const customerData = Object.fromEntries(formData.entries());
+
+    // Validate emails before submission
+    if (!validateEmails(customerData["Owner Email"] as string)) {
+      toast.error("Please fix the email format before submitting");
+      return;
+    }
 
     try {
       // Format horse entries consistently
@@ -250,7 +274,7 @@ export default function NewCustomer() {
         }
 
         // Update all pending shoeings for currently selected horses
-        // This ensures even existing horses have their shoeings updated
+        // This ensures even existing horses have their shoeings updated with all email addresses
         if (selectedHorses.length > 0) {
           await supabase
             .from("shoeings")
@@ -392,13 +416,18 @@ export default function NewCustomer() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="Owner Email">Email</Label>
+              <Label htmlFor="Owner Email">Email(s)</Label>
               <Input
                 id="Owner Email"
                 name="Owner Email"
-                type="email"
+                type="text"
                 defaultValue={customer?.["Owner Email"] || ""}
+                onChange={handleEmailChange}
+                placeholder="Enter email addresses separated by commas"
               />
+              {emailError && (
+                <p className="text-sm text-destructive">{emailError}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="Phone">Phone</Label>
