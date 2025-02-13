@@ -931,13 +931,10 @@ export default function ShoeingsApprovalPanel() {
         }
       );
       setSelectedCustomers(newSelectedCustomers);
-      console.log("Initial selectedCustomers:", newSelectedCustomers);
     }
   }, [quickBooksData, groupedShoeings]);
 
-  useEffect(() => {
-    console.log("selectedCustomers updated:", selectedCustomers);
-  }, [selectedCustomers]);
+  useEffect(() => {}, [selectedCustomers]);
 
   const refreshQuickBooksToken = async (refreshToken: string) => {
     try {
@@ -1245,7 +1242,6 @@ export default function ShoeingsApprovalPanel() {
   };
 
   const handleCustomerSelect = (key: string, customerId: string) => {
-    console.log(`Selecting customer for key ${key}: ${customerId}`);
     setSelectedCustomers((prev) => {
       const newState = { ...prev };
       newState[key] = customerId; // Update the group key
@@ -1254,7 +1250,6 @@ export default function ShoeingsApprovalPanel() {
           newState[shoeing.id] = customerId; // Update each shoeing in the group
         });
       }
-      console.log("Updated selectedCustomers:", newState);
       return newState;
     });
   };
@@ -1567,119 +1562,107 @@ export default function ShoeingsApprovalPanel() {
               <AccordionContent>
                 <LazyAccordionContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {groupedShoeings.noCustomer.shoeings.map(
-                      (shoeing) => (
-                        console.log(shoeing),
-                        (
-                          <Card
-                            key={shoeing.id}
-                            className="flex flex-col h-full"
+                    {groupedShoeings.noCustomer.shoeings.map((shoeing) => (
+                      <Card key={shoeing.id} className="flex flex-col h-full">
+                        <CardContent className="flex-grow p-4 flex flex-col">
+                          {/* Render shoeing details */}
+                          <h3 className="font-semibold text-lg mb-2">
+                            {shoeing["Horse Name"]}
+                          </h3>
+                          {shoeing.is_new_horse && (
+                            <Badge
+                              variant="outline"
+                              className="bg-yellow-100 text-yellow-800 border-yellow-300 mr-2"
+                            >
+                              <AlertCircle className="w-4 h-4 mr-2" />
+                              New Horse -
+                              <Button
+                                variant="link"
+                                className="text-yellow-800 ml-1 hover:underline p-0 h-auto"
+                                onClick={() => handleOpenReviewModal(shoeing)}
+                              >
+                                review?
+                              </Button>
+                            </Badge>
+                          )}
+                          <p>Date: {shoeing["Date of Service"]}</p>
+                          <p>
+                            Barn:{" "}
+                            {shoeing.Horses.split(" - ")[1]?.replace(
+                              /[\[\]]/g,
+                              ""
+                            )}
+                          </p>{" "}
+                          {/* Add this line */}
+                          <p>Location: {shoeing["Location of Service"]}</p>
+                          <p>
+                            Total Cost: $
+                            {shoeing["Total Cost"]?.replace(/\$/g, "") ?? ""}
+                          </p>
+                          <p className="mb-4">
+                            <strong>Description:</strong> {shoeing.Description}
+                          </p>
+                        </CardContent>
+                        <div className="p-4 mt-auto flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditShoeing(shoeing)}
+                            className="flex-1 bg-primary text-white hover:bg-black hover:text-white"
                           >
-                            <CardContent className="flex-grow p-4 flex flex-col">
-                              {/* Render shoeing details */}
-                              <h3 className="font-semibold text-lg mb-2">
-                                {shoeing["Horse Name"]}
-                              </h3>
-                              {shoeing.is_new_horse && (
-                                <Badge
-                                  variant="outline"
-                                  className="bg-yellow-100 text-yellow-800 border-yellow-300 mr-2"
+                            <Pencil className="w-4 h-4 mr-2" /> Edit
+                          </Button>
+                        </div>
+                        <div className="p-4">
+                          <Select
+                            onValueChange={(value) =>
+                              handleCustomerSelect(shoeing.id, value)
+                            }
+                            value={selectedCustomers[shoeing.id] || ""}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select QuickBooks Customer" />
+                            </SelectTrigger>
+                            <FilteredVirtualizedSelectContent className="min-w-[300px]">
+                              {quickBooksData?.customers.map((customer) => (
+                                <SelectItem
+                                  key={customer.id}
+                                  value={customer.id}
+                                  className="whitespace-nowrap"
                                 >
-                                  <AlertCircle className="w-4 h-4 mr-2" />
-                                  New Horse -
-                                  <Button
-                                    variant="link"
-                                    className="text-yellow-800 ml-1 hover:underline p-0 h-auto"
-                                    onClick={() =>
-                                      handleOpenReviewModal(shoeing)
-                                    }
-                                  >
-                                    review?
-                                  </Button>
-                                </Badge>
-                              )}
-                              <p>Date: {shoeing["Date of Service"]}</p>
-                              <p>
-                                Barn:{" "}
-                                {shoeing.Horses.split(" - ")[1]?.replace(
-                                  /[\[\]]/g,
-                                  ""
-                                )}
-                              </p>{" "}
-                              {/* Add this line */}
-                              <p>Location: {shoeing["Location of Service"]}</p>
-                              <p>
-                                Total Cost: $
-                                {shoeing["Total Cost"]?.replace(/\$/g, "") ??
-                                  ""}
-                              </p>
-                              <p className="mb-4">
-                                <strong>Description:</strong>{" "}
-                                {shoeing.Description}
-                              </p>
-                            </CardContent>
-                            <div className="p-4 mt-auto flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleEditShoeing(shoeing)}
-                                className="flex-1 bg-primary text-white hover:bg-black hover:text-white"
-                              >
-                                <Pencil className="w-4 h-4 mr-2" /> Edit
-                              </Button>
-                            </div>
-                            <div className="p-4">
-                              <Select
-                                onValueChange={(value) =>
-                                  handleCustomerSelect(shoeing.id, value)
-                                }
-                                value={selectedCustomers[shoeing.id] || ""}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Select QuickBooks Customer" />
-                                </SelectTrigger>
-                                <FilteredVirtualizedSelectContent className="min-w-[300px]">
-                                  {quickBooksData?.customers.map((customer) => (
-                                    <SelectItem
-                                      key={customer.id}
-                                      value={customer.id}
-                                      className="whitespace-nowrap"
-                                    >
-                                      {customer.displayName}
-                                    </SelectItem>
-                                  ))}
-                                </FilteredVirtualizedSelectContent>
-                              </Select>
-                            </div>
-                            <div className="p-4 flex justify-between">
-                              <Button
-                                onClick={() => handleAccept(shoeing.id)}
-                                disabled={
-                                  !selectedCustomers[shoeing.id] ||
-                                  isAccepting === shoeing.id
-                                }
-                                className="w-1/2 mr-2 hover:bg-black hover:text-white"
-                              >
-                                {isAccepting === shoeing.id ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Check className="mr-2 h-4 w-4" />
-                                )}
-                                Accept
-                              </Button>
-                              <Button
-                                onClick={() => handleReject(shoeing.id)}
-                                variant="destructive"
-                                className="w-1/2 ml-2 "
-                              >
-                                <X className="mr-2 h-4 w-4" />
-                                Reject
-                              </Button>
-                            </div>
-                          </Card>
-                        )
-                      )
-                    )}
+                                  {customer.displayName}
+                                </SelectItem>
+                              ))}
+                            </FilteredVirtualizedSelectContent>
+                          </Select>
+                        </div>
+                        <div className="p-4 flex justify-between">
+                          <Button
+                            onClick={() => handleAccept(shoeing.id)}
+                            disabled={
+                              !selectedCustomers[shoeing.id] ||
+                              isAccepting === shoeing.id
+                            }
+                            className="w-1/2 mr-2 hover:bg-black hover:text-white"
+                          >
+                            {isAccepting === shoeing.id ? (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            ) : (
+                              <Check className="mr-2 h-4 w-4" />
+                            )}
+                            Accept
+                          </Button>
+                          <Button
+                            onClick={() => handleReject(shoeing.id)}
+                            variant="destructive"
+                            className="w-1/2 ml-2 "
+                          >
+                            <X className="mr-2 h-4 w-4" />
+                            Reject
+                          </Button>
+                        </div>
+                      </Card>
+                    ))}
                   </div>
                 </LazyAccordionContent>
               </AccordionContent>

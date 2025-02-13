@@ -172,6 +172,8 @@ export default function NewCustomer() {
       const formattedHorses = selectedHorses
         .map(formatHorseName)
         .filter(Boolean);
+      console.log("Selected Horses:", selectedHorses);
+      console.log("Formatted Horses:", formattedHorses);
       customerData.Horses = formattedHorses.join(", ");
 
       if (id) {
@@ -186,9 +188,15 @@ export default function NewCustomer() {
           ? currentCustomer.Horses.split(",")
               .map((h: string) => {
                 const h_trim = h.trim();
-                // Extract just the horse name from any format
-                const match = h_trim.match(/^(.+?)(?:\s*-\s*\[.*\])?$/);
-                return match ? match[1].trim() : h_trim;
+                // Extract name and barn from "name - [barn]" format
+                const dashBracketMatch = h_trim.match(
+                  /^(.+?)\s*-\s*\[(.+?)\]$/
+                );
+                if (dashBracketMatch) {
+                  const [_, name, barn] = dashBracketMatch;
+                  return `${name.trim()}__${barn.trim()}`;
+                }
+                return h_trim;
               })
               .filter(Boolean)
           : [];
@@ -204,12 +212,28 @@ export default function NewCustomer() {
         // Remove customer from unselected horses
         for (const horseName of previousHorses) {
           if (!selectedHorses.includes(horseName)) {
-            // Update horse record
+            // Parse horse name and barn from the format "name__barn"
+            const match = horseName.match(/^(.+?)__(.+?)$/);
+            if (!match) {
+              console.log("Failed to parse horse name format:", horseName);
+              continue;
+            }
+            const [_, name, barn] = match;
+
             const { data: horseData } = await supabase
               .from("horses")
-              .select('Customers, Name, "Barn / Trainer"')
-              .eq("Name", horseName)
-              .single();
+              .select("*")
+              .ilike("Name", name.trim())
+              .ilike('"Barn / Trainer"', barn.trim())
+              .maybeSingle();
+
+            console.log("Horse query debug:", {
+              searchName: name.trim(),
+              searchBarn: barn.trim(),
+              result: horseData,
+              query:
+                'SELECT * FROM horses WHERE Name ILIKE $1 AND "Barn / Trainer" ILIKE $2',
+            });
 
             if (horseData) {
               const currentCustomers = horseData.Customers
@@ -222,18 +246,59 @@ export default function NewCustomer() {
               await supabase
                 .from("horses")
                 .update({ Customers: updatedCustomers || null })
-                .eq("Name", horseName);
+                .ilike("Name", name.trim())
+                .ilike('"Barn / Trainer"', barn.trim());
 
               // Update any pending shoeings for this horse to remove the customer
-              await supabase
+              const formattedHorseName = `${name.trim()} - [${barn.trim()}]`;
+
+              const { data: shoeings, error: findError } = await supabase
                 .from("shoeings")
-                .update({
-                  "QB Customers": null,
-                  "Owner Email": null,
-                })
-                .eq("Horse Name", horseName)
+                .select("*")
+                .eq("Horses", formattedHorseName)
                 .eq("QB Customers", customerData["Display Name"])
                 .eq("status", "pending");
+
+              if (findError) {
+                console.error(
+                  "Error finding pending shoeings to update:",
+                  findError
+                );
+              } else {
+                console.log("Found pending shoeings to update:", shoeings);
+
+                if (shoeings && shoeings.length > 0) {
+                  const { error: updateError } = await supabase
+                    .from("shoeings")
+                    .update({
+                      "QB Customers": null,
+                      "Owner Email": null,
+                    })
+                    .eq("Horses", formattedHorseName)
+                    .eq("QB Customers", customerData["Display Name"])
+                    .eq("status", "pending");
+
+                  if (updateError) {
+                    console.error(
+                      "Error updating pending shoeings:",
+                      updateError
+                    );
+                  } else {
+                    console.log(
+                      "Successfully cleared QB Customers for pending shoeings:",
+                      {
+                        horseName: formattedHorseName,
+                        count: shoeings.length,
+                      }
+                    );
+                  }
+                } else {
+                  console.log(
+                    "No pending shoeings found to update for:",
+                    formattedHorseName
+                  );
+                }
+              }
             }
           }
         }
@@ -241,11 +306,20 @@ export default function NewCustomer() {
         // Add customer to newly selected horses
         for (const horseName of selectedHorses) {
           if (!previousHorses.includes(horseName)) {
+            // Parse horse name and barn from the format "name__barn"
+            const match = horseName.match(/^(.+?)__(.+?)$/);
+            if (!match) {
+              console.log("Failed to parse horse name format:", horseName);
+              continue;
+            }
+            const [_, name, barn] = match;
+
             const { data: horseData } = await supabase
               .from("horses")
-              .select('Customers, Name, "Barn / Trainer"')
-              .eq("Name", horseName)
-              .single();
+              .select("*")
+              .ilike("Name", name.trim())
+              .ilike('"Barn / Trainer"', barn.trim())
+              .maybeSingle();
 
             if (horseData) {
               const currentCustomers = horseData.Customers
@@ -254,36 +328,113 @@ export default function NewCustomer() {
 
               if (!currentCustomers.includes(customerData["Display Name"])) {
                 currentCustomers.push(customerData["Display Name"]);
-                await supabase
-                  .from("horses")
-                  .update({ Customers: currentCustomers.join(", ") })
-                  .eq("Name", horseName);
 
-                // Update any pending shoeings that might have a different customer
-                await supabase
-                  .from("shoeings")
-                  .update({
-                    "QB Customers": customerData["Display Name"],
-                    "Owner Email": customerData["Owner Email"],
-                  })
-                  .eq("Horse Name", horseName)
-                  .eq("status", "pending");
+                try {
+                  // First verify the horse exists
+                  const { data: _verifyHorse, error: verifyError } =
+                    await supabase
+                      .from("horses")
+                      .select("*")
+                      .ilike("Name", name.trim())
+                      .ilike('"Barn / Trainer"', barn.trim())
+                      .maybeSingle();
+
+                  if (verifyError) {
+                    console.error("Failed to verify horse exists:", {
+                      error: verifyError,
+                      horseName: name.trim(),
+                      barnName: barn.trim(),
+                    });
+                    throw verifyError;
+                  }
+
+                  // Now attempt the update
+                  const { data: _updateData, error: updateError } =
+                    await supabase
+                      .from("horses")
+                      .update({ Customers: currentCustomers.join(", ") })
+                      .ilike("Name", name.trim())
+                      .ilike('"Barn / Trainer"', barn.trim())
+                      .select();
+
+                  if (updateError) {
+                    console.error("Failed to update horse customers:", {
+                      error: updateError,
+                      horseName: name.trim(),
+                      barnName: barn.trim(),
+                      newCustomers: currentCustomers.join(", "),
+                    });
+                    throw updateError;
+                  }
+
+                  // Verify the update was successful
+                  const { data: _verifyUpdate, error: verifyUpdateError } =
+                    await supabase
+                      .from("horses")
+                      .select("*")
+                      .ilike("Name", name.trim())
+                      .ilike('"Barn / Trainer"', barn.trim())
+                      .maybeSingle();
+
+                  if (verifyUpdateError) {
+                    console.error(
+                      "Failed to verify update:",
+                      verifyUpdateError
+                    );
+                  }
+                } catch (error) {
+                  console.error(
+                    "Exception during horse update process:",
+                    error
+                  );
+                  throw error;
+                }
+              } else {
+                console.log("Customer already exists for horse:", {
+                  horseName: name.trim(),
+                  customers: currentCustomers,
+                  displayName: customerData["Display Name"],
+                });
               }
+            } else {
+              console.log("No horse data found for:", {
+                horseName: name.trim(),
+                barnName: barn.trim(),
+              });
             }
           }
         }
 
         // Update all pending shoeings for currently selected horses
-        // This ensures even existing horses have their shoeings updated with all email addresses
         if (selectedHorses.length > 0) {
-          await supabase
+          // Parse horse names to include barn info in the IN clause
+          const formattedHorseNames = selectedHorses
+            .map((horseName) => {
+              const match = horseName.match(/^(.+?)__(.+?)$/);
+              if (!match) {
+                console.log("Failed to parse horse name format:", horseName);
+                return null;
+              }
+              const [_, name, barn] = match;
+              return `${name.trim()} - [${barn.trim()}]`;
+            })
+            .filter(Boolean);
+
+          const { error: shoeingError } = await supabase
             .from("shoeings")
             .update({
               "QB Customers": customerData["Display Name"],
               "Owner Email": customerData["Owner Email"],
             })
-            .in("Horse Name", selectedHorses)
+            .in("Horses", formattedHorseNames)
             .eq("status", "pending");
+
+          if (shoeingError) {
+            console.error(
+              "Error updating shoeings for selected horses:",
+              shoeingError
+            );
+          }
         }
 
         toast.success("Customer updated successfully");
@@ -296,11 +447,33 @@ export default function NewCustomer() {
 
         // Add customer to all selected horses
         for (const horseName of selectedHorses) {
-          const { data: horseData } = await supabase
+          // Parse horse name and barn from the format "name__barn"
+          const match = horseName.match(/^(.+?)__(.+?)$/);
+          console.log("Horse parsing:", { horseName, match });
+          if (!match) {
+            console.log("Failed to parse horse name format:", horseName);
+            continue;
+          }
+          const [_, name, barn] = match;
+          console.log("Parsed horse:", {
+            name: name.trim(),
+            barn: barn.trim(),
+          });
+
+          const { data: horseData, error: _horseError } = await supabase
             .from("horses")
-            .select('Customers, Name, "Barn / Trainer"')
-            .eq("Name", horseName)
-            .single();
+            .select("*")
+            .ilike("Name", name.trim())
+            .ilike('"Barn / Trainer"', barn.trim())
+            .maybeSingle();
+
+          console.log("Horse query debug:", {
+            searchName: name.trim(),
+            searchBarn: barn.trim(),
+            result: horseData,
+            query:
+              'SELECT * FROM horses WHERE Name ILIKE $1 AND "Barn / Trainer" ILIKE $2',
+          });
 
           if (horseData) {
             const currentCustomers = horseData.Customers
@@ -309,23 +482,86 @@ export default function NewCustomer() {
 
             if (!currentCustomers.includes(customerData["Display Name"])) {
               currentCustomers.push(customerData["Display Name"]);
-              await supabase
-                .from("horses")
-                .update({ Customers: currentCustomers.join(", ") })
-                .eq("Name", horseName);
+
+              try {
+                // First verify the horse exists
+                const { data: _verifyHorse, error: verifyError } =
+                  await supabase
+                    .from("horses")
+                    .select("*")
+                    .ilike("Name", name.trim())
+                    .ilike('"Barn / Trainer"', barn.trim())
+                    .maybeSingle();
+
+                if (verifyError) {
+                  console.error("Failed to verify horse exists:", {
+                    error: verifyError,
+                    horseName: name.trim(),
+                    barnName: barn.trim(),
+                  });
+                  throw verifyError;
+                }
+
+                // Now attempt the update
+                const { data: _updateData, error: updateError } = await supabase
+                  .from("horses")
+                  .update({ Customers: currentCustomers.join(", ") })
+                  .ilike("Name", name.trim())
+                  .ilike('"Barn / Trainer"', barn.trim())
+                  .select();
+
+                if (updateError) {
+                  console.error("Failed to update horse customers:", {
+                    error: updateError,
+                    horseName: name.trim(),
+                    barnName: barn.trim(),
+                    newCustomers: currentCustomers.join(", "),
+                  });
+                  throw updateError;
+                }
+
+                // Verify the update was successful
+                const { data: _verifyUpdate, error: verifyUpdateError } =
+                  await supabase
+                    .from("horses")
+                    .select("*")
+                    .ilike("Name", name.trim())
+                    .ilike('"Barn / Trainer"', barn.trim())
+                    .maybeSingle();
+
+                if (verifyUpdateError) {
+                  console.error("Failed to verify update:", verifyUpdateError);
+                }
+              } catch (error) {
+                console.error("Exception during horse update process:", error);
+                throw error;
+              }
             }
           }
         }
 
         // Update shoeings for selected horses
         if (selectedHorses.length > 0) {
+          // Parse horse names to include barn info in the IN clause
+          const horseNames = selectedHorses
+            .map((horseName) => {
+              const match = horseName.match(/^(.+?)__(.+?)$/);
+              if (!match) {
+                console.log("Failed to parse horse name format:", horseName);
+                return null;
+              }
+              const [_, name] = match;
+              return name.trim();
+            })
+            .filter(Boolean);
+
           await supabase
             .from("shoeings")
             .update({
               "QB Customers": customerData["Display Name"],
               "Owner Email": customerData["Owner Email"],
             })
-            .in("Horse Name", selectedHorses)
+            .in("Horses", horseNames)
             .eq("status", "pending");
         }
 
