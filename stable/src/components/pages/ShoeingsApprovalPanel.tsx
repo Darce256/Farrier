@@ -917,15 +917,51 @@ export default function ShoeingsApprovalPanel() {
       Object.entries(groupedShoeings).forEach(
         ([key, { displayName, shoeings }]) => {
           if (key !== "noCustomer") {
+            // Find the matching QuickBooks customer by display name (case-insensitive)
             const matchingCustomer = quickBooksData.customers.find(
               (customer) =>
                 customer.displayName.toLowerCase() === displayName.toLowerCase()
             );
+
             if (matchingCustomer) {
-              newSelectedCustomers[key] = matchingCustomer.id; // Set for the group key
-              shoeings.forEach((shoeing) => {
-                newSelectedCustomers[shoeing.id] = matchingCustomer.id; // Set for each shoeing
+              console.log("Found matching QB customer:", {
+                groupKey: key,
+                displayName,
+                matchingCustomer: matchingCustomer.displayName,
+                customerId: matchingCustomer.id,
               });
+
+              newSelectedCustomers[key] = matchingCustomer.id; // Set for the group key
+
+              // Also set for each individual shoeing in this group
+              shoeings.forEach((shoeing) => {
+                newSelectedCustomers[shoeing.id] = matchingCustomer.id;
+              });
+            } else {
+              // If no exact match, try to find a partial match
+              const partialMatch = quickBooksData.customers.find(
+                (customer) =>
+                  customer.displayName
+                    .toLowerCase()
+                    .includes(displayName.toLowerCase()) ||
+                  displayName
+                    .toLowerCase()
+                    .includes(customer.displayName.toLowerCase())
+              );
+
+              if (partialMatch) {
+                console.log("Found partial matching QB customer:", {
+                  groupKey: key,
+                  displayName,
+                  partialMatch: partialMatch.displayName,
+                  customerId: partialMatch.id,
+                });
+
+                newSelectedCustomers[key] = partialMatch.id;
+                shoeings.forEach((shoeing) => {
+                  newSelectedCustomers[shoeing.id] = partialMatch.id;
+                });
+              }
             }
           }
         }
@@ -1028,19 +1064,45 @@ export default function ShoeingsApprovalPanel() {
         (acc: GroupedShoeings, shoeing: any) => {
           const horseShoeings = groupedByHorse[shoeing.Horses] || []; // Add fallback empty array
 
+          // Always prioritize the current shoeing's QB Customer if it exists
+          if (shoeing["QB Customers"]) {
+            const currentCustomer = shoeing["QB Customers"];
+            console.log("Using current shoeing's QB Customer:", {
+              horse: shoeing.Horses,
+              customer: currentCustomer,
+              shoeingId: shoeing.id,
+            });
+
+            if (!acc[currentCustomer]) {
+              acc[currentCustomer] = {
+                displayName: currentCustomer,
+                shoeings: [],
+              };
+            }
+            acc[currentCustomer].shoeings.push(shoeing);
+            return acc;
+          }
+
+          // Only fall back to counting if the current shoeing has no QB Customer
           // Count QB Customers for this horse
           const customerCounts = horseShoeings.reduce(
             (counts: { [key: string]: number }, s: any) => {
               if (s["QB Customers"]) {
-                const cleanCustomer = s["QB Customers"]
-                  .replace(/^"|"$/g, "")
-                  .trim();
-                counts[cleanCustomer] = (counts[cleanCustomer] || 0) + 1;
+                // Use the exact QB Customers string without cleaning/trimming
+                // This preserves the exact customer name as stored in the database
+                counts[s["QB Customers"]] =
+                  (counts[s["QB Customers"]] || 0) + 1;
               }
               return counts;
             },
             {}
           );
+
+          console.log("Customer counts for horse:", {
+            horse: shoeing.Horses,
+            counts: customerCounts,
+            shoeingId: shoeing.id,
+          });
 
           // Find the most common QB Customer
           let qbCustomer = "No Customer";
