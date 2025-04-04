@@ -1036,34 +1036,37 @@ export default function ShoeingsApprovalPanel() {
         groupedShoeings.noCustomer.shoeings.forEach((shoeing) => {
           // Only process if we have a horse_id and no customer is already selected
           if (shoeing.horse_id && !newSelectedCustomers[shoeing.id]) {
-            // Create a promise to find customer based on horse_id from junction table
+            // Create a promise to find customers based on horse_id from junction table
             const promise = fetchCustomerForHorse(shoeing.horse_id)
-              .then((customerData) => {
-                if (customerData && quickBooksData) {
-                  // Find matching QuickBooks customer
-                  const qbCustomer = quickBooksData.customers.find(
-                    (c) =>
-                      c.displayName.toLowerCase() ===
-                      customerData["Display Name"].toLowerCase()
-                  );
-
-                  if (qbCustomer) {
-                    console.log(
-                      `Pre-selecting customer for shoeing ${shoeing.id} based on customer_horses relationship:`,
-                      {
-                        horseId: shoeing.horse_id,
-                        horseName: shoeing["Horse Name"],
-                        customerId: qbCustomer.id,
-                        customerName: qbCustomer.displayName,
-                      }
+              .then((customers) => {
+                if (customers.length > 0 && quickBooksData) {
+                  // Find first customer with a QuickBooks match
+                  for (const customer of customers) {
+                    const qbCustomer = quickBooksData.customers.find(
+                      (c) =>
+                        c.displayName.toLowerCase() ===
+                        customer["Display Name"].toLowerCase()
                     );
 
-                    newSelectedCustomers[shoeing.id] = qbCustomer.id;
+                    if (qbCustomer) {
+                      console.log(
+                        `Pre-selecting customer for shoeing ${shoeing.id} based on customer_horses relationship:`,
+                        {
+                          horseId: shoeing.horse_id,
+                          horseName: shoeing["Horse Name"],
+                          customerId: qbCustomer.id,
+                          customerName: qbCustomer.displayName,
+                        }
+                      );
+
+                      newSelectedCustomers[shoeing.id] = qbCustomer.id;
+                      break; // Use the first match we find
+                    }
                   }
                 }
               })
               .catch((err) => {
-                console.error("Error finding customer for horse:", err);
+                console.error("Error finding customers for horse:", err);
               });
 
             customerHorsePromises.push(promise);
@@ -1139,265 +1142,211 @@ export default function ShoeingsApprovalPanel() {
         return;
       }
 
-      // Get unique horse_ids from pending shoeings when available, otherwise use Horses string
-      const uniqueHorseIdentifiers: string[] = [];
-      const horseIdConditions: { horse_id: string }[] = [];
-      const horsesStringValues: string[] = [];
+      // Get unique horse_ids from pending shoeings
+      const horseIds = pendingShoeings
+        .map((s) => s.horse_id)
+        .filter((id): id is string => !!id);
 
+      // Maps to store data
+      const horseToCustomerIdsMap: Record<string, string[]> = {}; // horse_id -> array of customer_ids
+      const customerIdToNameMap: Record<string, string> = {}; // customer_id -> display name
+      const customerNameToIdMap: Record<string, string> = {}; // display name -> customer_id
+
+      // 1. First, get all customers from the database to build our name/id maps
+      const { data: allCustomers, error: allCustomersError } = await supabase
+        .from("customers")
+        .select('id, "Display Name"');
+
+      if (!allCustomersError && allCustomers) {
+        for (const customer of allCustomers) {
+          if (customer.id && customer["Display Name"]) {
+            customerIdToNameMap[customer.id] = customer["Display Name"];
+            customerNameToIdMap[customer["Display Name"]] = customer.id;
+          }
+        }
+      }
+
+      // 2. Collect customer IDs from the junction table
+      if (horseIds.length > 0) {
+        const { data: relationships, error: relError } = await supabase
+          .from("customer_horses")
+          .select("horse_id, customer_id")
+          .in("horse_id", horseIds);
+
+        if (!relError && relationships && relationships.length > 0) {
+          for (const rel of relationships) {
+            if (!horseToCustomerIdsMap[rel.horse_id]) {
+              horseToCustomerIdsMap[rel.horse_id] = [];
+            }
+
+            if (
+              !horseToCustomerIdsMap[rel.horse_id].includes(rel.customer_id)
+            ) {
+              horseToCustomerIdsMap[rel.horse_id].push(rel.customer_id);
+            }
+          }
+        }
+      }
+
+      // 3. Add customers from direct QB Customers assignments in shoeings
       for (const shoeing of pendingShoeings) {
-        if (shoeing.horse_id) {
-          if (!uniqueHorseIdentifiers.includes(shoeing.horse_id)) {
-            uniqueHorseIdentifiers.push(shoeing.horse_id);
-            horseIdConditions.push({ horse_id: shoeing.horse_id });
+        if (shoeing.horse_id && shoeing["QB Customers"]) {
+          // Try to find customer ID by name
+          const customerName = shoeing["QB Customers"];
+          const customerId = customerNameToIdMap[customerName];
+
+          if (customerId) {
+            if (!horseToCustomerIdsMap[shoeing.horse_id]) {
+              horseToCustomerIdsMap[shoeing.horse_id] = [];
+            }
+
+            if (!horseToCustomerIdsMap[shoeing.horse_id].includes(customerId)) {
+              horseToCustomerIdsMap[shoeing.horse_id].push(customerId);
+            }
           }
-        } else if (!uniqueHorseIdentifiers.includes(shoeing.Horses)) {
-          uniqueHorseIdentifiers.push(shoeing.Horses);
-          horsesStringValues.push(shoeing.Horses);
         }
       }
 
-      // Fetch all shoeings for these horses, including Owner Email
-      let allShoeings: Shoeing[] = [];
+      // 4. Add customers from legacy Customers field in horses
+      for (const horseId of horseIds) {
+        const { data: horseData, error: horseError } = await supabase
+          .from("horses")
+          .select("Customers")
+          .eq("id", horseId)
+          .single();
 
-      // First, get shoeings by horse_id if any
-      if (horseIdConditions.length > 0) {
-        const { data: shoeingsByHorseId, error: horseIdError } = await supabase
-          .from("shoeings")
-          .select("*")
-          .or(
-            horseIdConditions
-              .map((cond) => `horse_id.eq.${cond.horse_id}`)
-              .join(",")
-          );
-
-        if (!horseIdError && shoeingsByHorseId) {
-          allShoeings = [...allShoeings, ...shoeingsByHorseId] as Shoeing[];
-        }
-      }
-
-      // Then, get shoeings by Horses string for backward compatibility
-      if (horsesStringValues.length > 0) {
-        const { data: shoeingsByHorsesString, error: horsesStringError } =
-          await supabase
-            .from("shoeings")
-            .select("*")
-            .in("Horses", horsesStringValues);
-
-        if (!horsesStringError && shoeingsByHorsesString) {
-          // Add only shoeings that aren't already fetched by horse_id
-          const shoeingIdsAlreadyFetched = allShoeings.map((s) => s.id);
-          const newShoeings = shoeingsByHorsesString.filter(
-            (s) => !shoeingIdsAlreadyFetched.includes(s.id)
-          ) as Shoeing[];
-          allShoeings = [...allShoeings, ...newShoeings];
-        }
-      }
-
-      // Ensure allShoeings is an array, even if empty
-      const safeAllShoeings = allShoeings || [];
-
-      // Group shoeings by horse_id when available, otherwise fallback to Horses string
-      const groupedByHorse = safeAllShoeings.reduce(
-        (acc: { [key: string]: any[] }, shoeing: any) => {
-          const horseKey = shoeing.horse_id || shoeing.Horses;
-          if (!acc[horseKey]) {
-            acc[horseKey] = [];
+        if (!horseError && horseData && horseData.Customers) {
+          if (!horseToCustomerIdsMap[horseId]) {
+            horseToCustomerIdsMap[horseId] = [];
           }
-          acc[horseKey].push(shoeing);
-          return acc;
-        },
-        {}
+
+          // Parse customer names from Customers field
+          const legacyCustomersString = horseData.Customers;
+          const customerNames: string[] = [];
+
+          // Parse with respect for quotes
+          let currentName = "";
+          let inQuotes = false;
+
+          for (let i = 0; i < legacyCustomersString.length; i++) {
+            const char = legacyCustomersString[i];
+
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === "," && !inQuotes) {
+              const trimmedName = currentName.trim();
+              if (trimmedName) {
+                customerNames.push(trimmedName);
+              }
+              currentName = "";
+            } else {
+              currentName += char;
+            }
+          }
+
+          // Add the last name
+          if (currentName.trim()) {
+            customerNames.push(currentName.trim());
+          }
+
+          // Try to map each name to an ID and add to the horse's customers
+          for (const customerName of customerNames) {
+            const customerId = customerNameToIdMap[customerName];
+            if (
+              customerId &&
+              !horseToCustomerIdsMap[horseId].includes(customerId)
+            ) {
+              horseToCustomerIdsMap[horseId].push(customerId);
+            }
+          }
+        }
+      }
+
+      // 5. Create display strings mapping for horses (for UI display)
+      const horseToDisplayStringMap: Record<string, string> = {};
+      for (const [horseId, customerIds] of Object.entries(
+        horseToCustomerIdsMap
+      )) {
+        if (customerIds.length > 0) {
+          // Create a joint string of customer display names
+          const customerNames = customerIds
+            .map((id) => customerIdToNameMap[id])
+            .filter(Boolean);
+
+          const uniqueCustomerNames = [...new Set(customerNames)];
+          horseToDisplayStringMap[horseId] = uniqueCustomerNames.join(", ");
+        }
+      }
+
+      // 6. Create a mapping of horse to a unique key for grouping
+      const horseToGroupKeyMap: Record<string, string> = {};
+      for (const [horseId, customerIds] of Object.entries(
+        horseToCustomerIdsMap
+      )) {
+        if (customerIds.length > 0) {
+          // Sort customer IDs for consistent key generation
+          const sortedIds = [...customerIds].sort();
+          horseToGroupKeyMap[horseId] = sortedIds.join("_");
+        }
+      }
+
+      // 7. Group shoeings
+      const grouped: GroupedShoeings = {};
+
+      // Handle no-customer cases first
+      const shoeingsWithNoCustomer = pendingShoeings.filter(
+        (s) =>
+          !s["QB Customers"] && (!s.horse_id || !horseToGroupKeyMap[s.horse_id])
       );
 
-      // Determine QB Customer for each horse and create final grouping
-      const grouped = pendingShoeings.reduce(
-        (acc: GroupedShoeings, shoeing: any) => {
-          const horseKey = shoeing.horse_id || shoeing.Horses;
-          const horseShoeings = groupedByHorse[horseKey] || [];
+      if (shoeingsWithNoCustomer.length > 0) {
+        grouped.noCustomer = {
+          displayName: "No Customer",
+          shoeings: shoeingsWithNoCustomer,
+        };
+      }
 
-          // Always prioritize the current shoeing's QB Customer if it exists
-          if (shoeing["QB Customers"]) {
-            const currentCustomer = shoeing["QB Customers"];
-            console.log("Using current shoeing's QB Customer:", {
-              horse: shoeing.horse_id || shoeing.Horses,
-              customer: currentCustomer,
-              shoeingId: shoeing.id,
-            });
-
-            if (!acc[currentCustomer]) {
-              acc[currentCustomer] = {
-                displayName: currentCustomer,
-                shoeings: [],
-              };
-            }
-            acc[currentCustomer].shoeings.push(shoeing);
-            return acc;
-          }
-
-          // Only fall back to counting if the current shoeing has no QB Customer
-          // Count QB Customers for this horse
-          const customerCounts = horseShoeings.reduce(
-            (counts: { [key: string]: number }, s: any) => {
-              if (s["QB Customers"]) {
-                counts[s["QB Customers"]] =
-                  (counts[s["QB Customers"]] || 0) + 1;
-              }
-              return counts;
-            },
-            {}
-          );
-
-          console.log("Customer counts for horse:", {
-            horse: shoeing.horse_id || shoeing.Horses,
-            counts: customerCounts,
-            shoeingId: shoeing.id,
-          });
-
-          // Find the most common QB Customer
-          let qbCustomer = "No Customer";
-          let maxCount = 0;
-          for (const [customer, count] of Object.entries(customerCounts)) {
-            if (count > maxCount) {
-              qbCustomer = customer;
-              maxCount = count;
-            }
-          }
-
-          if (!qbCustomer || qbCustomer === "No Customer") {
-            if (!acc.noCustomer) {
-              acc.noCustomer = { displayName: "No Customer", shoeings: [] };
-            }
-            acc.noCustomer.shoeings.push(shoeing);
-          } else {
-            if (!acc[qbCustomer]) {
-              acc[qbCustomer] = { displayName: qbCustomer, shoeings: [] };
-            }
-            acc[qbCustomer].shoeings.push(shoeing);
-          }
-
-          return acc;
-        },
-        {}
-      );
-
-      // After the existing grouped calculation, enhance with customer_horses relationships
-      try {
-        // For shoeings with horse_id but no customer, check the junction table
-        if (grouped.noCustomer && grouped.noCustomer.shoeings.length > 0) {
-          const shoeingsWithHorseId = grouped.noCustomer.shoeings.filter(
-            (shoeing) => shoeing.horse_id && !shoeing["QB Customers"]
-          );
-
-          if (shoeingsWithHorseId.length > 0) {
-            // Extract all horse_ids to check
-            const horseIds = shoeingsWithHorseId
-              .map((s) => s.horse_id)
-              .filter(Boolean) as string[];
-
-            // Fetch customer relationships for these horses from the junction table
-            const { data: customerHorses, error: relationError } =
-              await supabase
-                .from("customer_horses")
-                .select("horse_id, customer_id")
-                .in("horse_id", horseIds);
-
-            if (!relationError && customerHorses && customerHorses.length > 0) {
-              // Create a map of horse_id to customer_id
-              const horseToCustomerMap = customerHorses.reduce(
-                (map: Record<string, string>, rel) => {
-                  map[rel.horse_id] = rel.customer_id;
-                  return map;
-                },
-                {}
-              );
-
-              // Fetch all relevant customers to get their display names
-              const customerIds = [
-                ...new Set(customerHorses.map((ch) => ch.customer_id)),
-              ];
-              const { data: customers, error: customerError } = await supabase
-                .from("customers")
-                .select('id, "Display Name"')
-                .in("id", customerIds);
-
-              if (!customerError && customers) {
-                // Create a map of customer_id to display name
-                const customerDisplayNames = customers.reduce(
-                  (map: Record<string, string>, cust) => {
-                    map[cust.id] = cust["Display Name"];
-                    return map;
-                  },
-                  {}
-                );
-
-                // Now update the grouped structure for shoeings with known customer relationships
-                const updatedGrouped = { ...grouped };
-
-                // Process each shoeing in the noCustomer group
-                const remainingNoCustomer: Shoeing[] = [];
-
-                for (const shoeing of grouped.noCustomer.shoeings) {
-                  if (
-                    shoeing.horse_id &&
-                    horseToCustomerMap[shoeing.horse_id]
-                  ) {
-                    const customerId = horseToCustomerMap[shoeing.horse_id];
-                    const customerName = customerDisplayNames[customerId];
-
-                    if (customerName) {
-                      // Add this shoeing to the appropriate customer group
-                      if (!updatedGrouped[customerName]) {
-                        updatedGrouped[customerName] = {
-                          displayName: customerName,
-                          shoeings: [],
-                        };
-                      }
-
-                      // Move the shoeing to the customer group
-                      updatedGrouped[customerName].shoeings.push({
-                        ...shoeing,
-                        "QB Customers": customerName, // Set the QB Customers field
-                      });
-
-                      console.log(
-                        `Auto-assigned shoeing ${shoeing.id} to customer ${customerName} based on customer_horses relationship`
-                      );
-                      continue; // Skip adding to remainingNoCustomer
-                    }
-                  }
-
-                  // If we reach here, the shoeing stays in noCustomer
-                  remainingNoCustomer.push(shoeing);
-                }
-
-                // Update the noCustomer group with remaining shoeings
-                if (remainingNoCustomer.length > 0) {
-                  updatedGrouped.noCustomer = {
-                    displayName: "No Customer",
-                    shoeings: remainingNoCustomer,
-                  };
-                } else {
-                  // If no shoeings left, remove the noCustomer group
-                  delete updatedGrouped.noCustomer;
-                }
-
-                // Use the updated grouping
-                setGroupedShoeings(updatedGrouped);
-                return; // Exit early since we've set the state
-              }
-            }
-          }
+      // Group the rest by their customer group key
+      for (const shoeing of pendingShoeings) {
+        // Skip if already in noCustomer group
+        if (
+          !shoeing["QB Customers"] &&
+          (!shoeing.horse_id || !horseToGroupKeyMap[shoeing.horse_id])
+        ) {
+          continue;
         }
 
-        // If we didn't early return with enhanced grouping, set the original grouping
-        setGroupedShoeings(grouped);
-      } catch (error) {
-        console.error(
-          "Error enhancing shoeings with customer relationships:",
-          error
-        );
-        setGroupedShoeings(grouped); // Fallback to original grouping
+        let groupKey = "";
+        let displayName = "";
+
+        if (shoeing.horse_id && horseToGroupKeyMap[shoeing.horse_id]) {
+          // Use the group key for this horse
+          groupKey = horseToGroupKeyMap[shoeing.horse_id];
+          displayName = horseToDisplayStringMap[shoeing.horse_id] || "";
+        } else if (shoeing["QB Customers"]) {
+          // Fall back to direct QB Customers if no group key
+          const customerId = customerNameToIdMap[shoeing["QB Customers"]];
+          groupKey = customerId || shoeing["QB Customers"];
+          displayName = shoeing["QB Customers"];
+        } else {
+          continue; // Skip if we can't determine a group
+        }
+
+        if (!grouped[groupKey]) {
+          grouped[groupKey] = {
+            displayName: displayName,
+            shoeings: [],
+          };
+        }
+
+        // Add to the group if not already there
+        if (!grouped[groupKey].shoeings.some((s) => s.id === shoeing.id)) {
+          grouped[groupKey].shoeings.push(shoeing);
+        }
       }
+
+      console.log("Final grouping structure with joint customers:", grouped);
+      setGroupedShoeings(grouped);
     } catch (error) {
       console.error("Failed to fetch pending shoeings:", error);
       toast.error("Failed to fetch pending shoeings");
@@ -1406,6 +1355,7 @@ export default function ShoeingsApprovalPanel() {
     }
   }
 
+  // Update handleAccept to handle customer reassignment
   async function handleAccept(shoeingId: string) {
     if (!isQuickBooksConnected) {
       toast.error("Please connect to QuickBooks before creating invoices");
@@ -1452,6 +1402,33 @@ export default function ShoeingsApprovalPanel() {
         throw new Error("Selected customer not found");
       }
 
+      // Check if the shoeing has a different customer already assigned
+      if (
+        shoeing["QB Customers"] &&
+        shoeing["QB Customers"] !== selectedCustomer.displayName &&
+        shoeing.horse_id
+      ) {
+        console.log(
+          `Changing customer for shoeing ${shoeingId} from ${shoeing["QB Customers"]} to ${selectedCustomer.displayName}`
+        );
+
+        // Get the previous customer's ID
+        const { data: previousCustomer, error: previousCustomerError } =
+          await supabase
+            .from("customers")
+            .select("id")
+            .eq("Display Name", shoeing["QB Customers"])
+            .maybeSingle();
+
+        if (!previousCustomerError && previousCustomer) {
+          // Check if we should remove the previous relationship
+          await removeCustomerHorseRelationshipIfUnused(
+            shoeing.horse_id,
+            previousCustomer.id
+          );
+        }
+      }
+
       const shoeingWithDescription = {
         ...shoeing,
         invoiceDescription: formatInvoiceDescription(shoeing.Description),
@@ -1482,7 +1459,7 @@ export default function ShoeingsApprovalPanel() {
             Invoice: data.invoice.Invoice.DocNumber,
             "QB Customers": selectedCustomer.displayName,
             "Date Sent": currentDate,
-            is_new_horse: false, // Add this line to update is_new_horse
+            is_new_horse: false,
           })
           .eq("id", shoeingId);
 
@@ -1511,6 +1488,10 @@ export default function ShoeingsApprovalPanel() {
               customer_id: customerData.id,
               horse_id: shoeing.horse_id,
             });
+
+            console.log(
+              `Created new customer_horse relationship between customer ${customerData.id} and horse ${shoeing.horse_id}`
+            );
           }
         } else if (shoeing.Horses && !shoeing.horse_id) {
           // Fallback to the old method for backward compatibility
@@ -1541,6 +1522,10 @@ export default function ShoeingsApprovalPanel() {
                 customer_id: customerData.id,
                 horse_id: horseData.id,
               });
+
+              console.log(
+                `Created new customer_horse relationship between customer ${customerData.id} and horse ${horseData.id}`
+              );
             }
 
             // Also update the horse record for future use
@@ -1583,23 +1568,167 @@ export default function ShoeingsApprovalPanel() {
     }
   }
 
+  // Add a function to check and possibly remove horse-customer relationship
+  const removeCustomerHorseRelationshipIfUnused = async (
+    horseId: string,
+    customerId: string
+  ) => {
+    try {
+      console.log(
+        `Checking horse ${horseId} and customer ${customerId} relationship`
+      );
+
+      // Get the customer display name first for the query
+      const { data: customerData, error: customerNameError } = await supabase
+        .from("customers")
+        .select("Display Name")
+        .eq("id", customerId)
+        .single();
+
+      if (customerNameError || !customerData) {
+        console.error(
+          "Error fetching customer display name:",
+          customerNameError
+        );
+        return;
+      }
+
+      // Properly type the customer display name to fix the linter error
+      const customerDisplayName =
+        customerData &&
+        typeof customerData === "object" &&
+        "Display Name" in customerData
+          ? String(customerData["Display Name"])
+          : "";
+
+      // First check if there are any active shoeings with this relationship
+      const { data: activeShoeings, error: shoeingsError } = await supabase
+        .from("shoeings")
+        .select("id")
+        .eq("horse_id", horseId)
+        .eq("status", "pending")
+        .eq("QB Customers", customerDisplayName);
+
+      if (shoeingsError) {
+        console.error("Error checking active shoeings:", shoeingsError);
+        return;
+      }
+
+      if (activeShoeings && activeShoeings.length > 0) {
+        console.log(
+          `Found ${activeShoeings.length} active shoeings for this customer-horse relationship. Not removing the relationship.`
+        );
+        return;
+      }
+
+      // No active shoeings found, safe to remove this specific customer-horse relationship
+      console.log(
+        `No active shoeings found for horse ${horseId} and customer ${customerId}. Removing relationship.`
+      );
+
+      const { error: deleteError } = await supabase
+        .from("customer_horses")
+        .delete()
+        .eq("horse_id", horseId)
+        .eq("customer_id", customerId);
+
+      if (deleteError) {
+        console.error(
+          "Error removing customer-horse relationship:",
+          deleteError
+        );
+        return;
+      }
+
+      console.log(
+        `Successfully removed relationship between horse ${horseId} and customer ${customerId}`
+      );
+
+      // For backward compatibility, also update the "Customers" field in the horse record
+      // First get the current horse data
+      const { data: horseData, error: horseError } = await supabase
+        .from("horses")
+        .select("*, Customers")
+        .eq("id", horseId)
+        .single();
+
+      if (horseError || !horseData) {
+        console.error("Error fetching horse data:", horseError);
+        return;
+      }
+
+      // Update the Customers string field, removing only this specific customer
+      if (horseData.Customers) {
+        const customers = horseData.Customers.split(",")
+          .map((c: string) => c.trim())
+          .filter((c: string) => c !== customerDisplayName);
+
+        const { error: updateError } = await supabase
+          .from("horses")
+          .update({
+            Customers: customers.length > 0 ? customers.join(", ") : null,
+          })
+          .eq("id", horseId);
+
+        if (updateError) {
+          console.error("Error updating horse Customers field:", updateError);
+        } else {
+          console.log(
+            `Successfully updated horse ${horseId} Customers field, removed ${customerDisplayName}`
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Error in removeCustomerHorseRelationshipIfUnused:", err);
+    }
+  };
+
+  // Update the handleReject function
   const handleReject = async (id: string) => {
     try {
       // Start a transaction
       const { data: shoeing, error: fetchError } = await supabase
         .from("shoeings")
-        .select('user_id, "Horse Name"')
+        .select('user_id, "Horse Name", horse_id, "QB Customers"')
         .eq("id", id)
         .single();
 
       if (fetchError) throw fetchError;
 
+      // Get customer ID if we have QB Customers
+      let customerId = null;
+      if (shoeing["QB Customers"]) {
+        const { data: customerData, error: customerError } = await supabase
+          .from("customers")
+          .select("id")
+          .eq("Display Name", shoeing["QB Customers"])
+          .maybeSingle();
+
+        if (!customerError && customerData) {
+          customerId = customerData.id;
+        }
+      }
+
+      // Update the shoeing status and clear customer fields specific to this rejection
       const { error: updateError } = await supabase
         .from("shoeings")
-        .update({ status: "cancelled" })
+        .update({
+          status: "cancelled",
+          "QB Customers": null, // Remove customer association
+          "Owner Email": null,
+        })
         .eq("id", id);
 
       if (updateError) throw updateError;
+
+      // If we have both horse_id and customerId, check if we should remove the relationship
+      // But only remove it if no other shoeings depend on this relationship
+      if (shoeing.horse_id && customerId) {
+        await removeCustomerHorseRelationshipIfUnused(
+          shoeing.horse_id,
+          customerId
+        );
+      }
 
       // Create a notification for the user who created the shoeing
       if (shoeing.user_id) {
@@ -2706,41 +2835,34 @@ interface ReviewHorseModalProps {
 // Update the fetchCustomerForHorse function's return type
 const fetchCustomerForHorse = async (
   horseId: string
-): Promise<CustomerData | null> => {
+): Promise<CustomerData[]> => {
   try {
-    // First get the customer_id from the junction table
+    // First get all customer_ids from the junction table
     const { data: junctionData, error: junctionError } = await supabase
       .from("customer_horses")
       .select("customer_id")
-      .eq("horse_id", horseId)
-      .single();
+      .eq("horse_id", horseId);
 
-    if (junctionError || !junctionData) {
-      return null;
+    if (junctionError || !junctionData || junctionData.length === 0) {
+      return [];
     }
 
-    // Then get the customer details
+    // Extract all customer IDs
+    const customerIds = junctionData.map((item) => item.customer_id);
+
+    // Then get all customer details
     const { data: customerData, error: customerError } = await supabase
       .from("customers")
       .select("*")
-      .eq("id", junctionData.customer_id)
-      .single();
+      .in("id", customerIds);
 
     if (customerError || !customerData) {
-      return null;
+      return [];
     }
 
-    // Add type safety by ensuring we have the required fields
-    return {
-      id: customerData.id,
-      "Display Name": customerData["Display Name"],
-      email: customerData.email,
-      companyName: customerData.companyName,
-      address: customerData.address,
-      phoneNumber: customerData.phoneNumber,
-    } as CustomerData;
+    return customerData;
   } catch (error) {
-    console.error("Error in fetchCustomerForHorse:", error);
-    return null;
+    console.error("Error fetching customers for horse:", error);
+    return [];
   }
 };

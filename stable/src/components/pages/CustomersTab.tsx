@@ -186,8 +186,149 @@ export default function CustomersTab() {
     }
   };
 
+  // Add a helper function to update shoeings when a customer is deleted
+  const updateShoeingsForDeletedCustomer = async (
+    customerDisplayName: string,
+    horseId: string
+  ) => {
+    try {
+      // Find shoeings with this customer and horse
+      const { data: shoeings, error } = await supabase
+        .from("shoeings")
+        .select("id")
+        .eq("horse_id", horseId)
+        .eq("QB Customers", customerDisplayName);
+
+      if (error) {
+        console.error("Error finding shoeings for customer deletion:", error);
+        return;
+      }
+
+      if (shoeings && shoeings.length > 0) {
+        console.log(
+          `Found ${shoeings.length} shoeings to update for deleted customer`
+        );
+
+        // Update the shoeings to remove the customer reference
+        const { error: updateError } = await supabase
+          .from("shoeings")
+          .update({
+            "QB Customers": null,
+            "Owner Email": null,
+          })
+          .eq("horse_id", horseId)
+          .eq("QB Customers", customerDisplayName);
+
+        if (updateError) {
+          console.error(
+            "Error updating shoeings for deleted customer:",
+            updateError
+          );
+        } else {
+          console.log(
+            `Successfully updated ${shoeings.length} shoeings to remove customer reference`
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Error in updateShoeingsForDeletedCustomer:", err);
+    }
+  };
+
+  // Update the handleDelete function to use this helper
   const handleDelete = async (id: string) => {
     try {
+      // First, retrieve all horse relationships for this customer
+      const { data: relationships, error: relationshipsError } = await supabase
+        .from("customer_horses")
+        .select("horse_id")
+        .eq("customer_id", id);
+
+      if (relationshipsError) {
+        console.error(
+          "Error fetching customer-horse relationships:",
+          relationshipsError
+        );
+      } else {
+        // Get customer data for backward compatibility with string-based approach
+        const { data: customerData, error: customerError } = await supabase
+          .from("customers")
+          .select("*")
+          .eq("id", id)
+          .single();
+
+        if (!customerError && customerData) {
+          // Update shoeings for all related horses
+          if (relationships && relationships.length > 0) {
+            for (const relationship of relationships) {
+              await updateShoeingsForDeletedCustomer(
+                customerData["Display Name"],
+                relationship.horse_id
+              );
+            }
+          }
+
+          // Delete the relationships from the junction table
+          const { error: deleteRelError } = await supabase
+            .from("customer_horses")
+            .delete()
+            .eq("customer_id", id);
+
+          if (deleteRelError) {
+            console.error(
+              "Error deleting customer-horse relationships:",
+              deleteRelError
+            );
+          } else {
+            console.log(
+              "Successfully deleted customer-horse relationships from junction table"
+            );
+          }
+
+          // Update the Customers field in horses table (for backward compatibility)
+          if (customerData.Horses) {
+            const horseEntries = customerData.Horses.split(",").map(
+              (h: string) => h.trim()
+            );
+
+            for (const horseEntry of horseEntries) {
+              // Parse horse name and barn from "name - [barn]" format
+              const match = horseEntry.match(/^(.+?)\s*-\s*\[(.+?)\]$/);
+              if (match) {
+                const [_, name, barn] = match;
+
+                // Get the horse
+                const { data: horseData, error: horseError } = await supabase
+                  .from("horses")
+                  .select("*")
+                  .ilike("Name", name.trim())
+                  .ilike('"Barn / Trainer"', barn.trim())
+                  .maybeSingle();
+
+                if (!horseError && horseData) {
+                  // Remove this customer from the horse's Customers field
+                  const currentCustomers = horseData.Customers
+                    ? horseData.Customers.split(",").map((c: string) =>
+                        c.trim()
+                      )
+                    : [];
+
+                  const updatedCustomers = currentCustomers
+                    .filter((c: string) => c !== customerData["Display Name"])
+                    .join(", ");
+
+                  await supabase
+                    .from("horses")
+                    .update({ Customers: updatedCustomers || null })
+                    .eq("id", horseData.id);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Finally, delete the customer record
       const { error } = await supabase.from("customers").delete().eq("id", id);
       if (error) throw error;
 

@@ -35,6 +35,55 @@ const validateEmails = (emails: string): boolean => {
   return emailList.every((email) => emailRegex.test(email));
 };
 
+// Add a helper function to update shoeings when a horse is removed from a customer
+const updateShoeingsWhenHorseRemoved = async (
+  horseId: string,
+  customerDisplayName: string
+) => {
+  try {
+    // Find any shoeings for this horse that have this customer assigned
+    const { data: shoeings, error } = await supabase
+      .from("shoeings")
+      .select("id")
+      .eq("horse_id", horseId)
+      .eq("QB Customers", customerDisplayName);
+
+    if (error) {
+      console.error("Error finding shoeings to update:", error);
+      return;
+    }
+
+    if (shoeings && shoeings.length > 0) {
+      console.log(
+        `Found ${shoeings.length} shoeings to update after removing customer from horse`
+      );
+
+      // Update the shoeings to remove the customer reference
+      const { error: updateError } = await supabase
+        .from("shoeings")
+        .update({
+          "QB Customers": null,
+          "Owner Email": null,
+        })
+        .eq("horse_id", horseId)
+        .eq("QB Customers", customerDisplayName);
+
+      if (updateError) {
+        console.error(
+          "Error updating shoeings after removing customer from horse:",
+          updateError
+        );
+      } else {
+        console.log(
+          `Successfully updated ${shoeings.length} shoeings to remove customer reference`
+        );
+      }
+    }
+  } catch (err) {
+    console.error("Error in updateShoeingsWhenHorseRemoved:", err);
+  }
+};
+
 export default function NewCustomer() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -161,6 +210,9 @@ export default function NewCustomer() {
     const formData = new FormData(e.currentTarget);
     const customerData = Object.fromEntries(formData.entries());
 
+    // Ensure Display Name is treated as a string
+    const displayName = customerData["Display Name"]?.toString() || "";
+
     // Validate emails before submission
     if (!validateEmails(customerData["Owner Email"] as string)) {
       toast.error("Please fix the email format before submitting");
@@ -176,14 +228,121 @@ export default function NewCustomer() {
       console.log("Formatted Horses:", formattedHorses);
       customerData.Horses = formattedHorses.join(", ");
 
-      if (id) {
-        // Get current customer's horses before update
-        const { data: currentCustomer } = await supabase
-          .from("customers")
-          .select("Horses")
-          .eq("id", id)
+      // Parse horse ids from the selectedHorses
+      const selectedHorseIds: string[] = [];
+      for (const horseName of selectedHorses) {
+        // Parse horse name and barn from the format "name__barn"
+        const match = horseName.match(/^(.+?)__(.+?)$/);
+        if (!match) {
+          console.log("Failed to parse horse name format:", horseName);
+          continue;
+        }
+        const [_, name, barn] = match;
+        const { data: horseData } = await supabase
+          .from("horses")
+          .select("id")
+          .ilike("Name", name.trim())
+          .ilike('"Barn / Trainer"', barn.trim())
           .single();
 
+        if (horseData) {
+          selectedHorseIds.push(horseData.id);
+        }
+      }
+
+      let customerId: string;
+
+      if (id) {
+        // EDIT EXISTING CUSTOMER
+
+        // Get current customer's horses before update
+        const { data: currentCustomer, error: customerFetchError } =
+          await supabase
+            .from("customers")
+            .select("Horses")
+            .eq("id", id)
+            .single();
+
+        if (customerFetchError) {
+          throw customerFetchError;
+        }
+
+        // Get current horse relationships from the junction table
+        const { data: existingRelationships, error: relationshipsError } =
+          await supabase
+            .from("customer_horses")
+            .select("horse_id")
+            .eq("customer_id", id);
+
+        if (relationshipsError) {
+          throw relationshipsError;
+        }
+
+        const existingHorseIds =
+          existingRelationships?.map((r) => r.horse_id) || [];
+
+        // Update customer record
+        const { error: updateError } = await supabase
+          .from("customers")
+          .update(customerData)
+          .eq("id", id);
+
+        if (updateError) throw updateError;
+
+        customerId = id;
+
+        // Update horse-customer relationships in the junction table
+
+        // 1. Remove relationships that are no longer valid
+        const horseIdsToRemove = existingHorseIds.filter(
+          (existingId) => !selectedHorseIds.includes(existingId)
+        );
+
+        if (horseIdsToRemove.length > 0) {
+          // Update shoeings for each horse being removed from this customer
+          for (const horseId of horseIdsToRemove) {
+            await updateShoeingsWhenHorseRemoved(horseId, displayName);
+          }
+
+          // Then remove the relationship from the junction table
+          const { error: removeError } = await supabase
+            .from("customer_horses")
+            .delete()
+            .eq("customer_id", id)
+            .in("horse_id", horseIdsToRemove);
+
+          if (removeError) {
+            console.error(
+              "Error removing horse-customer relationships:",
+              removeError
+            );
+          }
+        }
+
+        // 2. Add new relationships
+        const horseIdsToAdd = selectedHorseIds.filter(
+          (selectedId) => !existingHorseIds.includes(selectedId)
+        );
+
+        if (horseIdsToAdd.length > 0) {
+          const newRelationships = horseIdsToAdd.map((horseId) => ({
+            customer_id: id,
+            horse_id: horseId,
+          }));
+
+          const { error: addError } = await supabase
+            .from("customer_horses")
+            .insert(newRelationships);
+
+          if (addError) {
+            console.error(
+              "Error adding horse-customer relationships:",
+              addError
+            );
+          }
+        }
+
+        // Keep the old logic for backward compatibility
         const previousHorses = currentCustomer?.Horses
           ? currentCustomer.Horses.split(",")
               .map((h: string) => {
@@ -201,14 +360,7 @@ export default function NewCustomer() {
               .filter(Boolean)
           : [];
 
-        // Update customer record
-        const { error } = await supabase
-          .from("customers")
-          .update(customerData)
-          .eq("id", id);
-        if (error) throw error;
-
-        // Handle horse relationships
+        // Handle horse relationships using the old string format method
         // Remove customer from unselected horses
         for (const horseName of previousHorses) {
           if (!selectedHorses.includes(horseName)) {
@@ -240,7 +392,7 @@ export default function NewCustomer() {
                 ? horseData.Customers.split(",").map((c: string) => c.trim())
                 : [];
               const updatedCustomers = currentCustomers
-                .filter((c: string) => c !== customerData["Display Name"])
+                .filter((c: string) => c !== displayName)
                 .join(", ");
 
               await supabase
@@ -256,7 +408,7 @@ export default function NewCustomer() {
                 .from("shoeings")
                 .select("*")
                 .eq("Horses", formattedHorseName)
-                .eq("QB Customers", customerData["Display Name"])
+                .eq("QB Customers", displayName)
                 .eq("status", "pending");
 
               if (findError) {
@@ -275,7 +427,7 @@ export default function NewCustomer() {
                       "Owner Email": null,
                     })
                     .eq("Horses", formattedHorseName)
-                    .eq("QB Customers", customerData["Display Name"])
+                    .eq("QB Customers", displayName)
                     .eq("status", "pending");
 
                   if (updateError) {
@@ -303,9 +455,10 @@ export default function NewCustomer() {
           }
         }
 
-        // Add customer to newly selected horses
+        // Add customer to newly selected horses (old string method)
         for (const horseName of selectedHorses) {
           if (!previousHorses.includes(horseName)) {
+            // This code is now redundant with junction table but kept for backward compatibility
             // Parse horse name and barn from the format "name__barn"
             const match = horseName.match(/^(.+?)__(.+?)$/);
             if (!match) {
@@ -326,8 +479,8 @@ export default function NewCustomer() {
                 ? horseData.Customers.split(",").map((c: string) => c.trim())
                 : [];
 
-              if (!currentCustomers.includes(customerData["Display Name"])) {
-                currentCustomers.push(customerData["Display Name"]);
+              if (!currentCustomers.includes(displayName)) {
+                currentCustomers.push(displayName);
 
                 try {
                   // First verify the horse exists
@@ -393,7 +546,7 @@ export default function NewCustomer() {
                 console.log("Customer already exists for horse:", {
                   horseName: name.trim(),
                   customers: currentCustomers,
-                  displayName: customerData["Display Name"],
+                  displayName: displayName,
                 });
               }
             } else {
@@ -423,7 +576,7 @@ export default function NewCustomer() {
           const { error: shoeingError } = await supabase
             .from("shoeings")
             .update({
-              "QB Customers": customerData["Display Name"],
+              "QB Customers": displayName,
               "Owner Email": customerData["Owner Email"],
             })
             .in("Horses", formattedHorseNames)
@@ -439,12 +592,38 @@ export default function NewCustomer() {
 
         toast.success("Customer updated successfully");
       } else {
-        // Create new customer
-        const { error } = await supabase
+        // CREATE NEW CUSTOMER
+
+        // Create new customer record
+        const { data: newCustomer, error } = await supabase
           .from("customers")
-          .insert([customerData]);
+          .insert([customerData])
+          .select();
+
         if (error) throw error;
 
+        customerId = newCustomer[0].id;
+
+        // Add relationships to the junction table
+        if (selectedHorseIds.length > 0) {
+          const newRelationships = selectedHorseIds.map((horseId) => ({
+            customer_id: customerId,
+            horse_id: horseId,
+          }));
+
+          const { error: relationshipError } = await supabase
+            .from("customer_horses")
+            .insert(newRelationships);
+
+          if (relationshipError) {
+            console.error(
+              "Error creating horse-customer relationships:",
+              relationshipError
+            );
+          }
+        }
+
+        // Keep old string-based logic for backward compatibility
         // Add customer to all selected horses
         for (const horseName of selectedHorses) {
           // Parse horse name and barn from the format "name__barn"
@@ -480,8 +659,8 @@ export default function NewCustomer() {
               ? horseData.Customers.split(",").map((c: string) => c.trim())
               : [];
 
-            if (!currentCustomers.includes(customerData["Display Name"])) {
-              currentCustomers.push(customerData["Display Name"]);
+            if (!currentCustomers.includes(displayName)) {
+              currentCustomers.push(displayName);
 
               try {
                 // First verify the horse exists
@@ -558,7 +737,7 @@ export default function NewCustomer() {
           await supabase
             .from("shoeings")
             .update({
-              "QB Customers": customerData["Display Name"],
+              "QB Customers": displayName,
               "Owner Email": customerData["Owner Email"],
             })
             .in("Horses", horseNames)
@@ -567,6 +746,31 @@ export default function NewCustomer() {
 
         toast.success("Customer added successfully");
       }
+
+      // Also update the horse_id field in any related shoeings
+      if (selectedHorseIds.length > 0) {
+        for (const horseId of selectedHorseIds) {
+          // Find shoeings with this horse_id
+          const { data: shoeings } = await supabase
+            .from("shoeings")
+            .select("id")
+            .eq("horse_id", horseId)
+            .eq("status", "pending");
+
+          if (shoeings && shoeings.length > 0) {
+            // Update the QB Customers field
+            await supabase
+              .from("shoeings")
+              .update({
+                "QB Customers": displayName,
+                "Owner Email": customerData["Owner Email"],
+              })
+              .eq("horse_id", horseId)
+              .eq("status", "pending");
+          }
+        }
+      }
+
       navigate("/shoeings-approval-panel?tab=customers");
     } catch (error) {
       console.error("Error saving customer:", error);
