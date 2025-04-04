@@ -272,7 +272,11 @@ export default function Notes() {
                 })),
                 ...horseProfiles.map((horse) => ({
                   id: horse.id,
-                  display: `${horse.Name} - ${horse["Barn / Trainer"]}`,
+                  display: `${horse.Name || "Unknown Horse"}${
+                    horse["Barn / Trainer"]
+                      ? ` - ${horse["Barn / Trainer"]}`
+                      : ""
+                  }`,
                   type: "horse",
                 })),
               ]}
