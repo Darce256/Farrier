@@ -889,11 +889,11 @@ function HorseDetailsModal({
           return `${date}: ${note.content}`;
         });
 
-      // Fetch all shoeings for the horse
+      // Fetch all shoeings for the horse using horse_id
       const { data: shoeingsData, error: shoeingsError } = await supabase
         .from("shoeings")
         .select("*")
-        .eq("Horses", `${horse.Name} - [${horse["Barn / Trainer"]}]`)
+        .eq("horse_id", horse.id)
         .order("Date of Service", { ascending: false });
 
       if (shoeingsError) throw shoeingsError;

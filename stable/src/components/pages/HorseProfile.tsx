@@ -101,11 +101,50 @@ export default function HorseProfile() {
       if (!horse) return;
 
       try {
-        const horseIdentifier = `${horse.Name} - [${horse["Barn / Trainer"]}]`;
-        const { data, error } = await supabase
+        // Try to fetch shoeings using horse_id first
+        let { data, error } = await supabase
           .from("shoeings")
           .select("*")
-          .eq("Horses", horseIdentifier);
+          .eq("horse_id", horse.id);
+
+        // If no results or error, try the old method with string concatenation
+        if (
+          (error || !data || data.length === 0) &&
+          horse.Name &&
+          horse["Barn / Trainer"]
+        ) {
+          const horseIdentifier = `${horse.Name} - [${horse["Barn / Trainer"]}]`;
+          const oldMethodResult = await supabase
+            .from("shoeings")
+            .select("*")
+            .eq("Horses", horseIdentifier);
+
+          if (
+            !oldMethodResult.error &&
+            oldMethodResult.data &&
+            oldMethodResult.data.length > 0
+          ) {
+            console.log("Using legacy identifier method for shoeings");
+            data = oldMethodResult.data;
+            error = null;
+
+            // Update these records with the correct horse_id for future use
+            for (const shoeing of data) {
+              await supabase
+                .from("shoeings")
+                .update({ horse_id: horse.id })
+                .eq("id", shoeing.id)
+                .then((res) => {
+                  if (res.error) {
+                    console.error(
+                      `Failed to update shoeing ${shoeing.id} with horse_id`,
+                      res.error
+                    );
+                  }
+                });
+            }
+          }
+        }
 
         if (error) throw error;
 

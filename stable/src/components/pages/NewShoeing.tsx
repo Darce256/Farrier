@@ -102,6 +102,7 @@ interface Shoeing {
   "Location of Service": string;
   "Shoe Notes"?: string;
   Horses: string;
+  horse_id?: string;
   status: string;
 }
 
@@ -212,6 +213,21 @@ function SubmittedShoeings({
   };
 
   const handleEdit = async (shoeing: any) => {
+    // If a horse_id is available, use it directly
+    if (shoeing.horse_id) {
+      const matchingHorse = horses.find(
+        (horse: Horse) => horse.id === shoeing.horse_id
+      );
+
+      if (matchingHorse) {
+        // Update the shoeing object with the correct horse ID
+        shoeing.horseName = matchingHorse.id;
+        onEdit(shoeing);
+        return;
+      }
+    }
+
+    // Fall back to the old method if horse_id is not available or the horse wasn't found
     // If it's a new horse (is_new_horse is true), we need to find the temporary horse
     if (shoeing.is_new_horse) {
       const horseName = shoeing["Horse Name"];
@@ -782,29 +798,40 @@ export default function ShoeingForm() {
     if (editingShoeing) {
       console.log("Populating form with editing shoeing:", editingShoeing);
 
-      // Parse the horse name and barn from the "Horses" field
-      const [horseName, barnInfo] = editingShoeing.Horses.split(" - ");
-      const barn = barnInfo?.replace(/[\[\]]/g, "").trim();
+      let selectedHorse: Horse | null = null;
 
-      // Find the corresponding horse in the horses array
-      let selectedHorse = horses.find(
-        (h) => h.name === horseName && h.barn === barn
-      );
+      // First, try to find the horse by horse_id if available
+      if (editingShoeing.horse_id) {
+        selectedHorse =
+          horses.find((h) => h.id === editingShoeing.horse_id) || null;
+      }
 
-      // If we can't find the horse and it's a new horse, create a temporary one
-      if (!selectedHorse && editingShoeing.is_new_horse) {
-        selectedHorse = {
-          id: `temp_${Date.now()}`,
-          name: horseName,
-          barn: barn,
-          ownerEmail: editingShoeing["Owner Email"] || null,
-          ownerPhone: null,
-          customerName: editingShoeing["QB Customers"] || null,
-          alert: null,
-        } as Horse;
+      // If no horse found by horse_id, try the string concatenation method
+      if (!selectedHorse) {
+        // Parse the horse name and barn from the "Horses" field
+        const [horseName, barnInfo] = editingShoeing.Horses.split(" - ");
+        const barn = barnInfo?.replace(/[\[\]]/g, "").trim();
 
-        // Add the temporary horse to the horses array
-        setHorses((prev) => [...prev, selectedHorse as Horse]);
+        // Find the corresponding horse in the horses array
+        selectedHorse =
+          horses.find((h) => h.name === horseName && h.barn === barn) || null;
+
+        // If we can't find the horse and it's a new horse, create a temporary one
+        if (!selectedHorse && editingShoeing.is_new_horse) {
+          const tempHorse: Horse = {
+            id: `temp_${Date.now()}`,
+            name: horseName,
+            barn: barn,
+            ownerEmail: editingShoeing["Owner Email"] || null,
+            ownerPhone: null,
+            customerName: editingShoeing["QB Customers"] || null,
+            alert: null,
+          };
+
+          // Add the temporary horse to the horses array
+          setHorses((prev) => [...prev, tempHorse]);
+          selectedHorse = tempHorse;
+        }
       }
 
       if (!selectedHorse) {
@@ -1140,6 +1167,7 @@ export default function ShoeingForm() {
         status: "pending",
         user_id: user.id,
         is_new_horse: isNewHorse,
+        horse_id: selectedHorse.id,
       };
 
       console.log("Prepared shoeingData:", shoeingData);
