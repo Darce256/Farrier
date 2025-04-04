@@ -76,6 +76,7 @@ interface Shoeing {
   "Hind Add-On's": string;
   "Cost of Hind Add-Ons": string;
   status: string;
+  horse_id?: string;
 }
 
 interface Horse {
@@ -333,9 +334,18 @@ export default function Calendar() {
       ? shoeing.Horses.split(" - ")
       : ["Unknown Horse", ""];
 
-    // Check if the horse has an alert
-    const horse = horses.find((h) => h.Name === horseName);
-    const hasAlert = horse && horse.alert;
+    // First try to find the horse by its ID if available
+    let horse: Horse | undefined;
+    if (shoeing.horse_id) {
+      horse = horses.find((h) => h.id === shoeing.horse_id);
+    }
+
+    // Fall back to name-based lookup if needed
+    if (!horse) {
+      horse = horses.find((h) => h.Name === horseName);
+    }
+
+    const hasAlert = horse ? horse.alert : null;
 
     return (
       <div
@@ -379,10 +389,17 @@ export default function Calendar() {
         {calendarDays.map((day, index) => {
           const shoeingsForDay = day ? getShoeingsForDate(day) : [];
           const hasAlert = shoeingsForDay.some((shoeing) => {
+            // First try to find the horse by its ID if available
+            if (shoeing.horse_id) {
+              const horse = horses.find((h) => h.id === shoeing.horse_id);
+              if (horse?.alert) return true;
+            }
+
+            // Fall back to the old method if horse_id is not available or horse not found
             if (!shoeing.Horses) return false;
             const [horseName] = shoeing.Horses.split(" - ");
             const horse = horses.find((h) => h.Name === horseName);
-            return horse && horse.alert;
+            return !!horse?.alert;
           });
 
           return (
@@ -428,6 +445,14 @@ export default function Calendar() {
         {weekDays.map((day, index) => {
           const shoeingsForDay = getShoeingsForDate(day);
           const hasAlert = shoeingsForDay.some((shoeing) => {
+            // First try to find the horse by its ID if available
+            if (shoeing.horse_id) {
+              const horse = horses.find((h) => h.id === shoeing.horse_id);
+              if (horse && horse.alert) return true;
+            }
+
+            // Fall back to the old method if horse_id is not available or horse not found
+            if (!shoeing.Horses) return false;
             const [horseName] = shoeing.Horses.split(" - ");
             const horse = horses.find((h) => h.Name === horseName);
             return horse && horse.alert;
@@ -541,6 +566,8 @@ export default function Calendar() {
         "1. Invoice": null,
         "Date Sent": null,
         user_id: user.id,
+        // Preserve the horse_id if it exists
+        horse_id: shoeing.horse_id || null,
       };
 
       console.log("Attempting to insert new shoeing:", newShoeing);
@@ -619,9 +646,24 @@ export default function Calendar() {
                 const bgColor = getLocationColor(
                   shoeing["Location of Service"]
                 );
-                const [horseName, barnTrainer] = shoeing.Horses.split(" - ");
-                const horse = horses.find((h) => h.Name === horseName);
-                const hasAlert = horse && horse.alert;
+
+                // Extract horse name and barn/trainer from Horses string if available
+                const [horseName, barnTrainer] = shoeing.Horses
+                  ? shoeing.Horses.split(" - ")
+                  : ["Unknown Horse", ""];
+
+                // First try to find the horse by its ID if available
+                let horse: Horse | undefined;
+                if (shoeing.horse_id) {
+                  horse = horses.find((h) => h.id === shoeing.horse_id);
+                }
+
+                // Fall back to name-based lookup if needed
+                if (!horse) {
+                  horse = horses.find((h) => h.Name === horseName);
+                }
+
+                const hasAlert = horse ? horse.alert : null;
                 return (
                   <div
                     key={shoeing.id}
@@ -658,11 +700,8 @@ export default function Calendar() {
                     {hasAlert && (
                       <div className="flex items-start bg-red-100 text-red-700 p-2 rounded-md mb-2 text-xs">
                         <AlertCircle className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5" />
-                        <span
-                          className="line-clamp-2"
-                          title={horse.alert || ""}
-                        >
-                          {horse.alert}
+                        <span className="line-clamp-2" title={hasAlert || ""}>
+                          {hasAlert}
                         </span>
                       </div>
                     )}
